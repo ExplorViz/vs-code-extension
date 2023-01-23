@@ -1,0 +1,67 @@
+{
+  "name": "explorviz-support",
+  "displayName": "ExplorViz Support",
+  "description": "Placeholder Description",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "explorviz-support.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "explorviz-support.webview",
+        "title": "ExplorViz webview"
+      },
+      {
+        "command": "explorviz-support.testCommand",
+        "title": "ExplorViz TestCommand Callback"
+      },
+      {
+        "command": "explorviz-support.VizDoubleClickOnMesh",
+        "title": "ExplorViz VizDoubleClickOnMesh"
+      },
+      {
+        "command": "explorviz-support.VizSingleClickOnMesh",
+        "title": "VizSingleClickOnMesh"
+      },
+      {
+        "command": "explorviz-support.IdeTestCallback",
+        "title": "IdeTestCallback"
+      }
+    ]
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.0.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "@vscode/test-electron": "^2.2.0",
+    "eslint": "^8.28.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.1.0",
+    "typescript": "^4.9.3"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "request-promise-native": "^1.0.9",
+    "socket.io": "^4.5.4",
+    "socket.io-client": "^4.5.4"
+  }
+}
