@@ -1,6 +1,7 @@
 import express from 'express';
 import {Server} from 'socket.io';
 import http from 'http';
+import { IDEApiCall, IDEApiDest } from './types';
 
 const backend = express();
 const server = http.createServer(backend);
@@ -23,12 +24,15 @@ io.on('connection', (socket) => {
     // socket.emit("testResponse", "Hello Client")
   });
 
-  socket.on('vizDo', (data) => {
-    socket.broadcast.emit('vizDo', data);
+  socket.on(IDEApiDest.VizDo, (data: IDEApiCall) => {
+    // console.log("vizDo")
+    // console.log(data)
+    socket.broadcast.emit(IDEApiDest.VizDo, data);
   });
-  socket.on('ideDo', (data) => {
-    console.log("ideDo")
-    socket.broadcast.emit('ideDo', data);
+  socket.on(IDEApiDest.IDEDo, (data: IDEApiCall) => {
+    // console.log("ideDo")
+    // console.log(data)
+    socket.broadcast.emit(IDEApiDest.IDEDo, data);
   });
 
   socket.on('vizDoubleClickOnMesh', (data) => {
