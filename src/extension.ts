@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import { port, backend } from './extension_backend';
 import io from 'socket.io-client';
+import path from 'path';
 
 const socket = io('http://localhost:' + port);
 
@@ -13,18 +14,25 @@ socket.on("ideDo", (data) => {
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
-
-	vscode.languages.registerHoverProvider('java', {
-        provideHover(document, position) {
-            // Get the word at the current position
-            const word = document.getText(document.getWordRangeAtPosition(position));
     
-            // Check if the word is a custom decorator
-            if (word === 'public') {
-                return new vscode.Hover('This is a custom decorator');
-            }
-        }
-    });
+    const openEditor = vscode.window.visibleTextEditors[0]
+    decorate(openEditor)
+
+    const provider = new ApiCallCodeLensProvider();
+    context.subscriptions.push(vscode.languages.registerCodeLensProvider('java', provider));
+    context.subscriptions.push(vscode.languages.registerHoverProvider('java', provider));
+   
+	// vscode.languages.registerHoverProvider('java', {
+    //     provideHover(document, position) {
+    //         // Get the word at the current position
+    //         const word = document.getText(document.getWordRangeAtPosition(position));
+    
+    //         // Check if the word is a custom decorator
+    //         if (word === 'public') {
+    //             return new vscode.Hover('This is a custom decorator');
+    //         }
+    //     }
+    // });
     // vscode.editor.document.getText()
     // https://github.com/spring-projects/spring-petclinic
     // needs async
@@ -39,6 +47,9 @@ export async function activate(context: vscode.ExtensionContext) {
             editor => editor.document.uri === event.document.uri
         )[0]
         decorate(openEditor)
+        // context.
+        // provider.provideCodeLenses(openEditor.document, new vscode.CancellationTokenSource().token)
+        // provider.provideHover(openEditor.document, )
     })
 
     ///// decorations end
@@ -65,9 +76,10 @@ export async function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(VizDoubleClickOnMesh);
 
-    let IdeTestCallback = vscode.commands.registerCommand('explorviz-vscode-extension.IdeTestCallback', function () {
+    let IdeTestCallback = vscode.commands.registerCommand('explorviz-vscode-extension.IdeTestCallback', function (arg1: any, arg2: any) {
         socket.emit("ideDO", { msg: "test" })
-        vscode.window.showInformationMessage('IdeTestCallback');
+        console.log(arg1, arg2)
+        vscode.window.showInformationMessage('IdeTestCallback ' + arg1);
     });
     context.subscriptions.push(IdeTestCallback);
 
@@ -103,7 +115,7 @@ export function deactivate() {}
 
 let iconUri = vscode.Uri.file('https://as1.ftcdn.net/v2/jpg/03/87/72/16/1000_F_387721677_jktomouPue2J6vPQKSFKWJdO0MvsmoBL.jpg');
 const decorationType = vscode.window.createTextEditorDecorationType({
-    backgroundColor: 'green',
+    // backgroundColor: 'green',
     border: '2px solid white',
     // gutterIconPath: 'C:/Lenny/Studium/vs-code-extension/media/explorviz-logo-dark.png',
     // gutterIconSize: 'contain',
@@ -112,6 +124,8 @@ const decorationType = vscode.window.createTextEditorDecorationType({
 
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor
+let classMethodArray: string[] = []
+
 function decorate(editor: vscode.TextEditor) {
     let sourceCode = editor.document.getText()
     // class\s([\w\d]+)[\w\s]+(.+)|[\w\d\<>]+\s([\w]+)(\(\)|\([\w\s]+\))(.+)|(}{1}|{{1})
@@ -125,6 +139,7 @@ function decorate(editor: vscode.TextEditor) {
     // let regex = /(class)/
 
     let decorationsArray = [] //: vscode.DecorationOptions[] = []
+    classMethodArray = [];
 
     const sourceCodeArr = sourceCode.split('\n')
 
@@ -141,11 +156,13 @@ function decorate(editor: vscode.TextEditor) {
             if(match[1]) {
                 matchLength = match[2].length
                 matchIndex += match[1].length
+                classMethodArray.push(match[2])
             }
             // Case: Method
             else if( match[5]) {
                 matchLength = match[5].length
                 matchIndex += match[4].length
+                classMethodArray.push(match[5])
             }
 
             let range = new vscode.Range(
@@ -154,7 +171,6 @@ function decorate(editor: vscode.TextEditor) {
             )
 
             let decoration = { range }
-
             decorationsArray.push(decoration)
         }
     }
@@ -185,3 +201,47 @@ function getWebviewContent() {
     </body>
     </html>`;
 }
+
+
+class ApiCallCodeLensProvider implements vscode.CodeLensProvider, vscode.HoverProvider {
+    public provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] {
+        const codeLenses: vscode.CodeLens[] = [];
+        const text = document.getText();
+        const lines = text.split(/\r?\n/g);
+
+        console.log(classMethodArray)
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            classMethodArray.map(elem => {
+                if(line.includes("" + elem + "")) {
+                    const codeLens = new vscode.CodeLens(new vscode.Range(i, 0, i, 0), {
+                        title: "Open " + elem + " in ExplorViz",
+                        command: "explorviz-vscode-extension.IdeTestCallback",
+                        arguments: [elem, "und ein Zweiter"],
+                        // tooltip: "Moin"
+                    });
+                    codeLenses.push(codeLens);
+                }
+            })
+            // if (line.includes("public")) {
+            //     const codeLens = new vscode.CodeLens(new vscode.Range(i, 0, i, 0), {
+            //         title: "Public keyword found here",
+            //         command: "explorviz-vscode-extension.IdeTestCallback",
+            //         arguments: ["Das ist ein Argument in einem Array", "und ein Zweiter"],
+            //         tooltip: "Moin"
+            //     });
+            //     codeLenses.push(codeLens);
+            // }
+        }
+        return codeLenses;
+    }
+    public provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): vscode.Hover | undefined {
+        const range = document.getWordRangeAtPosition(position);
+        const word = document.getText(range);
+        if (word === "public") {
+            return new vscode.Hover("This keyword is used to specify that a member or a class is accessible from outside the class or the package.");
+        }
+    }
+}
+
+
