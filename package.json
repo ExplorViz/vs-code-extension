@@ -39,15 +39,16 @@
       {
         "command": "explorviz-vscode-extension.IdeTestCallback",
         "title": "IdeTestCallback"
+      },
+      {
+        "command": "explorviz-vscode-extension.OpenInExplorViz",
+        "title": "OpenInExplorViz"
+      },
+      {
+        "command": "explorviz-vscode-extension.openSplitWindow",
+        "title": "openSplitWindow"
       }
-    ],
-    "menus": {
-      "testing/item/gutter": [
-        {
-          "command": "explorviz-vscode-extension.helloWorld"
-        }
-      ]
-    }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -81,6 +82,7 @@
     "@types/socket.io": "^3.0.2",
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "fs": "^0.0.1-security",
     "request-promise-native": "^1.0.9",
     "socket.io": "^4.5.4",
     "socket.io-client": "^4.5.4"
