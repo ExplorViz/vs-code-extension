@@ -7,21 +7,33 @@ export enum IDEApiActions {
     SingleClickOnMesh = "singleClickOnMesh",
     DoubleClickOnMesh = "doubleClickOnMesh",
     ClickTimeline = "clickTimeLine",
-    GetVizData = "getVizData"
+    GetVizData = "getVizData",
+    JumpToLocation = "jumpToLocation"
   
   }
   
 export type IDEApiCall = {
     action: IDEApiActions,
-    data: OrderTuple[]
+    data: OrderTuple[],
+    meshId: string
   }
   
 export type ParentOrder = {
-    name: string,
-    childs: ParentOrder[]
+    fqn: string,
+    childs: ParentOrder[],
+    meshId: string,
   }
   
 export type OrderTuple = {
     hierarchyModel: ParentOrder,
-    meshNames: string[]
+    meshes: {meshNames: string[], meshIds: string[]}
   }
+
+export type classMethod = {
+    name: string,
+    fqn: string,
+    lineString: string,
+    lineNumber: number,
+    // meshId: string,
+    // fileLocation: string,
+}
