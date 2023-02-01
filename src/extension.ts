@@ -7,6 +7,7 @@ import path from 'path';
 import { classMethod, IDEApiActions, IDEApiCall, IDEApiDest, OrderTuple, ParentOrder } from './types';
 import { ConsoleReporter } from '@vscode/test-electron';
 import * as fs from 'fs';
+import { promisify } from 'util';
 
 const socket = io('http://localhost:' + port);
 
@@ -45,6 +46,8 @@ export async function activate(context: vscode.ExtensionContext) {
         switch (data.action) {
             case IDEApiActions.JumpToLocation:
                 console.log('GoTo Mesh: ' + data.meshId);
+
+
                 goToLocationsByMeshId(data.meshId, data.data)
 
 
@@ -260,7 +263,7 @@ function buildClassMethodArr(editor: vscode.TextEditor, vizData: OrderTuple[], d
             let fqn = sourceCodeArr[line].split(" ")[1].split(";")[0]
             let name = fqn.split(".")[fqn.split(".").length - 1]
             let lineString = sourceCodeArr[line].split(";")[0]
-            console.log(name)
+            // console.log(name)
             if (vizDataFQNs.includes(lineString.split(" ")[1])) {
                 // console.log(name)
 
@@ -341,7 +344,7 @@ function buildClassMethodArr(editor: vscode.TextEditor, vizData: OrderTuple[], d
 
         }
     }
-    console.log(classMethodArray[0].fqn)
+    // console.log(classMethodArray[0].fqn)
     if (decorate) {
         editor.setDecorations(decorationType, decorationsArray)
     }
@@ -387,7 +390,7 @@ class ApiCallCodeLensProvider implements vscode.CodeLensProvider, vscode.HoverPr
         const lines = text.split(/\r?\n/g);
 
 
-        console.log(this.classMethodArr)
+        // console.log(this.classMethodArr)
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             this.classMethodArr.map(elem => {
@@ -442,7 +445,6 @@ function getFQNByMeshId(meshID: string, vizData: OrderTuple[]): string {
 
 function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
 
-
     // let location = getLocationNameHelper(meshId, vizData, false)
     let dir = ""
     if (vscode.workspace.workspaceFolders) {
@@ -450,10 +452,9 @@ function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
         dir = dir.substring(1)
     }
 
-    const folderStructure = ['SpringBootAdminApplication.java'];
     let fqn = getFQNByMeshId(meshId, vizData)
 
-    // const folderStructure1 = fqn.split(".");
+
 
     let projectBaseDir = ".src.main.java."
     fqn = fqn.replace(".", projectBaseDir)
@@ -470,10 +471,7 @@ function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
     })
     fqn = fqn.replaceAll(".", "/")
 
-    // const folderStructure2 = fqn.split(".");
-    // const folderStructure3 = folderStructure2.concat([".java"])
-
-    let javaFilePaths = searchForJavaFiles(dir, folderStructure);
+    let javaFilePaths = searchForJavaFiles(dir);
 
     let finds: string[] = []
     fqn = fqn + ".java"
@@ -481,54 +479,76 @@ function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
         if (javaFile.search(fqn) != -1) {
             finds.push(javaFile)
         }
-        // else if(javaFile.search(fqn) != -1) {
-        //     let temp = javaFile.split(fqn)
-        //     finds.push(temp[0] + temp[1])
-        //     return
-        // }
+
     });
-    // results = results.concat(searchForFolders(dir,folderStructure1))
-
-    // console.log(folderStructure)
-    // console.log(folderStructure2)
-
-
-    console.log("dir: ", dir)
-    console.log("fqn: ", fqn)
-    // console.log(javaFilePaths)
-    console.log(finds)
 
 
 
-    // fs.stat(location, function (err, stat) {
-    //     if (err) {
-    //         console.log(`The folder "${location}" does not exist.`);
-    //         // goToLocationsByMeshId(meshId, vizData)
-    //         return;
-    //     }
+    // console.log("dir: ", dir)
+    // console.log("fqn: ", fqn)
 
-    //     if (stat.isDirectory()) {
-    //         console.log(`The folder "${location}" exists.`);
-    //         return;
-    //     }
-    //     else {
-    //         console.log(`The path "${location}" is not a folder.`);
-    //         // goToLocationsByMeshId(meshId, vizData)
+    // console.log(finds)
 
-    //     }
-    // });
 
-    vscode.commands.executeCommand('editor.action.goToLocations',
-        vscode.Uri.file(finds[0]),
-        new vscode.Position(20, 0),
-        [new vscode.Position(20, 0)],
-        'goto',
-        'sheesh'
-    );
+    let activeEditor = vscode.window.visibleTextEditors;
+    // console.log(activeEditor)
+
+    // vscode.commands.executeCommand('workbench.action.focusNextGroup')
+    //     .then(() => {
+    //         vscode.commands.executeCommand('editor.action.goToLocations',
+    //             vscode.Uri.file(finds[0]),
+    //             new vscode.Position(1, 0),
+    //             [new vscode.Position(1, 0)],
+    //             'goto',
+    //             'No File Found to go to'
+    //         )
+
+    //     })
+
+    vscode.commands.executeCommand('workbench.action.focusNextGroup')
+        .then(() => {
+
+            console.log('First command finished executing.');
+            console.log(finds[0])
+            console.error("Mach hier mal weiter du kek")
+            return vscode.commands.executeCommand('editor.action.goToLocations',
+                vscode.Uri.file(finds[0]),
+                new vscode.Position(0, 0),
+                [new vscode.Position(0, 0)],
+                'goto',
+                'No File Found to go to'
+            )
+        })
+        .then(() => {
+            let classMethod = buildClassMethodArr(vscode.window.visibleTextEditors[0], vizData, true);
+            let lineNUmber = -1;
+            if (classMethod) {
+                classMethod.forEach(element => {
+                    console.log(element.fqn)
+                    console.log(fqn)
+                    if (fqn.search(element.fqn) != -1) {
+                        lineNUmber = element.lineNumber
+                    }
+                });
+                // org.springframework.samples.petclinic.customers.web.PetRequest
+                // petclinic-costumer-service.org.springframework.samples.petclinic.customers.web.PetRequest
+
+            }
+            console.log('Second command finished executing.');
+            return vscode.commands.executeCommand('revealLine', { lineNumber: lineNUmber - 1, at: 'top' });
+
+        })
+        .then(() => {
+            console.log('Third command finished executing.');
+        });
+
+
+
+
 
 }
 
-function searchForJavaFiles(dir: string, folderStructure: string[]): string[] {
+function searchForJavaFiles(dir: string): string[] {
     const results: string[] = [];
     const files = fs.readdirSync(dir);
 
@@ -540,7 +560,7 @@ function searchForJavaFiles(dir: string, folderStructure: string[]): string[] {
             //     const subdir = path.join(dir, file);
             //     results.push(...searchForFolders(subdir, folderStructure.slice(1)));
             // } else {
-            results.push(...searchForJavaFiles(filePath, folderStructure));
+            results.push(...searchForJavaFiles(filePath));
             // }
         }
         else if (stats.isFile()) {
