@@ -5,8 +5,10 @@ import { IDEApiCall, IDEApiDest } from './types';
 
 const backend = express();
 const server = http.createServer(backend);
+const maxHttpBufferSize = 1e7;
 
 const io = new Server(server, {
+  maxHttpBufferSize: maxHttpBufferSize,
   cors: {
     origin: 'http://localhost:4200',
     methods: ['GET', 'POST'],
@@ -16,6 +18,7 @@ const io = new Server(server, {
 // const io = new Server(server)
 const port = 3000;
 
+console.log("Max http buffer size for Socket data: " + (maxHttpBufferSize / 1e6) + "mb")
 io.on('connection', (socket) => {
   console.log('Backend Sockets established.');
 
@@ -39,8 +42,17 @@ io.on('connection', (socket) => {
     console.log('vizDoubleClickOnMesh: ', data);
     // socket.emit("vizDoubleClickOnMesh_Response", "Hello Client")
   });
+
+
+  socket.on('disconnect', (reason) => {
+
+    console.error(`Socket disconnected, reason: ${reason}`);
+    console.error(`Possible solution: Increase current maxHttpBufferSize of ` + (maxHttpBufferSize / 1e6) + "mb");
+  });
   // Add any additional socket event listeners here
 });
+
+
 
 backend.get('/', (req, res) => {
   console.log('/');
