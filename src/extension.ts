@@ -22,9 +22,10 @@ export async function activate(context: vscode.ExtensionContext) {
     let codeLensDisposable = vscode.languages.registerCodeLensProvider('java', provider);
     context.subscriptions.push(codeLensDisposable);
     // let hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
-
-    socket.on("ideDo", (data: IDEApiCall) => {
-
+    
+    socket.on(IDEApiDest.IDEDo, (data: IDEApiCall) => {
+        
+        // console.log(" socket.on(IDEApiDest.IDEDo, (data: IDEApiCall)")
         // console.log(data)
         let classMethodArr = buildClassMethodArr(vscode.window.visibleTextEditors[0], data.data, true);
         provider = new ApiCallCodeLensProvider(classMethodArr);
@@ -46,13 +47,7 @@ export async function activate(context: vscode.ExtensionContext) {
         switch (data.action) {
             case IDEApiActions.JumpToLocation:
                 console.log('GoTo Mesh: ' + data.meshId);
-
-
                 goToLocationsByMeshId(data.meshId, data.data)
-
-
-
-
 
                 break;
             case IDEApiActions.ClickTimeline:
@@ -62,7 +57,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
                 break;
             case IDEApiActions.GetVizData:
-
+                // console.log("IDEApiActions.GetVizData")
                 break;
             case IDEApiActions.SingleClickOnMesh:
                 // goToLocationsByMeshId(data.meshId, data.data)
@@ -90,7 +85,7 @@ export async function activate(context: vscode.ExtensionContext) {
     })
 
     vscode.workspace.onDidChangeTextDocument(event => {
-        socket.emit(IDEApiDest.VizDo, { action: "getVizData" })
+        // socket.emit(IDEApiDest.VizDo, { action: "getVizData" })
 
     })
 
@@ -121,6 +116,13 @@ export async function activate(context: vscode.ExtensionContext) {
     let disposable = vscode.commands.registerCommand('explorviz-vscode-extension.helloWorld', function () {
         let editor = vscode.window.activeTextEditor;
         let selectedText = editor?.document.getText(editor.selection)
+
+        let dir = ""
+        if (vscode.workspace.workspaceFolders) {
+            dir = vscode.workspace.workspaceFolders[0].uri.path
+            dir = dir.substring(1)
+        }
+        // createAndDeleteFile("C:\\Lenny\\Studium\\spring-petclinic\\src\\main\\java\\org\\springframework\\samples\\petclinic\\owner");
 
         vscode.window.showInformationMessage('Hello World from ExplorViz Support!' + selectedText);
     });
@@ -454,98 +456,169 @@ function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
 
     let fqn = getFQNByMeshId(meshId, vizData)
 
-
-
-    let projectBaseDir = ".src.main.java."
-    fqn = fqn.replace(".", projectBaseDir)
+    let packageBaseDir = "\\src\\main\\java"
     let fqnArr = fqn.split(".")
-    fqnArr[0] = ""
-    fqn = ""
-    fqnArr.forEach((elem, i) => {
-        if (i == fqnArr.length - 1) {
-            fqn += elem
-        }
-        else {
-            fqn += elem + "."
-        }
-    })
-    fqn = fqn.replaceAll(".", "/")
+    let foundationName = fqnArr[0]
+    let possibleInstanceCounter: number = Number(fqnArr[1])
 
-    let javaFilePaths = searchForJavaFiles(dir);
+    
+    let fqnAsPath = foundationName
+    if(isNaN(possibleInstanceCounter)) {
+        possibleInstanceCounter = -1;
+        
+    }
+    else {
+        fqnAsPath += possibleInstanceCounter
+    }
+    
 
-    let finds: string[] = []
-    fqn = fqn + ".java"
-    javaFilePaths.forEach(javaFile => {
-        if (javaFile.search(fqn) != -1) {
-            finds.push(javaFile)
+
+    
+
+
+    // let absoluteDirPath = dir + packageBaseDir + fqn
+
+    dir = dir.replaceAll("/", "\\")
+    let filesInWorkDir = searchjavaFilesAndDirs(dir)
+ 
+    
+
+    let isFoundation = false;
+
+    foundationName = foundationName.replace("costumer", "customers")
+    fqn = fqn.replace("costumer", "customers")
+    filesInWorkDir.dirs.forEach(element => {
+        // is Foundation
+        
+        if(element. includes(foundationName)) {
+            
+            console.log("foundationDir: ", element, fqn)
+            isFoundation = true
+
+            let filesInFoundationPackageDir = searchjavaFilesAndDirs(element + packageBaseDir)
+
+
+            console.log("Java files found:", filesInFoundationPackageDir.javaFiles.length ,filesInFoundationPackageDir.javaFiles)
+
+            let fqnWithoutFoundationPath = fqn.replace(foundationName + ".", "")
+
+            fqnWithoutFoundationPath = fqnWithoutFoundationPath.replaceAll(".", "\\")
+
+            fqnWithoutFoundationPath = element + packageBaseDir + "\\" + fqnWithoutFoundationPath
+            console.log(fqnWithoutFoundationPath)
+
+            let test = searchjavaFilesAndDirs(fqnWithoutFoundationPath)
+
+            // console.log("fqnWithoutFoundationPath", test.javaFiles)
+
+            console.log("Java files found:", test.javaFiles.length ,test.javaFiles)
+
+
         }
-
     });
+    
+    // packageBaseDir and no foundation folder        
+    if(!isFoundation) { 
+        let filesInPackageBaseDir = searchjavaFilesAndDirs(dir + packageBaseDir)
+        filesInPackageBaseDir.dirs.forEach(element => {
+            if(element.includes(packageBaseDir)) {
+                console.log("baseDir: ", element)
+            }
+        });
+    }
 
-
-
-    // console.log("dir: ", dir)
-    // console.log("fqn: ", fqn)
-
-    // console.log(finds)
-
-
-    let activeEditor = vscode.window.visibleTextEditors;
-    // console.log(activeEditor)
-
+    // console.log(filesInWorkDir)
+    // console.log("bla: ", filesInWorkDir)
+    
     // vscode.commands.executeCommand('workbench.action.focusNextGroup')
     //     .then(() => {
-    //         vscode.commands.executeCommand('editor.action.goToLocations',
-    //             vscode.Uri.file(finds[0]),
-    //             new vscode.Position(1, 0),
-    //             [new vscode.Position(1, 0)],
+
+    //         console.log('First command finished executing.');
+    //         console.error("Mach hier mal weiter du kek")
+            
+    //         let pathToLocation = finds[0];
+    //         // console.log(finds)
+    //         let stats = fs.lstatSync( path.join(pathToLocation, ""));
+
+    //         // console.log(pathToLocation)
+    //         // console.log(pathToLocation.split(".")[0])
+
+    //         if(!stats) {
+    //             pathToLocation = pathToLocation.split(".")[0]
+    //             stats = fs.lstatSync( path.join(pathToLocation, ""));
+    //         }
+    //         if (stats.isDirectory()) {
+    //             // select file to open
+    //             // find javaFiles
+                
+    //             console.error("is Dir:")
+                
+    //         }
+    //         else if (stats.isFile()) {
+    //             console.error("is File")
+    //         }
+    //         return vscode.commands.executeCommand('editor.action.goToLocations',
+    //             vscode.Uri.file(pathToLocation),
+    //             new vscode.Position(0, 0),
+    //             [new vscode.Position(0, 0)],
     //             'goto',
     //             'No File Found to go to'
     //         )
+    //     })
+    //     .then(() => {
+
+    //         let classMethod = buildClassMethodArr(vscode.window.visibleTextEditors[0], vizData, true);
+    //         let lineNUmber = -1;
+    //         if (classMethod) {
+    //             classMethod.forEach(element => {
+    //                 // console.log(element.fqn)
+    //                 // console.log(fqn)
+    //                 if (fqn.search(element.fqn) != -1) {
+    //                     lineNUmber = element.lineNumber
+    //                 }
+    //             });
+    //             // org.springframework.samples.petclinic.customers.web.PetRequest
+    //             // petclinic-costumer-service.org.springframework.samples.petclinic.customers.web.PetRequest
+
+    //         }
+    //         console.log('Second command finished executing.');
+    //         return vscode.commands.executeCommand('revealLine', { lineNumber: lineNUmber - 1, at: 'top' });
 
     //     })
+    //     .then(() => {
+    //         console.log('Third command finished executing.');
+    //     });
 
-    vscode.commands.executeCommand('workbench.action.focusNextGroup')
-        .then(() => {
 
-            console.log('First command finished executing.');
-            console.log(finds[0])
-            console.error("Mach hier mal weiter du kek")
-            return vscode.commands.executeCommand('editor.action.goToLocations',
-                vscode.Uri.file(finds[0]),
-                new vscode.Position(0, 0),
-                [new vscode.Position(0, 0)],
-                'goto',
-                'No File Found to go to'
-            )
-        })
-        .then(() => {
-            let classMethod = buildClassMethodArr(vscode.window.visibleTextEditors[0], vizData, true);
-            let lineNUmber = -1;
-            if (classMethod) {
-                classMethod.forEach(element => {
-                    console.log(element.fqn)
-                    console.log(fqn)
-                    if (fqn.search(element.fqn) != -1) {
-                        lineNUmber = element.lineNumber
-                    }
-                });
-                // org.springframework.samples.petclinic.customers.web.PetRequest
-                // petclinic-costumer-service.org.springframework.samples.petclinic.customers.web.PetRequest
 
+
+
+}
+
+function searchjavaFilesAndDirs(dir: string): {javaFiles: string[]; dirs: string[]} {
+    // console.log("bla")
+    let javaFilesFinds: string[] = [];
+    let dirFinds: string[] = []
+
+    const files = fs.readdirSync(dir);
+
+    files.forEach(file => {
+        
+        const filePath = path.join(dir, file);
+        const stats = fs.lstatSync(filePath);
+
+        if (stats.isDirectory()) {
+            dirFinds.push(filePath)
+        }    
+        else if (stats.isFile()) {
+            if(file.includes(".java")) {
+                javaFilesFinds.push(filePath)
             }
-            console.log('Second command finished executing.');
-            return vscode.commands.executeCommand('revealLine', { lineNumber: lineNUmber - 1, at: 'top' });
+        }
 
-        })
-        .then(() => {
-            console.log('Third command finished executing.');
-        });
+    })
 
-
-
-
-
+    return {javaFiles: javaFilesFinds, dirs: dirFinds}
 }
 
 function searchForJavaFiles(dir: string): string[] {
@@ -560,6 +633,7 @@ function searchForJavaFiles(dir: string): string[] {
             //     const subdir = path.join(dir, file);
             //     results.push(...searchForFolders(subdir, folderStructure.slice(1)));
             // } else {
+            // results.push(filePath)
             results.push(...searchForJavaFiles(filePath));
             // }
         }
@@ -579,6 +653,6 @@ function searchForJavaFiles(dir: string): string[] {
     // if (folderStructure.length === 0) {
     //     results.push(dir);
     // }
-
+    // console.log(results)
     return results;
 }
