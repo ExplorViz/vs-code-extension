@@ -47,6 +47,10 @@
       {
         "command": "explorviz-vscode-extension.openSplitWindow",
         "title": "openSplitWindow"
+      },
+      {
+        "command": "explorviz-vscode-extension.selectJavaFileToOpen",
+        "title": "selectJavaFileToOpen"
       }
     ]
   },

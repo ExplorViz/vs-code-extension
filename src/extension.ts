@@ -11,11 +11,12 @@ import { promisify } from 'util';
 
 const socket = io('http://localhost:' + port);
 
-
-
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
+
+  
+    
     const openEditor = vscode.window.visibleTextEditors[0]
     let provider = new ApiCallCodeLensProvider(buildClassMethodArr(vscode.window.visibleTextEditors[0], [], true));
 
@@ -450,7 +451,7 @@ type LocationFind = {
     dirs: string[],
     javaFile: string
 }
-function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
+async function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
 
     let finds: LocationFind = {
         dirs: [],
@@ -483,16 +484,10 @@ function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
     }
 
 
-
-
-
-
     // let absoluteDirPath = dir + packageBaseDir + fqn
 
     dir = dir.replaceAll("/", "\\")
     let filesInWorkDir = searchjavaFilesAndDirs(dir)
-
-
 
     let isFoundation = false;
 
@@ -504,27 +499,15 @@ function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
 
     filesInWorkDir.dirs.forEach(element => {
         // is Foundation
-
         if (element.includes(foundationName)) {
 
             console.log("foundationDir: ", element, fqn)
             isFoundation = true
 
-            // let filesInFoundationPackageDir = searchjavaFilesAndDirs(element + packageBaseDir)
-
-
-            // console.log("Java files found:", filesInFoundationPackageDir.javaFiles.length, filesInFoundationPackageDir.javaFiles)
-            // console.log("Folders found:", filesInFoundationPackageDir.dirs.length, filesInFoundationPackageDir.dirs)
-
-
-
             fqnWithoutFoundationPath = element + packageBaseDir + "\\" + fqnWithoutFoundationPath
             console.log(fqnWithoutFoundationPath)
 
             let filesInFixedFqnPath = searchjavaFilesAndDirs(fqnWithoutFoundationPath)
-
-            // console.log("fqnWithoutFoundationPath", test.javaFiles)
-
             finds = filesInFixedFqnPath
 
         }
@@ -542,88 +525,135 @@ function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
     console.log("Folders found:", finds.dirs.length) //, filesInFixedFqnPath.dirs)
     console.log("Single Java file found:", finds.javaFile)
 
+    
 
 
-    // TODO: Select command which javafile to open if multiple found
     // TODO: Feedback command if no single file or multiple were found
     console.error("TODO: Mach hier weiter")
 
-
-    let pathToLocation = "";
+    
     if (finds.javaFile != "undefined") {
-        pathToLocation = finds.javaFile
+        console.log("Open java File: ", finds.javaFile)
+        openFileCommand(finds.javaFile, fqn, vizData)
+
     }
     else if (finds.javaFiles.length != 0) {
-        pathToLocation = finds.javaFiles[0]
+        // Show selection which file to open
+        console.log(finds.javaFiles)
+        
+        let selected = await selectOption(finds.javaFiles)
+        if(selected) {
+            openFileCommand(selected, fqn, vizData)
+            vscode.window.showInformationMessage(`Selected option: ${selected}`);
+        }
     }
     else {
         console.error("Nothing to open!", finds)
+        vscode.window.showInformationMessage("Nothing to open!")
         return
     }
-    //
 
-    
-    // open file with path to location
-    vscode.commands.executeCommand('workbench.action.focusNextGroup')
-        .then(() => {
 
-            console.log('First command finished executing.');
-            console.log(finds)
-            let stats = fs.lstatSync(path.join(pathToLocation, ""));
-
-            // console.log(pathToLocation)
-            // console.log(pathToLocation.split(".")[0])
-
-            if (!stats) {
-                pathToLocation = pathToLocation.split(".")[0]
-                stats = fs.lstatSync(path.join(pathToLocation, ""));
-            }
-            if (stats.isDirectory()) {
-                // select file to open
-                // find javaFiles
-
-                console.error("is Dir:")
-
-            }
-            else if (stats.isFile()) {
-                console.error("is File")
-            }
-            return vscode.commands.executeCommand('editor.action.goToLocations',
-                vscode.Uri.file(pathToLocation),
-                new vscode.Position(0, 0),
-                [new vscode.Position(0, 0)],
-                'goto',
-                'No File Found to go to'
-            )
-        })
-        .then(() => {
-
-            let classMethod = buildClassMethodArr(vscode.window.visibleTextEditors[0], vizData, true);
-            let lineNUmber = -1;
-            if (classMethod) {
-                classMethod.forEach(element => {
-                    // console.log(element.fqn)
-                    // console.log(fqn)
-                    if (fqn.search(element.fqn) != -1) {
-                        lineNUmber = element.lineNumber
-                    }
-                });
-                // org.springframework.samples.petclinic.customers.web.PetRequest
-                // petclinic-costumer-service.org.springframework.samples.petclinic.customers.web.PetRequest
-
-            }
-            console.log('Second command finished executing.');
-            return vscode.commands.executeCommand('revealLine', { lineNumber: lineNUmber - 1, at: 'top' });
-
-        })
-        .then(() => {
-            console.log('Third command finished executing.');
-        });
 
 }
 
+function cutSameStrings(arr: string[]): string[] {
+    
+    
+    const commonString = arr.reduce((str1, str2) => {
+        let i = 0;
+        while (i < str1.length && i < str2.length && str1[i] === str2[i]) {
+            i++;
+        }
+        return str1.substring(0, i);
+    });
+    
+    const lengthOfCommonString = commonString.lastIndexOf("\\");
+    const secondLastIndexOfBackslash = commonString.lastIndexOf("\\", commonString.lastIndexOf("\\") - 1);
+    
+    const trimmedArr = arr.map(str => str.substring(secondLastIndexOfBackslash + 1));
+    
+    console.log(trimmedArr);
+
+    return trimmedArr
+}
+
+async function selectOption(options: string[]): Promise<string | undefined> {
+    let readableJavaFilesPaths = cutSameStrings(options)
+
+    const selectedOption = await vscode.window.showQuickPick(readableJavaFilesPaths, { placeHolder: "Select an option" });
+    return options[readableJavaFilesPaths.indexOf(selectedOption + "")];
+}
+
+// async function selectOption(options: string[]) {
+//     // let options = ["Option 1", "Option 2", "Option 3"];
+//     let selectedOption = await vscode.window.showQuickPick(options);
+    
+//     if (selectedOption) {
+//         vscode.window.showInformationMessage(`Selected option: ${selectedOption}`);
+//         // return selectedOption
+//     }
+// }
 
 
+
+function openFileCommand(pathToLocation: string, fqn: string, vizData: OrderTuple[]) {
+    vscode.commands.executeCommand('workbench.action.focusNextGroup')
+    .then(() => {
+
+        console.log('First command finished executing.');
+        // console.log(finds)
+        let stats = fs.lstatSync(path.join(pathToLocation, ""));
+
+        // console.log(pathToLocation)
+        // console.log(pathToLocation.split(".")[0])
+
+        if (!stats) {
+            pathToLocation = pathToLocation.split(".")[0]
+            stats = fs.lstatSync(path.join(pathToLocation, ""));
+        }
+        if (stats.isDirectory()) {
+            // select file to open
+            // find javaFiles
+
+            console.error("is Dir:")
+
+        }
+        else if (stats.isFile()) {
+            console.error("is File")
+        }
+        return vscode.commands.executeCommand('editor.action.goToLocations',
+            vscode.Uri.file(pathToLocation),
+            new vscode.Position(0, 0),
+            [new vscode.Position(0, 0)],
+            'goto',
+            'No File Found to go to'
+        )
+    })
+    .then(() => {
+
+        let classMethod = buildClassMethodArr(vscode.window.visibleTextEditors[0], vizData, true);
+        let lineNUmber = -1;
+        if (classMethod) {
+            classMethod.forEach(element => {
+                // console.log(element.fqn)
+                // console.log(fqn)
+                if (fqn.search(element.fqn) != -1) {
+                    lineNUmber = element.lineNumber
+                }
+            });
+            // org.springframework.samples.petclinic.customers.web.PetRequest
+            // petclinic-costumer-service.org.springframework.samples.petclinic.customers.web.PetRequest
+
+        }
+        console.log('Second command finished executing.');
+        return vscode.commands.executeCommand('revealLine', { lineNumber: lineNUmber - 1, at: 'top' });
+
+    })
+    .then(() => {
+        console.log('Third command finished executing.');
+    });
+}
 
 
 
@@ -674,38 +704,4 @@ function searchjavaFilesAndDirs(dir: string): LocationFind {
     return { javaFiles: javaFilesFinds, dirs: dirFinds, javaFile: javaFile }
 }
 
-function searchForJavaFiles(dir: string): string[] {
-    const results: string[] = [];
-    const files = fs.readdirSync(dir);
 
-    files.forEach(file => {
-        const filePath = path.join(dir, file);
-        const stats = fs.lstatSync(filePath);
-        if (stats.isDirectory()) {
-            // if (file === folderStructure[0] || file.search(folderStructure[0]) !== -1) {
-            //     const subdir = path.join(dir, file);
-            //     results.push(...searchForFolders(subdir, folderStructure.slice(1)));
-            // } else {
-            // results.push(filePath)
-            results.push(...searchForJavaFiles(filePath));
-            // }
-        }
-        else if (stats.isFile()) {
-            if (file.search('.java') != -1) {
-                let temp = path.join(dir, file)
-                temp = temp.replaceAll("\\", "/")
-                results.push(temp)
-            }
-            // else {
-
-            //     results.push(...searchForFolders(filePath, folderStructure));
-            // }
-        }
-    });
-
-    // if (folderStructure.length === 0) {
-    //     results.push(dir);
-    // }
-    // console.log(results)
-    return results;
-}
