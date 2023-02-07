@@ -18,7 +18,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
     const openEditor = vscode.window.visibleTextEditors[0]
-    let provider = new ApiCallCodeLensProvider(buildClassMethodArr(vscode.window.visibleTextEditors[0], [], true));
+    let provider = new ApiCallCodeLensProvider(buildClassMethodArr(vscode.window.visibleTextEditors[0], [], true), []);
 
     let codeLensDisposable = vscode.languages.registerCodeLensProvider('java', provider);
     context.subscriptions.push(codeLensDisposable);
@@ -28,22 +28,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // console.log(" socket.on(IDEApiDest.IDEDo, (data: IDEApiCall)")
         // console.log(data)
-        let classMethodArr = buildClassMethodArr(vscode.window.visibleTextEditors[0], data.data, true);
-        provider = new ApiCallCodeLensProvider(classMethodArr);
-        // console.log("ideDo data received")
-        // console.log(data.data[0])
-
-
-
-        codeLensDisposable.dispose();
-        // hoverDisposable.dispose();
-
-        // buildClassMethodArr(vscode.window.visibleTextEditors[0])
-        codeLensDisposable = vscode.languages.registerCodeLensProvider('java', provider);
-        // hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
-
-        context.subscriptions.push(codeLensDisposable);
-        // context.subscriptions.push(hoverDisposable);
 
         switch (data.action) {
             case IDEApiActions.JumpToLocation:
@@ -58,6 +42,22 @@ export async function activate(context: vscode.ExtensionContext) {
 
                 break;
             case IDEApiActions.GetVizData:
+                let classMethodArr = buildClassMethodArr(vscode.window.visibleTextEditors[0], data.data, true);
+                console.log("GetVizData: ", data.data)
+                provider = new ApiCallCodeLensProvider(classMethodArr, data.data);
+                // console.log("ideDo data received")
+                // console.log(data.data[0])
+
+                codeLensDisposable.dispose();
+                // hoverDisposable.dispose();
+
+                // buildClassMethodArr(vscode.window.visibleTextEditors[0])
+                codeLensDisposable = vscode.languages.registerCodeLensProvider('java', provider);
+                // hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
+
+                context.subscriptions.push(codeLensDisposable);
+                // context.subscriptions.push(hoverDisposable);
+
                 // console.log("IDEApiActions.GetVizData")
                 break;
             case IDEApiActions.SingleClickOnMesh:
@@ -70,44 +70,68 @@ export async function activate(context: vscode.ExtensionContext) {
 
     })
 
-
-
-
-    socket.emit(IDEApiDest.VizDo, { action: "getVizData" })
+    emitToBackend(IDEApiDest.VizDo, {
+        action: IDEApiActions.GetVizData,
+        data: [],
+        meshId: "",
+        occurrenceID: -1,
+        fqn: ""
+    })
 
     vscode.workspace.onDidSaveTextDocument(event => {
-        socket.emit(IDEApiDest.VizDo, { action: "getVizData" })
+        // emitToBackend(IDEApiDest.VizDo, { action: "getVizData" })
+        emitToBackend(IDEApiDest.VizDo, {
+            action: IDEApiActions.GetVizData,
+            data: [],
+            meshId: "",
+            occurrenceID: -1,
+            fqn: ""
+        })
 
     })
 
     vscode.workspace.onDidOpenTextDocument(event => {
-        socket.emit(IDEApiDest.VizDo, { action: "getVizData" })
+        // emitToBackend(IDEApiDest.VizDo, { action: "getVizData" })
+        emitToBackend(IDEApiDest.VizDo, {
+            action: IDEApiActions.GetVizData,
+            data: [],
+            meshId: "",
+            occurrenceID: -1,
+            fqn: ""
+        })
 
     })
 
     vscode.workspace.onDidChangeTextDocument(event => {
-        // socket.emit(IDEApiDest.VizDo, { action: "getVizData" })
+        // emitToBackend(IDEApiDest.VizDo, { action: "getVizData" })
 
     })
 
-    vscode.window.onDidChangeActiveTextEditor(event => {
-        socket.emit(IDEApiDest.VizDo, { action: "getVizData" })
+    // vscode.window.onDidChangeActiveTextEditor(event => {
+    //     // emitToBackend(IDEApiDest.VizDo, { action: "getVizData" })
+    //     emitToBackend(IDEApiDest.VizDo, {
+    //         action: IDEApiActions.GetVizData,
+    //         data: [],
+    //         meshId: "",
+    //         occurrenceID: -1,
+    //         fqn: ""
+    //     })
 
-    })
+    // })
 
     console.log('Congratulations, your extension "explorviz-vscode-extension" is now active!');
 
     /// Decorations
-    vscode.workspace.onWillSaveTextDocument(event => {
-        const openEditor = vscode.window.visibleTextEditors.filter(
-            editor => editor.document.uri === event.document.uri
-        )[0]
-        // decorate(openEditor)
+    // vscode.workspace.onWillSaveTextDocument(event => {
+    //     const openEditor = vscode.window.visibleTextEditors.filter(
+    //         editor => editor.document.uri === event.document.uri
+    //     )[0]
+    //     // decorate(openEditor)
 
-        // context.
-        // provider.provideCodeLenses(openEditor.document, new vscode.CancellationTokenSource().token)
-        // provider.provideHover(openEditor.document, )
-    })
+    //     // context.
+    //     // provider.provideCodeLenses(openEditor.document, new vscode.CancellationTokenSource().token)
+    //     // provider.provideHover(openEditor.document, )
+    // })
 
     ///// decorations end
     backend.listen(port, () => {
@@ -130,19 +154,19 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     let VizSingleClickOnMesh = vscode.commands.registerCommand('explorviz-vscode-extension.VizSingleClickOnMesh', function () {
-        socket.emit("vizDo", { action: "singleClickOnMesh" })
+        // emitToBackend("vizDo", { action: "singleClickOnMesh" })
         vscode.window.showInformationMessage('VizSingleClickOnMesh');
     });
     context.subscriptions.push(VizSingleClickOnMesh);
 
     let VizDoubleClickOnMesh = vscode.commands.registerCommand('explorviz-vscode-extension.VizDoubleClickOnMesh', function () {
-        socket.emit("vizDo", { action: "doubleClickOnMesh" })
+        // emitToBackend(IDEApiDest.VizDo, { action: "doubleClickOnMesh" })
         vscode.window.showInformationMessage('VizDoubleClickOnMesh');
     });
     context.subscriptions.push(VizDoubleClickOnMesh);
 
     let IdeTestCallback = vscode.commands.registerCommand('explorviz-vscode-extension.IdeTestCallback', function (arg1: any, arg2: any) {
-        socket.emit("ideDO", { msg: "test" })
+        // emitToBackend("ideDO", { msg: "test" })
         // console.log(arg1, arg2)
         // vscode.commands.executeCommand('revealLine', { lineNumber: 41, at: 'top' });
         // console.log()
@@ -156,10 +180,39 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
 
-    let OpenInExplorViz = vscode.commands.registerCommand('explorviz-vscode-extension.OpenInExplorViz', function (name: string, fqn: string) {
+    let OpenInExplorViz = vscode.commands.registerCommand('explorviz-vscode-extension.OpenInExplorViz', function (name: string, fqn: string, vizData: OrderTuple[]) {
         // console.log(name, fqn)
-        socket.emit("vizDo", { action: "doubleClickOnMesh", fqn: fqn })
-        vscode.window.showInformationMessage('Open ' + name + " in ExplorViz");
+        // let occurrenceIDs: number[] = getOccurrenceIDsFromVizData(fqn)
+
+        let occurrenceID = -1
+
+        let occurrences: FoundationOccurrences[] = getOccurrenceIDsFromVizData(vizData)
+        console.log(vizData)
+        console.log(occurrences)
+
+        let vizFoundation = "foundation unset"
+        let selection;
+        vizData.forEach(viz => {
+            vizFoundation = viz.hierarchyModel.fqn
+        });
+
+        occurrences.forEach(async occ => {
+            if (vizFoundation.includes(occ.foundation) && occ.occurrences.length != 0) {
+                console.log("Found")
+                selection = await selectOption(occ.occurrences.map(String), "Open occurrence of " + occ.foundation, false)
+                if (selection) {
+                    emitToBackend(IDEApiDest.VizDo, { action: IDEApiActions.DoubleClickOnMesh, fqn: fqn, data: [], meshId: "", occurrenceID: parseInt(selection) })
+                    vscode.window.showInformationMessage('Open ' + name + " in ExplorViz");
+                }
+            }
+            else {
+                emitToBackend(IDEApiDest.VizDo, { action: IDEApiActions.DoubleClickOnMesh, fqn: fqn, data: [], meshId: "", occurrenceID: -1 })
+                vscode.window.showInformationMessage('Open ' + name + " in ExplorViz");
+            }
+        });
+
+
+
     });
     context.subscriptions.push(OpenInExplorViz);
 
@@ -199,11 +252,17 @@ const decorationType = vscode.window.createTextEditorDecorationType({
     // border: '2px solid white',
     gutterIconPath: 'C:/Lenny/Studium/vs-code-extension/media/explorviz-logo-dark.png',
     gutterIconSize: 'contain',
+    isWholeLine: true
 
 })
 
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor
+
+
+function emitToBackend(dest: IDEApiDest, apiCall: IDEApiCall) {
+    socket.emit(dest, apiCall)
+}
 
 function buildClassMethodArr(editor: vscode.TextEditor, vizData: OrderTuple[], decorate: boolean): classMethod[] {
     let classMethodArray: classMethod[] = []
@@ -224,6 +283,7 @@ function buildClassMethodArr(editor: vscode.TextEditor, vizData: OrderTuple[], d
     const sourceCodeArr = sourceCode.split('\n')
 
     let vizDataFQNs: string[] = []
+
     if (vizData.length !== 0) {
         vizData.forEach(oTuple => {
             let foundationName = oTuple.meshes.meshNames[0]
@@ -235,6 +295,10 @@ function buildClassMethodArr(editor: vscode.TextEditor, vizData: OrderTuple[], d
         // console.log(vizDataFQNs)
 
 
+    }
+    else {
+        console.error("VizData Empty!")
+        return []
     }
 
 
@@ -285,9 +349,9 @@ function buildClassMethodArr(editor: vscode.TextEditor, vizData: OrderTuple[], d
 
         // let packageName = classMethodArray[0].fqn
         let match = sourceCodeArr[line].match(regexClassWithMethods)
-        if (match) {
-            // console.log(match)
-        }
+        // if (match) {
+        //     // console.log(match)
+        // }
         // console.log(match ? match[1] : "isNull")
         if (match !== null && match.index !== undefined) {
 
@@ -309,7 +373,8 @@ function buildClassMethodArr(editor: vscode.TextEditor, vizData: OrderTuple[], d
                 let fqn = classMethodArray[0].fqn + "." + name
 
 
-
+                // console.log(fqn)
+                // console.log(name)
                 if (vizDataFQNs.includes(fqn)) {
                     // + - * / % = \w @
                     classMethodArray.push({ lineString: match[0], name: name, fqn: fqn, lineNumber: line })
@@ -330,18 +395,19 @@ function buildClassMethodArr(editor: vscode.TextEditor, vizData: OrderTuple[], d
             }
             // Case: Method
             else if (match[5]) {
-                let name = match[5];
-                let fqn = classMethodArray[0].fqn + "." + match[5]
 
-                if (vizDataFQNs.includes(fqn)) {
-                    matchLength = match[5].length
-                    matchIndex += match[4].length
-                    // add generic return type <T extends Object> T doSome() {}
-                    classMethodArray.push({ lineString: name + "(", name: name, fqn: fqn, lineNumber: line })
-                    let decoration = { range }
-                    decorationsArray.push(decoration)
+                // let name = match[5];
+                // let fqn = classMethodArray[0].fqn + "." + match[5]
 
-                }
+                // if (vizDataFQNs.includes(fqn)) {
+                //     matchLength = match[5].length
+                //     matchIndex += match[4].length
+                //     // add generic return type <T extends Object> T doSome() {}
+                //     classMethodArray.push({ lineString: name + "(", name: name, fqn: fqn, lineNumber: line })
+                //     let decoration = { range }
+                //     decorationsArray.push(decoration)
+
+                // }
             }
 
 
@@ -352,6 +418,7 @@ function buildClassMethodArr(editor: vscode.TextEditor, vizData: OrderTuple[], d
         editor.setDecorations(decorationType, decorationsArray)
     }
 
+    console.log(classMethodArray)
     return classMethodArray
 }
 
@@ -382,8 +449,11 @@ function getWebviewContent() {
 
 class ApiCallCodeLensProvider implements vscode.CodeLensProvider, vscode.HoverProvider {
     classMethodArr: classMethod[];
-    constructor(classMethodArr: classMethod[]) {
+    vizData: OrderTuple[];
+    constructor(classMethodArr: classMethod[], vizData: OrderTuple[]) {
+        console.log("vizDatA:", classMethodArr)
         this.classMethodArr = classMethodArr
+        this.vizData = vizData
     }
     public provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] {
 
@@ -401,11 +471,15 @@ class ApiCallCodeLensProvider implements vscode.CodeLensProvider, vscode.HoverPr
                 //     console.log(line)
                 // }
                 if (line.includes(elem.lineString)) {
+                    // let occurence = this.foundationOccurrences.find(occ => {
+                    //     occ.foundation == elem.fqn.split(".")[0]
+                    // })
+
                     const codeLens = new vscode.CodeLens(new vscode.Range(i, 0, i, 0), {
                         title: "Open " + elem.name + " in ExplorViz",
                         // title: "Open " + elem.name + " in ExplorViz",
                         command: "explorviz-vscode-extension.OpenInExplorViz",
-                        arguments: [elem.name, elem.fqn],
+                        arguments: [elem.name, elem.fqn, this.vizData],
                         // tooltip: "Moin"
                     });
                     codeLenses.push(codeLens);
@@ -490,7 +564,7 @@ async function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
             openFileCommand(finds.javaFile[0], fqn, vizData)
         }
         else {
-            let selected = await selectOption(finds.javaFile)
+            let selected = await selectOption(finds.javaFile, "Select file ", true)
             if (selected) {
                 openFileCommand(selected, fqn, vizData)
                 vscode.window.showInformationMessage(`Selected option: ${selected}`);
@@ -502,7 +576,7 @@ async function goToLocationsByMeshId(meshId: string, vizData: OrderTuple[]) {
         // Show selection which file to open
         console.log(finds.javaFiles)
 
-        let selected = await selectOption(finds.javaFiles)
+        let selected = await selectOption(finds.javaFiles, "Select file ", true)
         if (selected) {
             openFileCommand(selected, fqn, vizData)
             vscode.window.showInformationMessage(`Selected option: ${selected}`);
@@ -583,15 +657,6 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
     // console.log("Java files found:", finds.javaFiles.length) // ,filesInFixedFqnPath.javaFiles)
     // console.log("Folders found:", finds.dirs.length) //, filesInFixedFqnPath.dirs)
     // console.log("Single Java file found:", finds.javaFile)
-
-
-
-
-    // TODO: Feedback command if no single file or multiple were found
-    // console.error("TODO: Mach hier weiter")
-
-
-
     return finds
 }
 
@@ -603,12 +668,12 @@ function cutSameStrings2(arr: string[]): string[] {
         let trimmedPath = ""
         path.forEach((subPath, i) => {
             // console.log(i, subPath, path.length)
-            if((path.length - 1 == i) || (path.length - 2 == i)) {
+            if ((path.length - 1 == i) || (path.length - 2 == i)) {
                 trimmedPath += "/" + subPath
             }
             else {
                 test.forEach((pathTotest) => {
-                    if(pathTotest.includes(subPath)){
+                    if (pathTotest.includes(subPath)) {
                         // trimmedPath += "./"
                     }
                     else if (!trimmedPath.includes(subPath)) {
@@ -621,14 +686,17 @@ function cutSameStrings2(arr: string[]): string[] {
         trimmedArr.push(trimmedPath)
     });
 
-    console.log("trimmed:", trimmedArr)
+    trimmedArr.forEach(element => {
+        console.log("trimmed:", element)
+
+    });
     return trimmedArr
 }
 
 
-async function selectOption(options: string[]): Promise<string | undefined> {
-    let readableJavaFilesPaths = cutSameStrings2(options)
-    const selectedOption = await vscode.window.showQuickPick(readableJavaFilesPaths, { placeHolder: "Select an option" });
+async function selectOption(options: string[], placeHolder: string, cutStrings: boolean): Promise<string | undefined> {
+    let readableJavaFilesPaths = cutStrings ? cutSameStrings2(options) : options
+    const selectedOption = await vscode.window.showQuickPick(readableJavaFilesPaths, { placeHolder: placeHolder });
     return options[readableJavaFilesPaths.indexOf(selectedOption + "")];
 }
 
@@ -753,4 +821,42 @@ function searchjavaFilesAndDirs(dir: string): LocationFind {
     return { javaFiles: javaFilesFinds, dirs: dirFinds, javaFile: [javaFile] }
 }
 
+
+type FoundationOccurrences = {
+    foundation: string,
+    occurrences: number[]
+}
+function getOccurrenceIDsFromVizData(vizData: OrderTuple[]): FoundationOccurrences[] {
+
+    // [
+    //  {fqn: "asd.fgh.asd.", occurences: [1, 2, 3...]},
+    //  {fqn: "asd.fgh.asd.asd", occurences: [1, 2, 3...]},
+    // ...]
+    // let result: FoundationOccurrences[] = [{ foundation: "petclinic-demo", occurrences: [1,2,3] }];
+    // let result: FoundationOccurrences[] = [{ foundation: "petclinic-api-gateway", occurrences: [] }];
+
+    let result: FoundationOccurrences[] = []
+    vizData.forEach(foundation => {
+        let temp: FoundationOccurrences = {
+            foundation: foundation.meshes.meshNames[0].split(".")[0],
+            occurrences: []
+        }
+
+        foundation.meshes.meshNames.forEach(f => {
+
+
+            let possibleOccurrenceCounter = parseInt(f.split(".")[1])
+            if (!isNaN(possibleOccurrenceCounter)) {
+                if (!temp.occurrences.includes(possibleOccurrenceCounter)) {
+                    temp.occurrences.push(possibleOccurrenceCounter);
+                }
+            }
+        });
+
+        // console.log(temp)
+        result.push(temp)
+    });
+
+    return result
+}
 

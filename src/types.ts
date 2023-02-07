@@ -1,39 +1,41 @@
 export enum IDEApiDest {
-    VizDo = "vizDo",
-    IDEDo = "ideDo",
-  }
-  
+  VizDo = "vizDo",
+  IDEDo = "ideDo",
+}
+
 export enum IDEApiActions {
-    SingleClickOnMesh = "singleClickOnMesh",
-    DoubleClickOnMesh = "doubleClickOnMesh",
-    ClickTimeline = "clickTimeLine",
-    GetVizData = "getVizData",
-    JumpToLocation = "jumpToLocation"
-  
-  }
-  
+  SingleClickOnMesh = "singleClickOnMesh",
+  DoubleClickOnMesh = "doubleClickOnMesh",
+  ClickTimeline = "clickTimeLine",
+  GetVizData = "getVizData",
+  JumpToLocation = "jumpToLocation"
+
+}
+
 export type IDEApiCall = {
-    action: IDEApiActions,
-    data: OrderTuple[],
-    meshId: string
-  }
-  
+  action: IDEApiActions,
+  data: OrderTuple[],
+  meshId: string,
+  occurrenceID: number,
+  fqn: string
+}
+
 export type ParentOrder = {
-    fqn: string,
-    childs: ParentOrder[],
-    meshId: string,
-  }
-  
+  fqn: string,
+  childs: ParentOrder[],
+  meshId: string,
+}
+
 export type OrderTuple = {
-    hierarchyModel: ParentOrder,
-    meshes: {meshNames: string[], meshIds: string[]}
-  }
+  hierarchyModel: ParentOrder,
+  meshes: { meshNames: string[], meshIds: string[] }
+}
 
 export type classMethod = {
-    name: string,
-    fqn: string,
-    lineString: string,
-    lineNumber: number,
-    // meshId: string,
-    // fileLocation: string,
+  name: string,
+  fqn: string,
+  lineString: string,
+  lineNumber: number,
+  // meshId: string,
+  // fileLocation: string,
 }
