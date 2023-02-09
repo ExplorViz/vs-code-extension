@@ -9,7 +9,8 @@ import { ConsoleReporter } from '@vscode/test-electron';
 import * as fs from 'fs';
 import { promisify } from 'util';
 
-const socket = io('http://localhost:' + port);
+const backendHttp = 'http://localhost:' + port
+const socket = io(backendHttp);
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed

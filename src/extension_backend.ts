@@ -5,18 +5,21 @@ import { IDEApiCall, IDEApiDest } from './types';
 
 const backend = express();
 const server = http.createServer(backend);
-const maxHttpBufferSize = 1e7;
+const maxHttpBufferSize = 1e8;
+
+const port = 3000;
+const corsExplorVizHttp = 'http://localhost:4200'
+
 
 const io = new Server(server, {
   maxHttpBufferSize: maxHttpBufferSize,
   cors: {
-    origin: 'http://localhost:4200',
+    origin: corsExplorVizHttp,
     methods: ['GET', 'POST'],
   },
 });
 
 // const io = new Server(server)
-const port = 3000;
 
 console.log("Max http buffer size for Socket data: " + (maxHttpBufferSize / 1e6) + "mb")
 io.on('connection', (socket) => {
