@@ -39,3 +39,15 @@ export type classMethod = {
   // meshId: string,
   // fileLocation: string,
 }
+
+export type FoundationOccurrences = {
+  foundation: string,
+  occurrences: number[]
+}
+
+
+export type LocationFind = {
+  javaFiles: string[],
+  dirs: string[],
+  javaFile: string[]
+}
