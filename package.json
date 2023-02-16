@@ -52,7 +52,18 @@
         "command": "explorviz-vscode-extension.selectJavaFileToOpen",
         "title": "selectJavaFileToOpen"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "ExplorViz VS Code Extension",
+      "properties": {   
+        "explorviz.backendUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "Specify URL for ExplorViz's VS Code backend."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

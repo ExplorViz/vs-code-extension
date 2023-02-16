@@ -10,45 +10,44 @@ export enum IDEApiActions {
   ClickTimeline = "clickTimeLine",
   GetVizData = "getVizData",
   JumpToLocation = "jumpToLocation",
-  JumpToMonitoringClass = "jumpToMonitoringClass"
+  JumpToMonitoringClass = "jumpToMonitoringClass",
 }
 
 export type IDEApiCall = {
-  action: IDEApiActions,
-  data: OrderTuple[],
-  meshId: string,
-  occurrenceID: number,
-  fqn: string
-}
+  action: IDEApiActions;
+  data: OrderTuple[];
+  meshId: string;
+  occurrenceID: number;
+  fqn: string;
+};
 
 export type ParentOrder = {
-  fqn: string,
-  childs: ParentOrder[],
-  meshId: string,
-}
+  fqn: string;
+  childs: ParentOrder[];
+  meshId: string;
+};
 
 export type OrderTuple = {
-  hierarchyModel: ParentOrder,
-  meshes: { meshNames: string[], meshIds: string[] }
-}
+  hierarchyModel: ParentOrder;
+  meshes: { meshNames: string[]; meshIds: string[] };
+};
 
 export type classMethod = {
-  name: string,
-  fqn: string,
-  lineString: string,
-  lineNumber: number,
+  name: string;
+  fqn: string;
+  lineString: string;
+  lineNumber: number;
   // meshId: string,
   // fileLocation: string,
-}
+};
 
 export type FoundationOccurrences = {
-  foundation: string,
-  occurrences: number[]
-}
-
+  foundation: string;
+  occurrences: number[];
+};
 
 export type LocationFind = {
-  javaFiles: string[],
-  dirs: string[],
-  javaFile: string[]
-}
+  javaFiles: string[];
+  dirs: string[];
+  javaFile: string[];
+};
