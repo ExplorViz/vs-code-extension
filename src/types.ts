@@ -4,12 +4,13 @@ export enum IDEApiDest {
 }
 
 export enum IDEApiActions {
+  Refresh = "refresh",
   SingleClickOnMesh = "singleClickOnMesh",
   DoubleClickOnMesh = "doubleClickOnMesh",
   ClickTimeline = "clickTimeLine",
   GetVizData = "getVizData",
-  JumpToLocation = "jumpToLocation"
-
+  JumpToLocation = "jumpToLocation",
+  JumpToMonitoringClass = "jumpToMonitoringClass"
 }
 
 export type IDEApiCall = {

@@ -1,7 +1,6 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { port, backend } from './extension_backend';
 import io from 'socket.io-client';
 
 import { FoundationOccurrences, IDEApiActions, IDEApiCall, IDEApiDest, OrderTuple, ParentOrder } from './types';
@@ -9,14 +8,41 @@ import { ExplorVizApiCodeLens } from './ExplorVizApiCodeLens';
 import { buildClassMethodArr } from './buildClassMethod';
 import { goToLocationsByMeshId } from './goToLocationByMeshId';
 
-const backendHttp = 'http://localhost:' + port
+const backendHttp = 'http://localhost:' + 3000
 const socket = io(backendHttp);
+
+// import * as vsls from 'vsls';
+import { getApi} from "vsls";
+
+
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
+    const vsls = (await getApi())!;
+
+    console.log("vsls", vsls)
+    vsls.onActivity!(e => {
+        console.log("onActivity", e)
+    })
+
+    vsls.onDidChangePeers(async e => {
+        console.log("onDidChangePeers", e)
+    })
+
+    vscode.workspace.onDidChangeTextDocument(async e => {
+        let peer = await vsls.getPeerForTextDocumentChangeEvent(e)
+        console.log("onDidChangeTextDocument", e, peer)
+    })
+
+    vsls.onDidChangeSession(async e => {
+        console.log("onDidChangeSession", e)
+       
+    })
+
     const openEditor = vscode.window.visibleTextEditors[0]
     let provider = new ExplorVizApiCodeLens(buildClassMethodArr(vscode.window.visibleTextEditors[0], [], true), []);
+
 
     let codeLensDisposable = vscode.languages.registerCodeLensProvider('java', provider);
     context.subscriptions.push(codeLensDisposable);
@@ -26,6 +52,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
         switch (data.action) {
+            case IDEApiActions.JumpToMonitoringClass:
+                console.log(data.fqn)
+                // vscode.commands.executeCommand('explorviz-vscode-extension.OpenInExplorViz', [data.fqn, data.fqn, []]);
+                // goToLocationsByMeshId("c8ac970b7df05858a78fe54f355cf0390af912fa4a1d97f4f2297798dcd95fd3", data.data)
+                break;
+
             case IDEApiActions.JumpToLocation:
                 console.log('GoTo Mesh: ' + data.meshId);
                 goToLocationsByMeshId(data.meshId, data.data)
@@ -117,10 +149,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
     console.log('Congratulations, your extension "explorviz-vscode-extension" is now active!');
 
-    backend.listen(port, () => {
-        console.log('Server started on port ' + port);
-    });
-
     let disposable = vscode.commands.registerCommand('explorviz-vscode-extension.helloWorld', function () {
         let editor = vscode.window.activeTextEditor;
         let selectedText = editor?.document.getText(editor.selection)
@@ -154,8 +182,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
     let OpenInExplorViz = vscode.commands.registerCommand('explorviz-vscode-extension.OpenInExplorViz', function (name: string, fqn: string, vizData: OrderTuple[]) {
         let occurrences: FoundationOccurrences[] = getOccurrenceIDsFromVizData(vizData)
-        console.log(vizData)
-        console.log(occurrences)
+        // console.log(vizData)
+        // console.log(occurrences)
 
         let vizFoundation = "foundation unset"
         let selection;
@@ -228,11 +256,12 @@ export const decorationType = vscode.window.createTextEditorDecorationType({
 
 
 function emitToBackend(dest: IDEApiDest, apiCall: IDEApiCall) {
+    // console.log(socket)
     socket.emit(dest, apiCall)
 }
 
 function getWebviewContent() {
-    let websiteUrl = 'http://localhost:4200/visualization';
+    let websiteUrl = 'http://localhost:4200';
     return `<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -328,3 +357,12 @@ function getOccurrenceIDsFromVizData(vizData: OrderTuple[]): FoundationOccurrenc
     return result
 }
 
+export function refreshVizData() {
+    emitToBackend(IDEApiDest.VizDo, {
+        action: IDEApiActions.GetVizData,
+        data: [],
+        meshId: "",
+        occurrenceID: -1,
+        fqn: ""
+    })
+}

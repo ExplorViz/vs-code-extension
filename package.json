@@ -88,7 +88,7 @@
     "express": "^4.18.2",
     "fs": "^0.0.1-security",
     "request-promise-native": "^1.0.9",
-    "socket.io": "^4.5.4",
-    "socket.io-client": "^4.5.4"
+    "socket.io-client": "^4.5.4",
+    "vsls": "^1.0.4753"
   }
 }
