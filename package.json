@@ -56,7 +56,7 @@
     "configuration": {
       "type": "object",
       "title": "ExplorViz VS Code Extension",
-      "properties": {   
+      "properties": {
         "explorviz.backendUrl": {
           "type": "string",
           "default": "http://localhost:3000",
