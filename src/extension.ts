@@ -21,10 +21,18 @@ let socket: Socket;
 // import * as vsls from 'vsls';
 import { getApi } from "vsls";
 
+export let decorationType: vscode.TextEditorDecorationType;
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
   const vsls = (await getApi())!;
+
+  decorationType = vscode.window.createTextEditorDecorationType({
+    gutterIconPath: context.asAbsolutePath("./images/explorviz-globe.png"),
+    gutterIconSize: "contain",
+    isWholeLine: true,
+  });
 
   const settings = vscode.workspace.getConfiguration("explorviz");
 
@@ -67,6 +75,10 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(codeLensDisposable);
   // let hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
+
+  socket.on("connect", () => {
+    console.log(`Socket ID is ${socket.id}`);
+  });
 
   socket.on(IDEApiDest.IDEDo, (data: IDEApiCall) => {
     switch (data.action) {
@@ -302,18 +314,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is deactivated
 export function deactivate() {}
-
-let iconUri = vscode.Uri.file(
-  "https://as1.ftcdn.net/v2/jpg/03/87/72/16/1000_F_387721677_jktomouPue2J6vPQKSFKWJdO0MvsmoBL.jpg"
-);
-export const decorationType = vscode.window.createTextEditorDecorationType({
-  // backgroundColor: 'green',
-  // border: '2px solid white',
-  gutterIconPath:
-    "C:/Lenny/Studium/vs-code-extension/media/explorviz-logo-dark.png",
-  gutterIconSize: "contain",
-  isWholeLine: true,
-});
 
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor

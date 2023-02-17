@@ -197,6 +197,8 @@ export function buildClassMethodArr(
   }
   // console.log(classMethodArray[0].fqn)
   if (decorate) {
+    console.log("decorateType", decorationType);
+    console.log("decorationsArray", decorationsArray);
     editor.setDecorations(decorationType, decorationsArray);
   }
 
