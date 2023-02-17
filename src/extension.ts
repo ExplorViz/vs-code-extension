@@ -233,7 +233,7 @@ export async function activate(context: vscode.ExtensionContext) {
       occurrences.forEach(async (occ) => {
         if (
           vizFoundation.includes(occ.foundation) &&
-          occ.occurrences.length != 0
+          occ.occurrences.length !== 0
         ) {
           console.log("Found");
           selection = await selectOption(
@@ -353,7 +353,7 @@ function cutSameStrings(arr: string[]): string[] {
     let trimmedPath = "";
     path.forEach((subPath, i) => {
       // console.log(i, subPath, path.length)
-      if (path.length - 1 == i || path.length - 2 == i) {
+      if (path.length - 1 === i || path.length - 2 === i) {
         trimmedPath += "/" + subPath;
       } else {
         test.forEach((pathTotest) => {
