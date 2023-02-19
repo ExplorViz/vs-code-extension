@@ -3,7 +3,7 @@ import * as fs from "fs";
 import path from "path";
 
 import { LocationFind, OrderTuple } from "./types";
-import { selectOption } from "./extension";
+import { selectOption, monitoringData } from "./extension";
 import { buildClassMethodArr } from "./buildClassMethod";
 
 export async function goToLocationsByMeshId(
@@ -38,7 +38,7 @@ export async function goToLocationsByMeshId(
     // dir = dir.substring(1)
   }
 
-  console.log("finds", finds);
+  console.log("finds", finds, "\nfqn: ", fqn)
 
   if (finds.javaFile.length > 0) {
     if (finds.javaFile.length == 1) {
@@ -238,6 +238,7 @@ function openFileCommand(
       let classMethod = buildClassMethodArr(
         vscode.window.visibleTextEditors[0],
         vizData,
+        monitoringData,
         true
       );
       let lineNUmber = -1;

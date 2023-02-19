@@ -3,6 +3,12 @@ export enum IDEApiDest {
   IDEDo = "ideDo",
 }
 
+
+export type MonitoringData = {
+  fqn: string,
+  description: string
+}
+
 export enum IDEApiActions {
   Refresh = "refresh",
   SingleClickOnMesh = "singleClickOnMesh",

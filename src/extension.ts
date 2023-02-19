@@ -10,6 +10,7 @@ import {
   IDEApiDest,
   OrderTuple,
   ParentOrder,
+  MonitoringData
 } from "./types";
 import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
@@ -22,11 +23,20 @@ let socket: Socket;
 import { getApi } from "vsls";
 
 export let decorationType: vscode.TextEditorDecorationType;
+export const monitoringDecorationType = vscode.window.createTextEditorDecorationType({
+  backgroundColor: 'green',
+  border: '2px solid white',
+
+})
+
+export let monitoringData: MonitoringData[] = [];
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
   const vsls = (await getApi())!;
+
+  // vscode.workspace.getConfiguration().update("workbench.editor.defaultViewMode", "splitRight", vscode.ConfigurationTarget.Global);
 
   decorationType = vscode.window.createTextEditorDecorationType({
     gutterIconPath: context.asAbsolutePath("./images/explorviz-globe.png"),
@@ -57,6 +67,8 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.workspace.onDidChangeTextDocument(async (e) => {
     let peer = await vsls.getPeerForTextDocumentChangeEvent(e);
     console.log("onDidChangeTextDocument", e, peer);
+
+    refreshVizData()
   });
 
   vsls.onDidChangeSession(async (e) => {
@@ -65,8 +77,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const openEditor = vscode.window.visibleTextEditors[0];
   let provider = new ExplorVizApiCodeLens(
-    buildClassMethodArr(vscode.window.visibleTextEditors[0], [], true),
-    []
+    buildClassMethodArr(vscode.window.visibleTextEditors[0], [], monitoringData, true), []
   );
 
   let codeLensDisposable = vscode.languages.registerCodeLensProvider(
@@ -80,10 +91,11 @@ export async function activate(context: vscode.ExtensionContext) {
     console.log(`Socket ID is ${socket.id}`);
   });
 
-  socket.on(IDEApiDest.IDEDo, (data: IDEApiCall) => {
+  socket.on(IDEApiDest.IDEDo, (data) => {
     switch (data.action) {
       case IDEApiActions.JumpToMonitoringClass:
-        console.log(data.fqn);
+        // console.log(data.fqn);
+        monitoringData = data.monitoringData
         // vscode.commands.executeCommand('explorviz-vscode-extension.OpenInExplorViz', [data.fqn, data.fqn, []]);
         // goToLocationsByMeshId("c8ac970b7df05858a78fe54f355cf0390af912fa4a1d97f4f2297798dcd95fd3", data.data)
         break;
@@ -104,6 +116,7 @@ export async function activate(context: vscode.ExtensionContext) {
         let classMethodArr = buildClassMethodArr(
           vscode.window.visibleTextEditors[0],
           data.data,
+          monitoringData,
           true
         );
         console.log("GetVizData: ", data.data);
@@ -180,6 +193,21 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // })
 
+  let openToFirstSplitColumn = vscode.workspace.onDidOpenTextDocument((e) => {
+    const editor = vscode.window.activeTextEditor;
+
+// })
+    if (editor) {
+        // console.log(e.fileName)
+        if (editor.viewColumn === vscode.ViewColumn.Two) {
+            vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+            vscode.commands.executeCommand('vscode.open', editor.document.uri, vscode.ViewColumn.One);
+            // vscode.commands.executeCommand('workbench.action.splitEditor');
+        }
+    }
+});
+
+context.subscriptions.push(openToFirstSplitColumn);
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
   );
@@ -313,7 +341,7 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
 
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor
