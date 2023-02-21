@@ -61,6 +61,11 @@
           "type": "string",
           "default": "http://localhost:3000",
           "description": "Specify URL for ExplorViz's VS Code backend."
+        },
+        "explorviz.frontendUrl": {
+          "type": "string",
+          "default": "http://localhost:4200",
+          "description": "Specify URL for ExplorViz's frontend."
         }
       }
     }

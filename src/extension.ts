@@ -10,24 +10,25 @@ import {
   IDEApiDest,
   OrderTuple,
   ParentOrder,
-  MonitoringData
+  MonitoringData,
 } from "./types";
 import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
 import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 
 let backendHttp: string | undefined;
+let frontendHttp: string | undefined;
 let socket: Socket;
 
 // import * as vsls from 'vsls';
 import { getApi } from "vsls";
 
 export let decorationType: vscode.TextEditorDecorationType;
-export const monitoringDecorationType = vscode.window.createTextEditorDecorationType({
-  backgroundColor: 'green',
-  border: '2px solid white',
-
-})
+export const monitoringDecorationType =
+  vscode.window.createTextEditorDecorationType({
+    backgroundColor: "green",
+    border: "2px solid white",
+  });
 
 export let monitoringData: MonitoringData[] = [];
 
@@ -47,6 +48,9 @@ export async function activate(context: vscode.ExtensionContext) {
   const settings = vscode.workspace.getConfiguration("explorviz");
 
   backendHttp = settings.get("backendUrl");
+
+  backendHttp = settings.get("backendUrl");
+  frontendHttp = settings.get("frontendUrl");
 
   if (!backendHttp) {
     console.error("ExplorViz backend URL not valid string", backendHttp);
@@ -68,7 +72,7 @@ export async function activate(context: vscode.ExtensionContext) {
     let peer = await vsls.getPeerForTextDocumentChangeEvent(e);
     console.log("onDidChangeTextDocument", e, peer);
 
-    refreshVizData()
+    refreshVizData();
   });
 
   vsls.onDidChangeSession(async (e) => {
@@ -77,7 +81,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const openEditor = vscode.window.visibleTextEditors[0];
   let provider = new ExplorVizApiCodeLens(
-    buildClassMethodArr(vscode.window.visibleTextEditors[0], [], monitoringData, true), []
+    buildClassMethodArr(
+      vscode.window.visibleTextEditors[0],
+      [],
+      monitoringData,
+      true
+    ),
+    []
   );
 
   let codeLensDisposable = vscode.languages.registerCodeLensProvider(
@@ -95,7 +105,7 @@ export async function activate(context: vscode.ExtensionContext) {
     switch (data.action) {
       case IDEApiActions.JumpToMonitoringClass:
         // console.log(data.fqn);
-        monitoringData = data.monitoringData
+        monitoringData = data.monitoringData;
         // vscode.commands.executeCommand('explorviz-vscode-extension.OpenInExplorViz', [data.fqn, data.fqn, []]);
         // goToLocationsByMeshId("c8ac970b7df05858a78fe54f355cf0390af912fa4a1d97f4f2297798dcd95fd3", data.data)
         break;
@@ -196,18 +206,22 @@ export async function activate(context: vscode.ExtensionContext) {
   let openToFirstSplitColumn = vscode.workspace.onDidOpenTextDocument((e) => {
     const editor = vscode.window.activeTextEditor;
 
-// })
+    // })
     if (editor) {
-        // console.log(e.fileName)
-        if (editor.viewColumn === vscode.ViewColumn.Two) {
-            vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-            vscode.commands.executeCommand('vscode.open', editor.document.uri, vscode.ViewColumn.One);
-            // vscode.commands.executeCommand('workbench.action.splitEditor');
-        }
+      // console.log(e.fileName)
+      if (editor.viewColumn === vscode.ViewColumn.Two) {
+        vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+        vscode.commands.executeCommand(
+          "vscode.open",
+          editor.document.uri,
+          vscode.ViewColumn.One
+        );
+        // vscode.commands.executeCommand('workbench.action.splitEditor');
+      }
     }
-});
+  });
 
-context.subscriptions.push(openToFirstSplitColumn);
+  context.subscriptions.push(openToFirstSplitColumn);
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
   );
@@ -341,7 +355,7 @@ context.subscriptions.push(openToFirstSplitColumn);
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() { }
+export function deactivate() {}
 
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor
@@ -352,7 +366,7 @@ function emitToBackend(dest: IDEApiDest, apiCall: IDEApiCall) {
 }
 
 function getWebviewContent() {
-  let websiteUrl = "http://localhost:4200";
+  let websiteUrl = frontendHttp;
   return `<!DOCTYPE html>
     <html lang="en">
     <head>
