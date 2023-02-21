@@ -21,7 +21,7 @@ export function buildClassMethodArr(
   let decorationsArray = []; //: vscode.DecorationOptions[] = []
   classMethodArray = [];
 
-  let monitoringDecorationArray = []
+  let monitoringDecorationArray = [];
   const sourceCodeArr = sourceCode.split("\n");
 
   let vizDataFQNs: string[] = [];
@@ -113,28 +113,38 @@ export function buildClassMethodArr(
         let name = match[2];
         let fqn = classMethodArray[0].fqn + "." + name;
 
-        let isMonitored: MonitoringData = { fqn: "no fqn set", description: "no desc set" };
+        let isMonitored: MonitoringData = {
+          fqn: "no fqn set",
+          description: "no desc set",
+        };
 
-        monitoringData.forEach(md => {
+        monitoringData.forEach((md) => {
           if (md.fqn.includes(fqn)) {
-            isMonitored = md
+            isMonitored = md;
           }
         });
 
-
         if (isMonitored.fqn != "no fqn set") {
           let monitoringDecoration = { range };
-          monitoringDecorationArray.push(monitoringDecoration)
+          monitoringDecorationArray.push(monitoringDecoration);
 
-          const diagnosticCollection = vscode.languages.createDiagnosticCollection("ExplorViz Monitoringtool");
+          const diagnosticCollection =
+            vscode.languages.createDiagnosticCollection(
+              "ExplorViz Monitoringtool"
+            );
 
           // Add a diagnostic to the collection
-          const diagnostic = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 10), isMonitored.description, vscode.DiagnosticSeverity.Error);
-          diagnosticCollection.set(vscode.Uri.file(isMonitored.fqn), [diagnostic]);
+          const diagnostic = new vscode.Diagnostic(
+            new vscode.Range(0, 0, 0, 10),
+            isMonitored.description,
+            vscode.DiagnosticSeverity.Error
+          );
+          diagnosticCollection.set(vscode.Uri.file(isMonitored.fqn), [
+            diagnostic,
+          ]);
           // diagnosticCollection.set(vscode.Uri.file('my-file.txt'), [diagnostic]);
           // console.log("isMonitored:", isMonitored)
         }
-
 
         // console.log(fqn)
         // console.log(name)
@@ -207,16 +217,21 @@ export function buildClassMethodArr(
 
       // Case: Method
       else if (match[5]) {
-        console.log(match[5])
+        console.log(match[5]);
         let name = match[5];
-        let fqn = classMethodArray[0].fqn + "." + match[5]
+        let fqn = classMethodArray[0].fqn + "." + match[5];
         if (vizDataFQNs.includes(fqn)) {
-          matchLength = match[5].length
-          matchIndex += match[4].length
+          matchLength = match[5].length;
+          matchIndex += match[4].length;
           // add generic return type <T extends Object> T doSome() {}
-          classMethodArray.push({ lineString: name + "(", name: name, fqn: fqn, lineNumber: line })
-          let decoration = { range }
-          decorationsArray.push(decoration)
+          classMethodArray.push({
+            lineString: name + "(",
+            name: name,
+            fqn: fqn,
+            lineNumber: line,
+          });
+          let decoration = { range };
+          decorationsArray.push(decoration);
         }
       }
     }
@@ -226,9 +241,9 @@ export function buildClassMethodArr(
     console.log("decorateType", decorationType);
     console.log("decorationsArray", decorationsArray);
     editor.setDecorations(decorationType, decorationsArray);
-    editor.setDecorations(monitoringDecorationType, monitoringDecorationArray)
+    editor.setDecorations(monitoringDecorationType, monitoringDecorationArray);
   }
-  
+
   console.log("classMethodArray: ", classMethodArray);
   return classMethodArray;
 }

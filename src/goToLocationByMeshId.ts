@@ -38,7 +38,7 @@ export async function goToLocationsByMeshId(
     // dir = dir.substring(1)
   }
 
-  console.log("finds", finds, "\nfqn: ", fqn)
+  console.log("finds", finds, "\nfqn: ", fqn);
 
   if (finds.javaFile.length > 0) {
     if (finds.javaFile.length == 1) {
