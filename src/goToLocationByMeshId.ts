@@ -19,7 +19,7 @@ export async function goToLocationsByMeshId(
   // let location = getLocationNameHelper(meshId, vizData, false)
   let fqn = getFQNByMeshId(meshId, vizData);
   console.log("FQN to find is", fqn);
-  fqn = "org.springframework.samples.petclinic.vet.Vet";
+  //fqn = "org.springframework.samples.petclinic.vet.Vet";
   if (vscode.workspace.workspaceFolders) {
     vscode.workspace.workspaceFolders.forEach(async (element) => {
       let dir = element.uri.path;
