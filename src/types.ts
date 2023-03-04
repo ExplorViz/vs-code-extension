@@ -18,19 +18,40 @@ export enum IDEApiActions {
   JumpToMonitoringClass = "jumpToMonitoringClass",
 }
 
+export type CommunicationLink = {
+  sourceMeshID: string;
+  targetMeshID: string;
+  meshID: string;
+}
+
+
 export type IDEApiCall = {
   action: IDEApiActions;
   data: OrderTuple[];
   meshId: string;
   occurrenceID: number;
   fqn: string;
+  foundationCommunicationLinks: CommunicationLink[]
 };
+
+
+export type VizDataRaw = {
+  applicationObject3D: any[],
+  communicationLinks: CommunicationLink[]
+}
 
 export type ParentOrder = {
   fqn: string;
   childs: ParentOrder[];
   meshId: string;
 };
+
+// export type ParentOrder = {
+//   fqn: string;
+//   meshid: string;
+//   childs: ParentOrder[];
+//   methods: ParentOrder[];
+// };
 
 export type OrderTuple = {
   hierarchyModel: ParentOrder;

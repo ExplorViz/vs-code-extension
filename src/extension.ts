@@ -173,6 +173,7 @@ export async function activate(context: vscode.ExtensionContext) {
       meshId: "",
       occurrenceID: -1,
       fqn: "",
+      foundationCommunicationLinks: []
     });
   });
 
@@ -302,6 +303,7 @@ export async function activate(context: vscode.ExtensionContext) {
               data: [],
               meshId: "",
               occurrenceID: parseInt(selection),
+              foundationCommunicationLinks: []
             });
             vscode.window.showInformationMessage(
               "Open " + name + " in ExplorViz"
@@ -314,6 +316,7 @@ export async function activate(context: vscode.ExtensionContext) {
             data: [],
             meshId: "",
             occurrenceID: -1,
+            foundationCommunicationLinks: []
           });
           vscode.window.showInformationMessage(
             "Open " + name + " in ExplorViz"
@@ -470,5 +473,6 @@ export function refreshVizData() {
     meshId: "",
     occurrenceID: -1,
     fqn: "",
+    foundationCommunicationLinks: []
   });
 }
