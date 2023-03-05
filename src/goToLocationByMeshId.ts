@@ -213,7 +213,7 @@ function openFileCommand(
   vizData: OrderTuple[]
 ) {
   vscode.commands
-    .executeCommand("workbench.action.focusNextGroup")
+    .executeCommand("workbench.action.focusFirstEditorGroup")
     .then(() => {
       console.log("First command finished executing.");
       // console.log(finds)

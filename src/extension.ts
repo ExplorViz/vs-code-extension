@@ -206,25 +206,26 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // })
 
-  let openToFirstSplitColumn = vscode.workspace.onDidOpenTextDocument((e) => {
-    const editor = vscode.window.activeTextEditor;
+  // bad workaround to open new files on left side
+  // let openToFirstSplitColumn = vscode.workspace.onDidOpenTextDocument((e) => {
+  //   const editor = vscode.window.activeTextEditor;
 
-    // })
-    if (editor) {
-      // console.log(e.fileName)
-      if (editor.viewColumn === vscode.ViewColumn.Two) {
-        vscode.commands.executeCommand("workbench.action.closeActiveEditor");
-        vscode.commands.executeCommand(
-          "vscode.open",
-          editor.document.uri,
-          vscode.ViewColumn.One
-        );
-        // vscode.commands.executeCommand('workbench.action.splitEditor');
-      }
-    }
-  });
+  //   // })
+  //   if (editor) {
+  //     // console.log(e.fileName)
+  //     if (editor.viewColumn === vscode.ViewColumn.Two) {
+  //       vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+  //       vscode.commands.executeCommand(
+  //         "vscode.open",
+  //         editor.document.uri,
+  //         vscode.ViewColumn.One
+  //       );
+  //       // vscode.commands.executeCommand('workbench.action.splitEditor');
+  //     }
+  //   }
+  // });
 
-  context.subscriptions.push(openToFirstSplitColumn);
+  // context.subscriptions.push(openToFirstSplitColumn);
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
   );
