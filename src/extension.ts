@@ -111,8 +111,10 @@ export async function activate(context: vscode.ExtensionContext) {
         break;
 
       case IDEApiActions.JumpToLocation:
-        console.log("GoTo Mesh: " + data.meshId);
-        goToLocationsByMeshId(data.meshId, data.data);
+        console.log("GoTo Mesh: " + data.meshId, data.meshId.split("_").length);
+
+        let isMethod: boolean = data.meshId.split("_").length == 3
+        goToLocationsByMeshId(data.meshId, data.data, isMethod);
 
         break;
       case IDEApiActions.ClickTimeline:
@@ -173,7 +175,7 @@ export async function activate(context: vscode.ExtensionContext) {
       meshId: "",
       occurrenceID: -1,
       fqn: "",
-      foundationCommunicationLinks: []
+      foundationCommunicationLinks: [],
     });
   });
 
@@ -292,18 +294,22 @@ export async function activate(context: vscode.ExtensionContext) {
         ) {
           console.log("Found");
           selection = await selectOption(
-            occ.occurrences.map(String),
+            ["Base Foundation"].concat(occ.occurrences.map(String)),
             "Open occurrence of " + occ.foundation,
             false
           );
           if (selection) {
+            if(selection == "Base Foundation") {
+              selection = "-1"
+            }
             emitToBackend(IDEApiDest.VizDo, {
               action: IDEApiActions.DoubleClickOnMesh,
               fqn: fqn,
               data: [],
               meshId: "",
               occurrenceID: parseInt(selection),
-              foundationCommunicationLinks: []
+              foundationCommunicationLinks: [],
+      
             });
             vscode.window.showInformationMessage(
               "Open " + name + " in ExplorViz"
@@ -316,7 +322,8 @@ export async function activate(context: vscode.ExtensionContext) {
             data: [],
             meshId: "",
             occurrenceID: -1,
-            foundationCommunicationLinks: []
+            foundationCommunicationLinks: [],
+    
           });
           vscode.window.showInformationMessage(
             "Open " + name + " in ExplorViz"

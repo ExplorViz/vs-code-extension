@@ -8,7 +8,8 @@ import { buildClassMethodArr } from "./buildClassMethod";
 
 export async function goToLocationsByMeshId(
   meshId: string,
-  vizData: OrderTuple[]
+  vizData: OrderTuple[],
+  isMethod: boolean
 ) {
   let finds: LocationFind = {
     dirs: [],
@@ -16,8 +17,13 @@ export async function goToLocationsByMeshId(
     javaFile: [],
   };
 
+  console.log("isMethod: ", isMethod)
   // let location = getLocationNameHelper(meshId, vizData, false)
   let fqn = getFQNByMeshId(meshId, vizData);
+  let fqnToSearchInDir = fqn;
+  if(isMethod) {
+    fqnToSearchInDir = fqn.replace( "." + meshId.split("_")[2], "")
+  }
   console.log("FQN to find is", fqn);
   //fqn = "org.springframework.samples.petclinic.vet.Vet";
   if (vscode.workspace.workspaceFolders) {
@@ -26,7 +32,8 @@ export async function goToLocationsByMeshId(
       dir = dir.substring(1);
 
       let tempFind;
-      tempFind = getFindsByWorkDir(fqn, dir);
+      // change fqn for method case
+      tempFind = getFindsByWorkDir(fqnToSearchInDir, dir);
       // console.log("tempFind", tempFind)
       finds.dirs = finds.dirs.concat(tempFind.dirs);
       if (tempFind.javaFile[0] != "undefined") {
@@ -88,11 +95,13 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
 
   let dir = workDir;
 
+  //TODO packageBaseDir as global var
   let packageBaseDir = "\\src\\main\\java";
   let fqnArr = fqn.split(".");
   let foundationName = fqnArr[0];
   let possibleInstanceCounter: number = Number(fqnArr[1]);
 
+  
   let fqnAsPath = foundationName;
   if (isNaN(possibleInstanceCounter)) {
     possibleInstanceCounter = -1;

@@ -13,10 +13,10 @@ export function buildClassMethodArr(
   // class\s([\w\d]+)[\w\s]+(.+)|[\w\d\<>]+\s([\w]+)(\(\)|\([\w\s]+\))(.+)|(}{1}|{{1})
   // class\s([\w\d]+)[\w\s]+{
   // https://regex101.com/
-  let regex = /(?<=class\s)[\w\d]+/;
-  let regexMethods = /[\w\d\<>]+\s([\w]+)(\(\)|\([\w\s]+\))\s{/;
+  let regexClass = /(class\s)([\w\d]+)[\w\s]+(.+)/;
+  let regexMethods = /([\w\d\<>]+\s)([\w]+)\((.*?)\)\s/;
   let regexClassWithMethods =
-    /(class\s)([\w\d]+)[\w\s]+(.+)|([\w\d\<>]+\s)([\w]+)(\(\)|\([\w\s]+\))\s/;
+    /(class\s)([\w\d]+)[\w\s]+(.+)|([\w\d\<>]+\s)([\w]+)\((.*?)\)\s/;
   // let regex = /(class)/
   let decorationsArray = []; //: vscode.DecorationOptions[] = []
   classMethodArray = [];
@@ -38,6 +38,8 @@ export function buildClassMethodArr(
     console.error("VizData Empty!");
     return [];
   }
+
+  let className = ""
 
   for (let line = 0; line < sourceCodeArr.length; line++) {
     // Get Package name especially FQN
@@ -105,12 +107,13 @@ export function buildClassMethodArr(
         new vscode.Position(line, matchIndex),
         new vscode.Position(line, matchIndex + matchLength)
       );
-
+      
       // Case: Class
       if (match[1]) {
         matchLength = match[2].length;
         matchIndex += match[1].length;
         let name = match[2];
+        className = name
         let fqn = classMethodArray[0].fqn + "." + name;
 
         let isMonitored: MonitoringData = {
@@ -150,6 +153,7 @@ export function buildClassMethodArr(
         // console.log(name)
         if (vizDataFQNs.includes(fqn)) {
           // + - * / % = \w @
+          // Cases could be implemented with regex as well 
           classMethodArray.push({
             lineString: match[0],
             name: name,
@@ -219,11 +223,12 @@ export function buildClassMethodArr(
       else if (match[5]) {
         console.log(match[5]);
         let name = match[5];
-        let fqn = classMethodArray[0].fqn + "." + match[5];
+        let fqn = classMethodArray[0].fqn + "." + className + "." + match[5];
+        let test = vizDataFQNs.includes(fqn);
         if (vizDataFQNs.includes(fqn)) {
           matchLength = match[5].length;
           matchIndex += match[4].length;
-          // add generic return type <T extends Object> T doSome() {}
+          
           classMethodArray.push({
             lineString: name + "(",
             name: name,
