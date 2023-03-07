@@ -215,16 +215,17 @@ function openFileCommand(
   vscode.commands
     .executeCommand("workbench.action.focusFirstEditorGroup")
     .then(() => {
+      let normalizedPath = path.normalize(pathToLocation)
       console.log("First command finished executing.");
       // console.log(finds)
-      let stats = fs.lstatSync(path.join(pathToLocation, ""));
+      let stats = fs.lstatSync(path.join(normalizedPath, ""));
 
-      // console.log(pathToLocation)
-      // console.log(pathToLocation.split(".")[0])
-
+      // console.log(normalizedPath)
+      // console.log(normalizedPath.split(".")[0])
+      console.log("normalizedPath", normalizedPath)
       if (!stats) {
-        pathToLocation = pathToLocation.split(".")[0];
-        stats = fs.lstatSync(path.join(pathToLocation, ""));
+        normalizedPath = normalizedPath.split(".")[0];
+        stats = fs.lstatSync(path.join(normalizedPath, ""));
       }
       if (stats.isDirectory()) {
         // select file to open
@@ -236,7 +237,7 @@ function openFileCommand(
       }
       return vscode.commands.executeCommand(
         "editor.action.goToLocations",
-        vscode.Uri.file(pathToLocation),
+        vscode.Uri.file(normalizedPath),
         new vscode.Position(0, 0),
         [new vscode.Position(0, 0)],
         "goto",
