@@ -5,6 +5,7 @@ import path from "path";
 import { LocationFind, OrderTuple } from "./types";
 import { selectOption, monitoringData } from "./extension";
 import { buildClassMethodArr } from "./buildClassMethod";
+const settings = vscode.workspace.getConfiguration("explorviz");
 
 export async function goToLocationsByMeshId(
   meshId: string,
@@ -96,7 +97,14 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
   let dir = workDir;
 
   //TODO packageBaseDir as global var
-  let packageBaseDir = "\\src\\main\\java";
+  let packageBaseDir = settings.get("packageBaseDir");
+  if(typeof packageBaseDir === "string")  {
+    packageBaseDir = path.normalize(packageBaseDir)
+  }
+  else {
+    packageBaseDir = ""
+  }
+  console.log("packageBaseDir", packageBaseDir)
   let fqnArr = fqn.split(".");
   let foundationName = fqnArr[0];
   let possibleInstanceCounter: number = Number(fqnArr[1]);
@@ -112,7 +120,7 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
   // let absoluteDirPath = dir + packageBaseDir + fqn
 
   dir = dir.replaceAll("/", "\\");
-  let filesInWorkDir = searchjavaFilesAndDirs(dir);
+  let filesInWorkDir = searchjavaFilesAndDirs(path.normalize(dir));
 
   let isFoundation = false;
 
@@ -136,7 +144,7 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
       console.log(fqnWithoutFoundationPath);
 
       let filesInFixedFqnPath = searchjavaFilesAndDirs(
-        fqnWithoutFoundationPath
+        path.normalize(fqnWithoutFoundationPath)
       );
       finds = filesInFixedFqnPath;
     }
@@ -145,7 +153,7 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
   // packageBaseDir and no foundation folder
   if (!isFoundation) {
     let filesInPackageBaseDir = searchjavaFilesAndDirs(
-      dir + packageBaseDir + "\\" + fqnWithoutFoundationPath
+      path.normalize(dir + packageBaseDir + "\\" + fqnWithoutFoundationPath)
     );
     console.log(fqn, fqnWithoutFoundationPath);
 
