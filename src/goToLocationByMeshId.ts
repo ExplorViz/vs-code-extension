@@ -30,7 +30,15 @@ export async function goToLocationsByMeshId(
   if (vscode.workspace.workspaceFolders) {
     vscode.workspace.workspaceFolders.forEach(async (element) => {
       let dir = element.uri.path;
-      dir = dir.substring(1);
+      dir = path.normalize(dir)
+      // console.log("workdir1", dir)
+
+      // Case for windows file paths to exclude intial \
+      // element.uri.path gives e.g. \c:\...\spring-petclinic
+      if(dir.substring(0, 1) == "\\") {
+        dir = dir.substring(1);
+      }
+      // console.log("workdir2", dir)
 
       let tempFind;
       // change fqn for method case
@@ -167,7 +175,8 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
 }
 
 function searchjavaFilesAndDirs(dir: string): LocationFind {
-  // console.log("bla")
+  // console.log("------searchjavaFilesAndDirs------")
+  // console.log(dir)
   let javaFilesFinds: string[] = [];
   let dirFinds: string[] = [];
   let javaFile: string = "undefined";
