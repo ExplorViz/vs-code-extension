@@ -119,7 +119,7 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
 
   // let absoluteDirPath = dir + packageBaseDir + fqn
 
-  dir = dir.replaceAll("/", "\\");
+  // dir = dir.replaceAll("/", "/");
   let filesInWorkDir = searchjavaFilesAndDirs(path.normalize(dir));
 
   let isFoundation = false;
@@ -131,7 +131,7 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
     possibleInstanceCounter + ".",
     ""
   );
-  fqnWithoutFoundationPath = fqnWithoutFoundationPath.replaceAll(".", "\\");
+  fqnWithoutFoundationPath = fqnWithoutFoundationPath.replaceAll(".", "/");
 
   filesInWorkDir.dirs.forEach((element) => {
     // is Foundation
@@ -140,7 +140,7 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
       isFoundation = true;
 
       fqnWithoutFoundationPath =
-        element + packageBaseDir + "\\" + fqnWithoutFoundationPath;
+        element + packageBaseDir + "/" + fqnWithoutFoundationPath;
       console.log(fqnWithoutFoundationPath);
 
       let filesInFixedFqnPath = searchjavaFilesAndDirs(
@@ -153,7 +153,7 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
   // packageBaseDir and no foundation folder
   if (!isFoundation) {
     let filesInPackageBaseDir = searchjavaFilesAndDirs(
-      path.normalize(dir + packageBaseDir + "\\" + fqnWithoutFoundationPath)
+      path.normalize(dir + packageBaseDir + "/" + fqnWithoutFoundationPath)
     );
     console.log(fqn, fqnWithoutFoundationPath);
 

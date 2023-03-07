@@ -400,7 +400,9 @@ function getWebviewContent() {
 
 function cutSameStrings(arr: string[]): string[] {
   let trimmedArr: string[] = [];
-  let test = arr.map((e) => e.split("\\"));
+  let arrFixed = arr.map(e => e.replaceAll("/", "\\"))
+  let test = arrFixed.map((e) => e.split("\\"));
+  // console.log("test.length", test.length)
 
   test.forEach((path) => {
     let trimmedPath = "";
