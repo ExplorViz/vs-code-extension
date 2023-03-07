@@ -66,6 +66,11 @@
           "type": "string",
           "default": "http://localhost:4200",
           "description": "Specify URL for ExplorViz's frontend."
+        },
+        "explorviz.packageBaseDir": {
+          "type": "string",
+          "default": "/src/main/java",
+          "description": "Specify if there is a src directory that wouldn't be included into the FQN"
         }
       }
     }
