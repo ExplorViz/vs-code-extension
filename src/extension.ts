@@ -21,7 +21,7 @@ let frontendHttp: string | undefined;
 let socket: Socket;
 
 // import * as vsls from 'vsls';
-import { getApi } from "vsls";
+// import { getApi } from "vsls";
 
 export let decorationType: vscode.TextEditorDecorationType;
 export const monitoringDecorationType =
@@ -35,7 +35,7 @@ export let monitoringData: MonitoringData[] = [];
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
-  const vsls = (await getApi())!;
+  // const vsls = (await getApi())!;
 
   // vscode.workspace.getConfiguration().update("workbench.editor.defaultViewMode", "splitRight", vscode.ConfigurationTarget.Global);
 
@@ -59,25 +59,25 @@ export async function activate(context: vscode.ExtensionContext) {
 
   socket = io(backendHttp);
 
-  console.log("vsls", vsls);
-  vsls.onActivity!((e) => {
-    console.log("onActivity", e);
-  });
+  // console.log("vsls", vsls);
+  // vsls.onActivity!((e) => {
+  //   console.log("onActivity", e);
+  // });
 
-  vsls.onDidChangePeers(async (e) => {
-    console.log("onDidChangePeers", e);
-  });
+  // vsls.onDidChangePeers(async (e) => {
+  //   console.log("onDidChangePeers", e);
+  // });
 
   vscode.workspace.onDidChangeTextDocument(async (e) => {
-    let peer = await vsls.getPeerForTextDocumentChangeEvent(e);
-    console.log("onDidChangeTextDocument", e, peer);
+    // let peer = await vsls.getPeerForTextDocumentChangeEvent(e);
+    // console.log("onDidChangeTextDocument", e, peer);
 
     refreshVizData();
   });
 
-  vsls.onDidChangeSession(async (e) => {
-    console.log("onDidChangeSession", e);
-  });
+  // vsls.onDidChangeSession(async (e) => {
+  //   console.log("onDidChangeSession", e);
+  // });
 
   const openEditor = vscode.window.visibleTextEditors[0];
   let provider = new ExplorVizApiCodeLens(
