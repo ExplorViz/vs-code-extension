@@ -51,6 +51,10 @@
       {
         "command": "explorviz-vscode-extension.selectJavaFileToOpen",
         "title": "selectJavaFileToOpen"
+      },
+      {
+        "command": "explorviz-vscode-extension.connectToRoom",
+        "title": "ExplorViz: Connect to room ..."
       }
     ],
     "configuration": {

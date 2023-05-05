@@ -52,13 +52,6 @@ export async function activate(context: vscode.ExtensionContext) {
   backendHttp = settings.get("backendUrl");
   frontendHttp = settings.get("frontendUrl");
 
-  if (!backendHttp) {
-    console.error("ExplorViz backend URL not valid string", backendHttp);
-    return;
-  }
-
-  socket = io(backendHttp);
-
   // console.log("vsls", vsls);
   // vsls.onActivity!((e) => {
   //   console.log("onActivity", e);
@@ -96,68 +89,6 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(codeLensDisposable);
   // let hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
-
-  socket.on("connect", () => {
-    console.log(`Socket ID is ${socket.id}`);
-  });
-
-  socket.on(IDEApiDest.IDEDo, (data) => {
-    switch (data.action) {
-      case IDEApiActions.JumpToMonitoringClass:
-        // console.log(data.fqn);
-        monitoringData = data.monitoringData;
-        // vscode.commands.executeCommand('explorviz-vscode-extension.OpenInExplorViz', [data.fqn, data.fqn, []]);
-        // goToLocationsByMeshId("c8ac970b7df05858a78fe54f355cf0390af912fa4a1d97f4f2297798dcd95fd3", data.data)
-        break;
-
-      case IDEApiActions.JumpToLocation:
-        console.log("GoTo Mesh: " + data.meshId, data.meshId.split("_").length);
-
-        let isMethod: boolean = data.meshId.split("_").length == 3
-        goToLocationsByMeshId(data.meshId, data.data, isMethod);
-
-        break;
-      case IDEApiActions.ClickTimeline:
-        vscode.commands.executeCommand(
-          "explorviz-vscode-extension.IdeTestCallback"
-        );
-        break;
-      case IDEApiActions.DoubleClickOnMesh:
-        break;
-      case IDEApiActions.GetVizData:
-        let classMethodArr = buildClassMethodArr(
-          vscode.window.visibleTextEditors[0],
-          data.data,
-          monitoringData,
-          true
-        );
-        console.log("GetVizData: ", data.data);
-        provider = new ExplorVizApiCodeLens(classMethodArr, data.data);
-        // console.log("ideDo data received")
-        // console.log(data.data[0])
-
-        codeLensDisposable.dispose();
-        // hoverDisposable.dispose();
-
-        // buildClassMethodArr(vscode.window.visibleTextEditors[0])
-        codeLensDisposable = vscode.languages.registerCodeLensProvider(
-          "java",
-          provider
-        );
-        // hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
-
-        context.subscriptions.push(codeLensDisposable);
-        // context.subscriptions.push(hoverDisposable);
-
-        // console.log("IDEApiActions.GetVizData")
-        break;
-      case IDEApiActions.SingleClickOnMesh:
-        // goToLocationsByMeshId(data.meshId, data.data)
-        break;
-      default:
-        break;
-    }
-  });
 
   // emitToBackend(IDEApiDest.VizDo, {
   //     action: IDEApiActions.GetVizData,
@@ -248,33 +179,33 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(disposable);
 
-  let VizSingleClickOnMesh = vscode.commands.registerCommand(
+  let vizSingleClickOnMesh = vscode.commands.registerCommand(
     "explorviz-vscode-extension.VizSingleClickOnMesh",
     function () {
       // emitToBackend("vizDo", { action: "singleClickOnMesh" })
       vscode.window.showInformationMessage("VizSingleClickOnMesh");
     }
   );
-  context.subscriptions.push(VizSingleClickOnMesh);
+  context.subscriptions.push(vizSingleClickOnMesh);
 
-  let VizDoubleClickOnMesh = vscode.commands.registerCommand(
+  let vizDoubleClickOnMesh = vscode.commands.registerCommand(
     "explorviz-vscode-extension.VizDoubleClickOnMesh",
     function () {
       // emitToBackend(IDEApiDest.VizDo, { action: "doubleClickOnMesh" })
       vscode.window.showInformationMessage("VizDoubleClickOnMesh");
     }
   );
-  context.subscriptions.push(VizDoubleClickOnMesh);
+  context.subscriptions.push(vizDoubleClickOnMesh);
 
-  let IdeTestCallback = vscode.commands.registerCommand(
+  let ideTestCallback = vscode.commands.registerCommand(
     "explorviz-vscode-extension.IdeTestCallback",
     function (arg1: any, arg2: any) {
       vscode.window.showInformationMessage("IdeTestCallback " + arg1);
     }
   );
-  context.subscriptions.push(IdeTestCallback);
+  context.subscriptions.push(ideTestCallback);
 
-  let OpenInExplorViz = vscode.commands.registerCommand(
+  let openInExplorViz = vscode.commands.registerCommand(
     "explorviz-vscode-extension.OpenInExplorViz",
     function (name: string, fqn: string, vizData: OrderTuple[]) {
       let occurrences: FoundationOccurrences[] =
@@ -300,8 +231,8 @@ export async function activate(context: vscode.ExtensionContext) {
             false
           );
           if (selection) {
-            if(selection == "Base Foundation") {
-              selection = "-1"
+            if (selection === "Base Foundation") {
+              selection = "-1";
             }
             emitToBackend(IDEApiDest.VizDo, {
               action: IDEApiActions.DoubleClickOnMesh,
@@ -310,7 +241,6 @@ export async function activate(context: vscode.ExtensionContext) {
               meshId: "",
               occurrenceID: parseInt(selection),
               foundationCommunicationLinks: [],
-      
             });
             vscode.window.showInformationMessage(
               "Open " + name + " in ExplorViz"
@@ -324,7 +254,6 @@ export async function activate(context: vscode.ExtensionContext) {
             meshId: "",
             occurrenceID: -1,
             foundationCommunicationLinks: [],
-    
           });
           vscode.window.showInformationMessage(
             "Open " + name + " in ExplorViz"
@@ -333,7 +262,7 @@ export async function activate(context: vscode.ExtensionContext) {
       });
     }
   );
-  context.subscriptions.push(OpenInExplorViz);
+  context.subscriptions.push(openInExplorViz);
 
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
@@ -352,6 +281,95 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(webview);
+
+  let connectToRoom = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.connectToRoom",
+    async () => {
+      if (!backendHttp) {
+        console.error("ExplorViz backend URL not valid string", backendHttp);
+        return;
+      }
+
+      const vsCodeInputOptions: vscode.InputBoxOptions = {
+        prompt: "Enter the room name from the ExplorViz frontend.",
+      };
+
+      const inputBox = await vscode.window.showInputBox(vsCodeInputOptions);
+      if (!inputBox || inputBox.length < 3) {
+        return;
+      }
+      vscode.window.showInformationMessage(inputBox);
+
+      socket = io(backendHttp);
+
+      socket.on("connect", () => {
+        socket.emit("join-custom-room", { roomId: inputBox });
+      });
+
+      socket.on(IDEApiDest.IDEDo, (data) => {
+        console.log("joooooo", data);
+        switch (data.action) {
+          case IDEApiActions.JumpToMonitoringClass:
+            // console.log(data.fqn);
+            monitoringData = data.monitoringData;
+            // vscode.commands.executeCommand('explorviz-vscode-extension.OpenInExplorViz', [data.fqn, data.fqn, []]);
+            // goToLocationsByMeshId("c8ac970b7df05858a78fe54f355cf0390af912fa4a1d97f4f2297798dcd95fd3", data.data)
+            break;
+
+          case IDEApiActions.JumpToLocation:
+            console.log(
+              "GoTo Mesh: " + data.meshId,
+              data.meshId.split("_").length
+            );
+
+            let isMethod: boolean = data.meshId.split("_").length === 3;
+            goToLocationsByMeshId(data.meshId, data.data, isMethod);
+
+            break;
+          case IDEApiActions.ClickTimeline:
+            vscode.commands.executeCommand(
+              "explorviz-vscode-extension.IdeTestCallback"
+            );
+            break;
+          case IDEApiActions.DoubleClickOnMesh:
+            break;
+          case IDEApiActions.GetVizData:
+            let classMethodArr = buildClassMethodArr(
+              vscode.window.visibleTextEditors[0],
+              data.data,
+              monitoringData,
+              true
+            );
+            console.log("GetVizData: ", data.data);
+            provider = new ExplorVizApiCodeLens(classMethodArr, data.data);
+            // console.log("ideDo data received")
+            // console.log(data.data[0])
+
+            codeLensDisposable.dispose();
+            // hoverDisposable.dispose();
+
+            // buildClassMethodArr(vscode.window.visibleTextEditors[0])
+            codeLensDisposable = vscode.languages.registerCodeLensProvider(
+              "java",
+              provider
+            );
+            // hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
+
+            context.subscriptions.push(codeLensDisposable);
+            // context.subscriptions.push(hoverDisposable);
+
+            // console.log("IDEApiActions.GetVizData")
+            break;
+          case IDEApiActions.SingleClickOnMesh:
+            // goToLocationsByMeshId(data.meshId, data.data)
+            break;
+          default:
+            break;
+        }
+      });
+    }
+  );
+  context.subscriptions.push(connectToRoom);
 
   let webviewStartup = vscode.window.createWebviewPanel(
     "websiteViewer", // Identifies the type of the webview. Used internally
@@ -400,7 +418,7 @@ function getWebviewContent() {
 
 function cutSameStrings(arr: string[]): string[] {
   let trimmedArr: string[] = [];
-  let arrFixed = arr.map(e => e.replaceAll("/", "\\"))
+  let arrFixed = arr.map((e) => e.replaceAll("/", "\\"));
   let test = arrFixed.map((e) => e.split("\\"));
   // console.log("test.length", test.length)
 
@@ -483,6 +501,6 @@ export function refreshVizData() {
     meshId: "",
     occurrenceID: -1,
     fqn: "",
-    foundationCommunicationLinks: []
+    foundationCommunicationLinks: [],
   });
 }
