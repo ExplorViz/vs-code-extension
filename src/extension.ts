@@ -39,6 +39,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // vscode.workspace.getConfiguration().update("workbench.editor.defaultViewMode", "splitRight", vscode.ConfigurationTarget.Global);
 
+  console.log("test alex");
+
   decorationType = vscode.window.createTextEditorDecorationType({
     gutterIconPath: context.asAbsolutePath("./images/explorviz-globe.png"),
     gutterIconSize: "contain",
@@ -160,50 +162,6 @@ export async function activate(context: vscode.ExtensionContext) {
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
   );
-
-  let disposable = vscode.commands.registerCommand(
-    "explorviz-vscode-extension.helloWorld",
-    function () {
-      let editor = vscode.window.activeTextEditor;
-      let selectedText = editor?.document.getText(editor.selection);
-
-      let dir = "";
-      if (vscode.workspace.workspaceFolders) {
-        dir = vscode.workspace.workspaceFolders[0].uri.path;
-        dir = dir.substring(1);
-      }
-      vscode.window.showInformationMessage(
-        "Hello World from ExplorViz Support!" + selectedText
-      );
-    }
-  );
-  context.subscriptions.push(disposable);
-
-  let vizSingleClickOnMesh = vscode.commands.registerCommand(
-    "explorviz-vscode-extension.VizSingleClickOnMesh",
-    function () {
-      // emitToBackend("vizDo", { action: "singleClickOnMesh" })
-      vscode.window.showInformationMessage("VizSingleClickOnMesh");
-    }
-  );
-  context.subscriptions.push(vizSingleClickOnMesh);
-
-  let vizDoubleClickOnMesh = vscode.commands.registerCommand(
-    "explorviz-vscode-extension.VizDoubleClickOnMesh",
-    function () {
-      // emitToBackend(IDEApiDest.VizDo, { action: "doubleClickOnMesh" })
-      vscode.window.showInformationMessage("VizDoubleClickOnMesh");
-    }
-  );
-  context.subscriptions.push(vizDoubleClickOnMesh);
-
-  let ideTestCallback = vscode.commands.registerCommand(
-    "explorviz-vscode-extension.IdeTestCallback",
-    function (arg1: any, arg2: any) {
-      vscode.window.showInformationMessage("IdeTestCallback " + arg1);
-    }
-  );
-  context.subscriptions.push(ideTestCallback);
 
   let openInExplorViz = vscode.commands.registerCommand(
     "explorviz-vscode-extension.OpenInExplorViz",
