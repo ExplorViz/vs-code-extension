@@ -40,15 +40,6 @@ export class ExplorVizApiCodeLens
           codeLenses.push(codeLens);
         }
       });
-      // if (line.includes("public")) {
-      //     const codeLens = new vscode.CodeLens(new vscode.Range(i, 0, i, 0), {
-      //         title: "Public keyword found here",
-      //         command: "explorviz-vscode-extension.IdeTestCallback",
-      //         arguments: ["Das ist ein Argument in einem Array", "und ein Zweiter"],
-      //         tooltip: "Moin"
-      //     });
-      //     codeLenses.push(codeLens);
-      // }
     }
     return codeLenses;
   }
