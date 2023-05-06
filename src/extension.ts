@@ -44,26 +44,11 @@ export async function activate(context: vscode.ExtensionContext) {
   backendHttp = settings.get("backendUrl");
   frontendHttp = settings.get("frontendUrl");
 
-  console.log("test alex1");
-
   decorationType = vscode.window.createTextEditorDecorationType({
     gutterIconPath: context.asAbsolutePath("./images/explorviz-globe.png"),
     gutterIconSize: "contain",
     isWholeLine: true,
   });
-
-  const openEditor = vscode.window.visibleTextEditors[0];
-
-  let webviewStartup = vscode.window.createWebviewPanel(
-    "websiteViewer", // Identifies the type of the webview. Used internally
-    "ExplorViz", // Title of the panel displayed to the user
-    vscode.ViewColumn.Two,
-    {
-      enableScripts: true,
-      localResourceRoots: [vscode.Uri.file(context.extensionPath)],
-    }
-  );
-  webviewStartup.webview.html = getWebviewContent();
 
   vscode.workspace.onDidSaveTextDocument((event) => {
     emitToBackend(IDEApiDest.VizDo, {

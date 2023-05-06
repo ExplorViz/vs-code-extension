@@ -35,7 +35,7 @@ export async function goToLocationsByMeshId(
 
       // Case for windows file paths to exclude intial \
       // element.uri.path gives e.g. \c:\...\spring-petclinic
-      if (dir.substring(0, 1) == "\\") {
+      if (dir.substring(0, 1) === "\\") {
         dir = dir.substring(1);
       }
       // console.log("workdir2", dir)
@@ -45,7 +45,7 @@ export async function goToLocationsByMeshId(
       tempFind = getFindsByWorkDir(fqnToSearchInDir, dir);
       // console.log("tempFind", tempFind)
       finds.dirs = finds.dirs.concat(tempFind.dirs);
-      if (tempFind.javaFile[0] != "undefined") {
+      if (tempFind.javaFile[0] !== "undefined") {
         finds.javaFile = finds.javaFile.concat(tempFind.javaFile);
       }
       finds.javaFiles = finds.javaFiles.concat(tempFind.javaFiles);
@@ -57,7 +57,7 @@ export async function goToLocationsByMeshId(
   console.log("finds", finds, "\nfqn: ", fqn);
 
   if (finds.javaFile.length > 0) {
-    if (finds.javaFile.length == 1) {
+    if (finds.javaFile.length === 1) {
       console.log("Open java File: ", finds.javaFile);
       openFileCommand(finds.javaFile[0], fqn, vizData);
     } else {
@@ -67,7 +67,7 @@ export async function goToLocationsByMeshId(
         vscode.window.showInformationMessage(`Selected option: ${selected}`);
       }
     }
-  } else if (finds.javaFiles.length != 0) {
+  } else if (finds.javaFiles.length !== 0) {
     // Show selection which file to open
     console.log(finds.javaFiles);
 
@@ -271,7 +271,7 @@ function openFileCommand(
         classMethod.forEach((element) => {
           // console.log(element.fqn)
           // console.log(fqn)
-          if (fqn.search(element.fqn) != -1) {
+          if (fqn.search(element.fqn) !== -1) {
             lineNUmber = element.lineNumber;
           }
         });

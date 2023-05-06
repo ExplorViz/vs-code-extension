@@ -127,7 +127,7 @@ export function buildClassMethodArr(
           }
         });
 
-        if (isMonitored.fqn != "no fqn set") {
+        if (isMonitored.fqn !== "no fqn set") {
           let monitoringDecoration = { range };
           monitoringDecorationArray.push(monitoringDecoration);
 
