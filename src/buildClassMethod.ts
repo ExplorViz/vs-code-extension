@@ -39,7 +39,7 @@ export function buildClassMethodArr(
     return [];
   }
 
-  let className = ""
+  let className = "";
 
   for (let line = 0; line < sourceCodeArr.length; line++) {
     // Get Package name especially FQN
@@ -107,13 +107,13 @@ export function buildClassMethodArr(
         new vscode.Position(line, matchIndex),
         new vscode.Position(line, matchIndex + matchLength)
       );
-      
+
       // Case: Class
       if (match[1]) {
         matchLength = match[2].length;
         matchIndex += match[1].length;
         let name = match[2];
-        className = name
+        className = name;
         let fqn = classMethodArray[0].fqn + "." + name;
 
         let isMonitored: MonitoringData = {
@@ -153,7 +153,7 @@ export function buildClassMethodArr(
         // console.log(name)
         if (vizDataFQNs.includes(fqn)) {
           // + - * / % = \w @
-          // Cases could be implemented with regex as well 
+          // Cases could be implemented with regex as well
           classMethodArray.push({
             lineString: match[0],
             name: name,
@@ -228,7 +228,7 @@ export function buildClassMethodArr(
         if (vizDataFQNs.includes(fqn)) {
           matchLength = match[5].length;
           matchIndex += match[4].length;
-          
+
           classMethodArray.push({
             lineString: name + "(",
             name: name,

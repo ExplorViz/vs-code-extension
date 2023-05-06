@@ -18,24 +18,24 @@ export async function goToLocationsByMeshId(
     javaFile: [],
   };
 
-  console.log("isMethod: ", isMethod)
+  console.log("isMethod: ", isMethod);
   // let location = getLocationNameHelper(meshId, vizData, false)
   let fqn = getFQNByMeshId(meshId, vizData);
   let fqnToSearchInDir = fqn;
-  if(isMethod) {
-    fqnToSearchInDir = fqn.replace( "." + meshId.split("_")[2], "")
+  if (isMethod) {
+    fqnToSearchInDir = fqn.replace("." + meshId.split("_")[2], "");
   }
   console.log("FQN to find is", fqn);
   //fqn = "org.springframework.samples.petclinic.vet.Vet";
   if (vscode.workspace.workspaceFolders) {
     vscode.workspace.workspaceFolders.forEach(async (element) => {
       let dir = element.uri.path;
-      dir = path.normalize(dir)
+      dir = path.normalize(dir);
       // console.log("workdir1", dir)
 
       // Case for windows file paths to exclude intial \
       // element.uri.path gives e.g. \c:\...\spring-petclinic
-      if(dir.substring(0, 1) == "\\") {
+      if (dir.substring(0, 1) == "\\") {
         dir = dir.substring(1);
       }
       // console.log("workdir2", dir)
@@ -106,18 +106,16 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
 
   //TODO packageBaseDir as global var
   let packageBaseDir = settings.get("packageBaseDir");
-  if(typeof packageBaseDir === "string")  {
-    packageBaseDir = path.normalize(packageBaseDir)
+  if (typeof packageBaseDir === "string") {
+    packageBaseDir = path.normalize(packageBaseDir);
+  } else {
+    packageBaseDir = "";
   }
-  else {
-    packageBaseDir = ""
-  }
-  console.log("packageBaseDir", packageBaseDir)
+  console.log("packageBaseDir", packageBaseDir);
   let fqnArr = fqn.split(".");
   let foundationName = fqnArr[0];
   let possibleInstanceCounter: number = Number(fqnArr[1]);
 
-  
   let fqnAsPath = foundationName;
   if (isNaN(possibleInstanceCounter)) {
     possibleInstanceCounter = -1;
@@ -232,14 +230,14 @@ function openFileCommand(
   vscode.commands
     .executeCommand("workbench.action.focusFirstEditorGroup")
     .then(() => {
-      let normalizedPath = path.normalize(pathToLocation)
+      let normalizedPath = path.normalize(pathToLocation);
       console.log("First command finished executing.");
       // console.log(finds)
       let stats = fs.lstatSync(path.join(normalizedPath, ""));
 
       // console.log(normalizedPath)
       // console.log(normalizedPath.split(".")[0])
-      console.log("normalizedPath", normalizedPath)
+      console.log("normalizedPath", normalizedPath);
       if (!stats) {
         normalizedPath = normalizedPath.split(".")[0];
         stats = fs.lstatSync(path.join(normalizedPath, ""));

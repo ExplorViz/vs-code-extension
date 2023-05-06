@@ -14,7 +14,7 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [     
+    "commands": [
       {
         "command": "explorviz-vscode-extension.webview",
         "title": "ExplorViz: Open Webview"

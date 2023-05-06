@@ -22,8 +22,7 @@ export type CommunicationLink = {
   sourceMeshID: string;
   targetMeshID: string;
   meshID: string;
-}
-
+};
 
 export type IDEApiCall = {
   action: IDEApiActions;
@@ -31,14 +30,13 @@ export type IDEApiCall = {
   meshId: string;
   occurrenceID: number;
   fqn: string;
-  foundationCommunicationLinks: CommunicationLink[]
+  foundationCommunicationLinks: CommunicationLink[];
 };
 
-
 export type VizDataRaw = {
-  applicationObject3D: any[],
-  communicationLinks: CommunicationLink[]
-}
+  applicationObject3D: any[];
+  communicationLinks: CommunicationLink[];
+};
 
 export type ParentOrder = {
   fqn: string;
