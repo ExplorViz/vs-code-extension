@@ -360,7 +360,7 @@ function registerCommandWebview(context: vscode.ExtensionContext) {
       let panel = vscode.window.createWebviewPanel(
         "websiteViewer", // Identifies the type of the webview. Used internally
         "ExplorViz", // Title of the panel displayed to the user
-        vscode.ViewColumn.One,
+        vscode.ViewColumn.Nine,
         {
           enableScripts: true,
           localResourceRoots: [vscode.Uri.file(context.extensionPath)],
