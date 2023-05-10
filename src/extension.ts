@@ -287,7 +287,7 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
       });
 
       socket.on(IDEApiDest.IDEDo, (data) => {
-        console.log("joooooo", data);
+        console.log("jooo");
         switch (data.action) {
           case IDEApiActions.JumpToMonitoringClass:
             // console.log(data.fqn);
@@ -313,14 +313,14 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
             break;
           case IDEApiActions.DoubleClickOnMesh:
             break;
-          case IDEApiActions.GetVizData:
+          case IDEApiActions.Refresh:
+            console.log("Refresh code lens");
             let classMethodArr = buildClassMethodArr(
               vscode.window.visibleTextEditors[0],
               data.data,
               monitoringData,
               true
             );
-            console.log("GetVizData: ", data.data);
             provider = new ExplorVizApiCodeLens(classMethodArr, data.data);
             // console.log("ideDo data received")
             // console.log(data.data[0])
