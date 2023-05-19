@@ -21,6 +21,7 @@ let frontendHttp: string | undefined;
 let socket: Socket;
 let provider: ExplorVizApiCodeLens | undefined;
 let codeLensDisposable: vscode.Disposable | undefined;
+let vizData: OrderTuple[] | undefined;
 
 // import * as vsls from 'vsls';
 // import { getApi } from "vsls";
@@ -61,8 +62,13 @@ export async function activate(context: vscode.ExtensionContext) {
     });
   });
 
-  vscode.workspace.onDidChangeTextDocument(async (e) => {
-    refreshVizData();
+  vscode.window.onDidChangeActiveTextEditor(async (e) => {
+    if (!e) {
+      // https://github.com/microsoft/vscode/issues/108868#issuecomment-711799190
+      return;
+    }
+
+    refreshEditorHightlights(context);
   });
 
   // register Shift + p commands
@@ -187,15 +193,35 @@ function getOccurrenceIDsFromVizData(
   return result;
 }
 
-function refreshVizData() {
-  emitToBackend(IDEApiDest.VizDo, {
-    action: IDEApiActions.GetVizData,
-    data: [],
-    meshId: "",
-    occurrenceID: -1,
-    fqn: "",
-    foundationCommunicationLinks: [],
-  });
+function refreshEditorHightlights(context: vscode.ExtensionContext) {
+  if (!vizData) {
+    return;
+  }
+
+  console.log("Refresh code lens");
+
+  let classMethodArr = buildClassMethodArr(
+    vscode.window.visibleTextEditors[0],
+    vizData,
+    monitoringData,
+    true
+  );
+
+  provider = new ExplorVizApiCodeLens(classMethodArr, vizData);
+
+  // CodeLens update Workaround
+  // https://stackoverflow.com/a/69175803/3250397
+
+  codeLensDisposable?.dispose();
+  // hoverDisposable.dispose();
+
+  codeLensDisposable = vscode.languages.registerCodeLensProvider(
+    "java",
+    provider
+  );
+  // hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
+
+  context.subscriptions.push(codeLensDisposable);
 }
 
 // Command registrations
@@ -206,8 +232,6 @@ function registerCommandOpenInExplorViz(context: vscode.ExtensionContext) {
     function (name: string, fqn: string, vizData: OrderTuple[]) {
       let occurrences: FoundationOccurrences[] =
         getOccurrenceIDsFromVizData(vizData);
-      // console.log(vizData)
-      // console.log(occurrences)
 
       let vizFoundation = "foundation unset";
       let selection;
@@ -314,31 +338,8 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
           case IDEApiActions.DoubleClickOnMesh:
             break;
           case IDEApiActions.Refresh:
-            console.log("Refresh code lens");
-            let classMethodArr = buildClassMethodArr(
-              vscode.window.visibleTextEditors[0],
-              data.data,
-              monitoringData,
-              true
-            );
-            provider = new ExplorVizApiCodeLens(classMethodArr, data.data);
-            // console.log("ideDo data received")
-            // console.log(data.data[0])
-
-            codeLensDisposable?.dispose();
-            // hoverDisposable.dispose();
-
-            // buildClassMethodArr(vscode.window.visibleTextEditors[0])
-            codeLensDisposable = vscode.languages.registerCodeLensProvider(
-              "java",
-              provider
-            );
-            // hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
-
-            context.subscriptions.push(codeLensDisposable);
-            // context.subscriptions.push(hoverDisposable);
-
-            // console.log("IDEApiActions.GetVizData")
+            vizData = data.data;
+            refreshEditorHightlights(context);
             break;
           case IDEApiActions.SingleClickOnMesh:
             // goToLocationsByMeshId(data.meshId, data.data)

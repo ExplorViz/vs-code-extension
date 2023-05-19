@@ -54,11 +54,11 @@ export async function goToLocationsByMeshId(
     // dir = dir.substring(1)
   }
 
-  console.log("finds", finds, "\nfqn: ", fqn);
+  //console.log("finds", finds, "\nfqn: ", fqn);
 
   if (finds.javaFile.length > 0) {
     if (finds.javaFile.length === 1) {
-      console.log("Open java File: ", finds.javaFile);
+      //console.log("Open java File: ", finds.javaFile);
       openFileCommand(finds.javaFile[0], fqn, vizData);
     } else {
       let selected = await selectOption(finds.javaFile, "Select file ", true);
@@ -69,7 +69,7 @@ export async function goToLocationsByMeshId(
     }
   } else if (finds.javaFiles.length !== 0) {
     // Show selection which file to open
-    console.log(finds.javaFiles);
+    //console.log(finds.javaFiles);
 
     let selected = await selectOption(finds.javaFiles, "Select file ", true);
     if (selected) {
@@ -142,12 +142,12 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
   filesInWorkDir.dirs.forEach((element) => {
     // is Foundation
     if (element.includes(foundationName)) {
-      console.log("foundationDir: ", element, fqn);
+      //console.log("foundationDir: ", element, fqn);
       isFoundation = true;
 
       fqnWithoutFoundationPath =
         element + packageBaseDir + "/" + fqnWithoutFoundationPath;
-      console.log(fqnWithoutFoundationPath);
+      //console.log(fqnWithoutFoundationPath);
 
       let filesInFixedFqnPath = searchjavaFilesAndDirs(
         path.normalize(fqnWithoutFoundationPath)
@@ -161,7 +161,7 @@ function getFindsByWorkDir(fqn: string, workDir: string): LocationFind {
     let filesInPackageBaseDir = searchjavaFilesAndDirs(
       path.normalize(dir + packageBaseDir + "/" + fqnWithoutFoundationPath)
     );
-    console.log(fqn, fqnWithoutFoundationPath);
+    //console.log(fqn, fqnWithoutFoundationPath);
 
     finds = filesInPackageBaseDir;
   }
@@ -278,7 +278,7 @@ function openFileCommand(
         // org.springframework.samples.petclinic.customers.web.PetRequest
         // petclinic-costumer-service.org.springframework.samples.petclinic.customers.web.PetRequest
       }
-      console.log("Second command finished executing.");
+      //console.log("Second command finished executing.");
       return vscode.commands.executeCommand("revealLine", {
         lineNumber: lineNUmber - 1,
         at: "top",

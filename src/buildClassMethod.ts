@@ -243,12 +243,12 @@ export function buildClassMethodArr(
   }
   // console.log(classMethodArray[0].fqn)
   if (decorate) {
-    console.log("decorateType", decorationType);
-    console.log("decorationsArray", decorationsArray);
+    //console.log("decorateType", decorationType);
+    //console.log("decorationsArray", decorationsArray);
     editor.setDecorations(decorationType, decorationsArray);
     editor.setDecorations(monitoringDecorationType, monitoringDecorationArray);
   }
 
-  console.log("classMethodArray: ", classMethodArray);
+  //console.log("classMethodArray: ", classMethodArray);
   return classMethodArray;
 }

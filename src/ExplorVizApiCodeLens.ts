@@ -7,7 +7,7 @@ export class ExplorVizApiCodeLens
   classMethodArr: classMethod[];
   vizData: OrderTuple[];
   constructor(classMethodArr: classMethod[], vizData: OrderTuple[]) {
-    console.log("vizDatA:", classMethodArr);
+    //console.log("vizDatA:", classMethodArr);
     this.classMethodArr = classMethodArr;
     this.vizData = vizData;
   }
