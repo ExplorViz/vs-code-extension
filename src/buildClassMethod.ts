@@ -33,7 +33,6 @@ export function buildClassMethodArr(
         vizDataFQNs.push(element.replace(foundationName + ".", ""));
       });
     });
-    // console.log(vizDataFQNs)
   } else {
     console.error("VizData Empty!");
     return [];
@@ -73,9 +72,7 @@ export function buildClassMethodArr(
       let fqn = sourceCodeArr[line].split(" ")[1].split(";")[0];
       let name = fqn.split(".")[fqn.split(".").length - 1];
       let lineString = sourceCodeArr[line].split(";")[0];
-      // console.log(name)
       if (vizDataFQNs.includes(lineString.split(" ")[1])) {
-        // console.log(name)
         classMethodArray.push({
           lineString: lineString,
           name: name,
@@ -95,10 +92,7 @@ export function buildClassMethodArr(
 
     // let packageName = classMethodArray[0].fqn
     let match = sourceCodeArr[line].match(regexClassWithMethods);
-    // if (match) {
-    //     // console.log(match)
-    // }
-    // console.log(match ? match[1] : "isNull")
+
     if (match !== null && match.index !== undefined) {
       let matchLength = match[0].length;
       let matchIndex = match.index;
@@ -145,12 +139,8 @@ export function buildClassMethodArr(
           diagnosticCollection.set(vscode.Uri.file(isMonitored.fqn), [
             diagnostic,
           ]);
-          // diagnosticCollection.set(vscode.Uri.file('my-file.txt'), [diagnostic]);
-          // console.log("isMonitored:", isMonitored)
         }
 
-        // console.log(fqn)
-        // console.log(name)
         if (vizDataFQNs.includes(fqn)) {
           // + - * / % = \w @
           // Cases could be implemented with regex as well
@@ -221,7 +211,6 @@ export function buildClassMethodArr(
 
       // Case: Method
       else if (match[5]) {
-        console.log(match[5]);
         let name = match[5];
         let fqn = classMethodArray[0].fqn + "." + className + "." + match[5];
         let test = vizDataFQNs.includes(fqn);
@@ -241,14 +230,9 @@ export function buildClassMethodArr(
       }
     }
   }
-  // console.log(classMethodArray[0].fqn)
   if (decorate) {
-    //console.log("decorateType", decorationType);
-    //console.log("decorationsArray", decorationsArray);
     editor.setDecorations(decorationType, decorationsArray);
     editor.setDecorations(monitoringDecorationType, monitoringDecorationArray);
   }
-
-  //console.log("classMethodArray: ", classMethodArray);
   return classMethodArray;
 }

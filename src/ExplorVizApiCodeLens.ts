@@ -7,7 +7,6 @@ export class ExplorVizApiCodeLens
   classMethodArr: classMethod[];
   vizData: OrderTuple[];
   constructor(classMethodArr: classMethod[], vizData: OrderTuple[]) {
-    //console.log("vizDatA:", classMethodArr);
     this.classMethodArr = classMethodArr;
     this.vizData = vizData;
   }
@@ -19,23 +18,15 @@ export class ExplorVizApiCodeLens
     const text = document.getText();
     const lines = text.split(/\r?\n/g);
 
-    // console.log(this.classMethodArr)
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       this.classMethodArr.map((elem) => {
-        // if(line.includes("package")) {
-        //     console.log(line)
-        // }
         if (line.includes(elem.lineString)) {
-          // let occurence = this.foundationOccurrences.find(occ => {
-          //     occ.foundation == elem.fqn.split(".")[0]
-          // })
           const codeLens = new vscode.CodeLens(new vscode.Range(i, 0, i, 0), {
             title: "Open " + elem.name + " in ExplorViz",
-            // title: "Open " + elem.name + " in ExplorViz",
             command: "explorviz-vscode-extension.OpenInExplorViz",
             arguments: [elem.name, elem.fqn, this.vizData],
-            // tooltip: "Moin"
+            //tooltip: "Open in ExplorViz"
           });
           codeLenses.push(codeLens);
         }
