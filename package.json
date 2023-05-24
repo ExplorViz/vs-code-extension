@@ -4,7 +4,7 @@
   "description": "",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.78.0"
   },
   "categories": [
     "Other"
@@ -65,18 +65,18 @@
     "@types/express": "^4.17.17",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.1",
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.2.3",
     "@types/vscode": "^1.78.0",
-    "@typescript-eslint/eslint-plugin": "^5.59.2",
-    "@typescript-eslint/parser": "^5.59.2",
-    "@vscode/test-electron": "^2.3.0",
-    "eslint": "^8.39.0",
-    "glob": "^10.2.2",
+    "@typescript-eslint/eslint-plugin": "^5.59.6",
+    "@typescript-eslint/parser": "^5.59.6",
+    "@vscode/test-electron": "^2.3.2",
+    "eslint": "^8.41.0",
+    "glob": "^10.2.6",
     "mocha": "^10.2.0",
     "ts-loader": "^9.4.2",
     "typescript": "^5.0.4",
-    "webpack": "^5.82.0",
-    "webpack-cli": "^5.0.2"
+    "webpack": "^5.83.1",
+    "webpack-cli": "^5.1.1"
   },
   "dependencies": {
     "@types/socket.io": "^3.0.2",

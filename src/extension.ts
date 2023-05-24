@@ -294,7 +294,9 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
       }
       vscode.window.showInformationMessage(inputBox);
 
-      socket = io(backendHttp);
+      socket = io(backendHttp, {
+        path: "/v2/ide/",
+      });
 
       socket.on("connect", () => {
         socket.emit("join-custom-room", { roomId: inputBox });
