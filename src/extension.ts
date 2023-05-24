@@ -292,14 +292,27 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
       if (!inputBox || inputBox.length < 3) {
         return;
       }
-      vscode.window.showInformationMessage(inputBox);
 
       socket = io(backendHttp, {
         path: "/v2/ide/",
       });
 
       socket.on("connect", () => {
-        socket.emit("join-custom-room", { roomId: inputBox });
+        socket.emit(
+          "join-custom-room",
+          { roomId: inputBox },
+          (joinedRoom: string | undefined) => {
+            if (!joinedRoom) {
+              vscode.window.showErrorMessage(
+                `Could not join room: ${inputBox}. Did you use a valid room name?`
+              );
+            } else {
+              vscode.window.showInformationMessage(
+                `Joined room: ${joinedRoom}. `
+              );
+            }
+          }
+        );
       });
 
       socket.on(IDEApiDest.IDEDo, (data) => {
