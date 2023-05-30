@@ -8,6 +8,14 @@ export type MonitoringData = {
   description: string;
 };
 
+export type TextSelection = {
+  documentUri: string;
+  startLine: number;
+  startCharPos: number;
+  endLine: number;
+  endCharPos: number;
+} | null;
+
 export enum IDEApiActions {
   Refresh = "refresh",
   SingleClickOnMesh = "singleClickOnMesh",
