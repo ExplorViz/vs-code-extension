@@ -11,6 +11,7 @@ import {
   OrderTuple,
   ParentOrder,
   MonitoringData,
+  TextSelection,
 } from "./types";
 import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
@@ -27,10 +28,19 @@ let vizData: OrderTuple[] | undefined;
 // import { getApi } from "vsls";
 
 export let decorationType: vscode.TextEditorDecorationType;
+
 export const monitoringDecorationType =
   vscode.window.createTextEditorDecorationType({
-    backgroundColor: "green",
-    border: "2px solid white",
+    backgroundColor: "lightyellow",
+    border: "1px solid lightgrey",
+    borderSpacing: "5px",
+  });
+
+const collabTextSelectionDecorationType =
+  vscode.window.createTextEditorDecorationType({
+    backgroundColor: "lightyellow",
+    border: "1px solid lightblack",
+    borderSpacing: "5px",
   });
 
 export let monitoringData: MonitoringData[] = [];
@@ -71,6 +81,35 @@ export async function activate(context: vscode.ExtensionContext) {
     refreshEditorHightlights(context);
   });
 
+  vscode.window.onDidChangeTextEditorSelection(
+    (e: vscode.TextEditorSelectionChangeEvent) => {
+      const startLine = e.textEditor.selection.start.line;
+      const startChar = e.textEditor.selection.start.character;
+      const endLine = e.textEditor.selection.end.line;
+      const endChar = e.textEditor.selection.end.character;
+      const documentUri = e.textEditor.document.uri.toString();
+
+      if (e.textEditor.selection.isEmpty) {
+        // DEBUG
+        //e.textEditor.setDecorations(collabTextSelectionDecorationType, []);
+        emitTextSelection(null);
+      } else {
+        // DEBUG
+        //e.textEditor.setDecorations(collabTextSelectionDecorationType, [
+        //  new vscode.Range(startLine, startChar, endLine, endChar),
+        //]);
+        const textSelectionPayload: TextSelection = {
+          documentUri: documentUri,
+          startLine: startLine,
+          startCharPos: startChar,
+          endLine: endLine,
+          endCharPos: endChar,
+        };
+        emitTextSelection(textSelectionPayload);
+      }
+    }
+  );
+
   // register Shift + p commands
 
   registerCommandOpenInExplorViz(context);
@@ -90,6 +129,10 @@ export function deactivate() {}
 
 function emitToBackend(dest: IDEApiDest, apiCall: IDEApiCall) {
   socket.emit(dest, apiCall);
+}
+
+function emitTextSelection(selectionPayload: TextSelection) {
+  socket.emit("broadcast-text-selection", selectionPayload);
 }
 
 function getWebviewContent() {
@@ -203,7 +246,7 @@ function refreshEditorHightlights(context: vscode.ExtensionContext) {
   // CodeLens update Workaround
   // https://stackoverflow.com/a/69175803/3250397
 
-  codeLensDisposable?.dispose();
+  //codeLensDisposable?.dispose();
   // hoverDisposable.dispose();
 
   codeLensDisposable = vscode.languages.registerCodeLensProvider(
@@ -313,6 +356,27 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
             }
           }
         );
+      });
+
+      socket.on("receive-text-selection", (textSelection: TextSelection) => {
+        const editor = vscode.window.activeTextEditor;
+
+        if (!editor) {
+          return;
+        }
+
+        if (textSelection) {
+          const { documentUri, startLine, startCharPos, endLine, endCharPos } =
+            textSelection;
+
+          if (editor.document.uri.toString() === documentUri) {
+            editor.setDecorations(collabTextSelectionDecorationType, [
+              new vscode.Range(startLine, startCharPos, endLine, endCharPos),
+            ]);
+          }
+        } else {
+          editor.setDecorations(collabTextSelectionDecorationType, []);
+        }
       });
 
       socket.on(IDEApiDest.IDEDo, (data) => {
