@@ -28,10 +28,18 @@ let vizData: OrderTuple[] | undefined;
 // import { getApi } from "vsls";
 
 export let decorationType: vscode.TextEditorDecorationType;
+
 export const monitoringDecorationType =
   vscode.window.createTextEditorDecorationType({
     backgroundColor: "lightyellow",
     border: "1px solid lightgrey",
+    borderSpacing: "5px",
+  });
+
+const collabTextSelectionDecorationType =
+  vscode.window.createTextEditorDecorationType({
+    backgroundColor: "lightyellow",
+    border: "1px solid lightblack",
     borderSpacing: "5px",
   });
 
@@ -83,11 +91,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
       if (e.textEditor.selection.isEmpty) {
         // DEBUG
-        //e.textEditor.setDecorations(monitoringDecorationType, []);
+        //e.textEditor.setDecorations(collabTextSelectionDecorationType, []);
         emitTextSelection(null);
       } else {
         // DEBUG
-        //e.textEditor.setDecorations(monitoringDecorationType, [
+        //e.textEditor.setDecorations(collabTextSelectionDecorationType, [
         //  new vscode.Range(startLine, startChar, endLine, endChar),
         //]);
         const textSelectionPayload: TextSelection = {
@@ -362,12 +370,12 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
             textSelection;
 
           if (editor.document.uri.toString() === documentUri) {
-            editor.setDecorations(monitoringDecorationType, [
+            editor.setDecorations(collabTextSelectionDecorationType, [
               new vscode.Range(startLine, startCharPos, endLine, endCharPos),
             ]);
           }
         } else {
-          editor.setDecorations(monitoringDecorationType, []);
+          editor.setDecorations(collabTextSelectionDecorationType, []);
         }
       });
 
