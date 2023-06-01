@@ -43,16 +43,19 @@
       "properties": {
         "explorviz.backendUrl": {
           "type": "string",
+          "scope": "application",          
           "default": "http://localhost:3000",
           "description": "Specify URL for ExplorViz's VS Code backend."
         },
         "explorviz.frontendUrl": {
           "type": "string",
+          "scope": "application",
           "default": "http://localhost:4200",
           "description": "Specify URL for ExplorViz's frontend."
         },
         "explorviz.packageBaseDir": {
           "type": "string",
+          "scope": "application",
           "default": "/src/main/java",
           "description": "Specify if there is a src directory that wouldn't be included into the FQN"
         }
