@@ -20,12 +20,21 @@
         "title": "ExplorViz: Open Webview"
       },
       {
+        "command": "explorviz-vscode-extension.joinPairProgramming",
+        "title": "ExplorViz: Join Pair Programming Session ...",
+        "enablement": "explorviz.showPairProgrammingCommand"
+      },
+      {
+        "command": "explorviz-vscode-extension.createPairProgramming",
+        "title": "ExplorViz: Create Pair Programming Session"  
+      },
+      {
         "command": "explorviz-vscode-extension.OpenInExplorViz",
         "title": "OpenInExplorViz"
       },
       {
         "command": "explorviz-vscode-extension.connectToRoom",
-        "title": "ExplorViz: Connect to room ..."
+        "title": "ExplorViz: Connect to visualization ..."
       }
     ],
     "configuration": {

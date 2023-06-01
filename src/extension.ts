@@ -114,6 +114,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   registerCommandOpenInExplorViz(context);
   registerCommandConnectToRoom(context);
+  registerCommandCreatePairProgramming(context);
+  registerCommandJoinPairProgramming(context);
   registerCommandWebview(context);
 
   console.log(
@@ -295,9 +297,9 @@ function registerCommandOpenInExplorViz(context: vscode.ExtensionContext) {
               occurrenceID: parseInt(selection),
               foundationCommunicationLinks: [],
             });
-            vscode.window.showInformationMessage(
-              "Open " + name + " in ExplorViz"
-            );
+            //vscode.window.setStatusBarMessage(
+            //  "Open " + name + " in ExplorViz"
+            //);
           }
         } else {
           emitToBackend(IDEApiDest.VizDo, {
@@ -308,14 +310,142 @@ function registerCommandOpenInExplorViz(context: vscode.ExtensionContext) {
             occurrenceID: -1,
             foundationCommunicationLinks: [],
           });
-          vscode.window.showInformationMessage(
-            "Open " + name + " in ExplorViz"
-          );
+          //vscode.window.setStatusBarMessage(
+          // "Open " + name + " in ExplorViz"
+          //);
         }
       });
     }
   );
   context.subscriptions.push(openInExplorViz);
+}
+
+function registerCommandJoinPairProgramming(context: vscode.ExtensionContext) {
+  let connectToPairProgrammingSession = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.joinPairProgramming",
+    async () => {
+      if (!backendHttp) {
+        vscode.window.showErrorMessage(
+          `ExplorViz backend URL is not a valid string: ${backendHttp}. Check your settings.`
+        );
+        return;
+      }
+
+      if (!socket || socket.disconnected) {
+        vscode.window.showErrorMessage(
+          `You must first connect to the visualization.`
+        );
+        return;
+      }
+
+      const vsCodeInputOptions: vscode.InputBoxOptions = {
+        prompt: "Enter the name of the pair programming session.",
+      };
+
+      const inputBox = await vscode.window.showInputBox(vsCodeInputOptions);
+      if (!inputBox || inputBox.length < 3) {
+        return;
+      }
+
+      socket.emit(
+        "join-pair-programming-room",
+        { roomId: inputBox },
+        (joinedRoom: string | undefined) => {
+          if (!joinedRoom) {
+            vscode.window.showErrorMessage(
+              `Could not join session: ${inputBox}. Did you use a valid session name?`
+            );
+          } else {
+            vscode.window.setStatusBarMessage(
+              `Joined sessions: ${joinedRoom}. Text selections are now shared among participants.`,
+              4000
+            );
+          }
+        }
+      );
+
+      socket.on("receive-text-selection", (textSelection: TextSelection) => {
+        const editor = vscode.window.activeTextEditor;
+
+        if (!editor) {
+          return;
+        }
+
+        if (textSelection) {
+          const { documentUri, startLine, startCharPos, endLine, endCharPos } =
+            textSelection;
+
+          if (editor.document.uri.toString() === documentUri) {
+            editor.setDecorations(collabTextSelectionDecorationType, [
+              new vscode.Range(startLine, startCharPos, endLine, endCharPos),
+            ]);
+          }
+        } else {
+          editor.setDecorations(collabTextSelectionDecorationType, []);
+        }
+      });
+    }
+  );
+  context.subscriptions.push(connectToPairProgrammingSession);
+}
+
+function registerCommandCreatePairProgramming(
+  context: vscode.ExtensionContext
+) {
+  let createPairProgramming = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.createPairProgramming",
+    async () => {
+      if (!backendHttp) {
+        vscode.window.showErrorMessage(
+          `ExplorViz backend URL is not a valid string: ${backendHttp}. Check your settings.`
+        );
+        return;
+      }
+
+      if (!socket || socket.disconnected) {
+        vscode.window.showErrorMessage(
+          `You must first connect to the visualization.`
+        );
+        return;
+      }
+
+      socket.emit(
+        "create-pair-programming-room",
+        (createdSession: string | undefined) => {
+          if (!createdSession) {
+            vscode.window.showErrorMessage(`Could not create session.`);
+          } else {
+            vscode.window.setStatusBarMessage(
+              `Created and joined sessions: ${createdSession}. Text selections are now shared among participants.`,
+              4000
+            );
+          }
+        }
+      );
+
+      socket.on("receive-text-selection", (textSelection: TextSelection) => {
+        const editor = vscode.window.activeTextEditor;
+
+        if (!editor) {
+          return;
+        }
+
+        if (textSelection) {
+          const { documentUri, startLine, startCharPos, endLine, endCharPos } =
+            textSelection;
+
+          if (editor.document.uri.toString() === documentUri) {
+            editor.setDecorations(collabTextSelectionDecorationType, [
+              new vscode.Range(startLine, startCharPos, endLine, endCharPos),
+            ]);
+          }
+        } else {
+          editor.setDecorations(collabTextSelectionDecorationType, []);
+        }
+      });
+    }
+  );
+  context.subscriptions.push(createPairProgramming);
 }
 
 function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
@@ -350,8 +480,14 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
                 `Could not join room: ${inputBox}. Did you use a valid room name?`
               );
             } else {
-              vscode.window.showInformationMessage(
-                `Joined room: ${joinedRoom}. `
+              vscode.window.setStatusBarMessage(
+                `Joined room: ${joinedRoom}. `,
+                2000
+              );
+              vscode.commands.executeCommand(
+                "setContext",
+                "explorviz.showPairProgrammingCommand",
+                true
               );
             }
           }
@@ -421,7 +557,6 @@ function registerCommandWebview(context: vscode.ExtensionContext) {
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
     function () {
-      vscode.window.showInformationMessage("Webview from ExplorViz Support!");
       let panel = vscode.window.createWebviewPanel(
         "websiteViewer", // Identifies the type of the webview. Used internally
         "ExplorViz", // Title of the panel displayed to the user
