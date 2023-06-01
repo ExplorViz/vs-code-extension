@@ -349,7 +349,7 @@ function registerCommandJoinPairProgramming(context: vscode.ExtensionContext) {
 
       socket.emit(
         "join-pair-programming-room",
-        { roomId: inputBox },
+        inputBox,
         (joinedRoom: string | undefined) => {
           if (!joinedRoom) {
             vscode.window.showErrorMessage(
