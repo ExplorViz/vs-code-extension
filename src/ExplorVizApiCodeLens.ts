@@ -10,6 +10,7 @@ export class ExplorVizApiCodeLens
     this.classMethodArr = classMethodArr;
     this.vizData = vizData;
   }
+
   public provideCodeLenses(
     document: vscode.TextDocument,
     token: vscode.CancellationToken

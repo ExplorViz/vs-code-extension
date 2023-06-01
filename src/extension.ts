@@ -246,7 +246,7 @@ function refreshEditorHightlights(context: vscode.ExtensionContext) {
   // CodeLens update Workaround
   // https://stackoverflow.com/a/69175803/3250397
 
-  //codeLensDisposable?.dispose();
+  codeLensDisposable?.dispose();
   // hoverDisposable.dispose();
 
   codeLensDisposable = vscode.languages.registerCodeLensProvider(
