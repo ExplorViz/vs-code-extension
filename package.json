@@ -60,6 +60,23 @@
           "description": "Specify if there is a src directory that wouldn't be included into the FQN"
         }
       }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "explorviz-view-container",
+          "title": "ExplorViz",
+          "icon": "images/explorviz-view-container-scaled.svg"
+        }
+      ]
+    },
+    "views": {
+      "explorviz-view-container": [
+        {
+          "id": "session-information",
+          "name": "Session Information"
+        }
+      ]
     }
   },
   "scripts": {
