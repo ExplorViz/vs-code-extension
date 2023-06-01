@@ -16,6 +16,7 @@ import {
 import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
 import { goToLocationsByMeshId } from "./goToLocationByMeshId";
+import { SessionViewProvider } from "./SessionViewProvider";
 
 let backendHttp: string | undefined;
 let frontendHttp: string | undefined;
@@ -117,6 +118,15 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandCreatePairProgramming(context);
   registerCommandJoinPairProgramming(context);
   registerCommandWebview(context);
+
+  const provider = new SessionViewProvider(context.extensionUri);
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      SessionViewProvider.viewType,
+      provider
+    )
+  );
 
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
