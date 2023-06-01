@@ -26,7 +26,7 @@
       },
       {
         "command": "explorviz-vscode-extension.createPairProgramming",
-        "title": "ExplorViz: Create Pair Programming Session"  
+        "title": "ExplorViz: Create Pair Programming Session"
       },
       {
         "command": "explorviz-vscode-extension.OpenInExplorViz",
@@ -43,7 +43,7 @@
       "properties": {
         "explorviz.backendUrl": {
           "type": "string",
-          "scope": "application",          
+          "scope": "application",
           "default": "http://localhost:3000",
           "description": "Specify URL for ExplorViz's VS Code backend."
         },
