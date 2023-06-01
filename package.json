@@ -20,12 +20,21 @@
         "title": "ExplorViz: Open Webview"
       },
       {
+        "command": "explorviz-vscode-extension.joinPairProgramming",
+        "title": "ExplorViz: Join Pair Programming Session ...",
+        "enablement": "explorviz.showPairProgrammingCommand"
+      },
+      {
+        "command": "explorviz-vscode-extension.createPairProgramming",
+        "title": "ExplorViz: Create Pair Programming Session"
+      },
+      {
         "command": "explorviz-vscode-extension.OpenInExplorViz",
         "title": "OpenInExplorViz"
       },
       {
         "command": "explorviz-vscode-extension.connectToRoom",
-        "title": "ExplorViz: Connect to room ..."
+        "title": "ExplorViz: Connect to visualization ..."
       }
     ],
     "configuration": {
@@ -34,16 +43,19 @@
       "properties": {
         "explorviz.backendUrl": {
           "type": "string",
+          "scope": "application",
           "default": "http://localhost:3000",
           "description": "Specify URL for ExplorViz's VS Code backend."
         },
         "explorviz.frontendUrl": {
           "type": "string",
+          "scope": "application",
           "default": "http://localhost:4200",
           "description": "Specify URL for ExplorViz's frontend."
         },
         "explorviz.packageBaseDir": {
           "type": "string",
+          "scope": "application",
           "default": "/src/main/java",
           "description": "Specify if there is a src directory that wouldn't be included into the FQN"
         }
