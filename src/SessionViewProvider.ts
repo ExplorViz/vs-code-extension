@@ -78,6 +78,10 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 			</head>
 			<body>
 
+      <p>Start a collaboratively usable Software Visualization session to comprehend your software using the 3D city metaphor.</p>
+
+      </br>
+
       ${renderOpenVizButton()}
 
       </br></br>
@@ -119,6 +123,7 @@ function renderInputPP() {
       return `
       <hr>
       </br>
+      <label for="explorviz-join-pp-input">Connected to Pair Programming Session:</label>
       <input type="text" name="explorviz-join-pp-input" value="${pairProgrammingSessionName}" disabled>
       </br>
       `;
