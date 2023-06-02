@@ -1,5 +1,4 @@
 node_modules
 dist
-media
 .vscode-test/
 *.vsix
