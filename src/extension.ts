@@ -18,12 +18,16 @@ import { buildClassMethodArr } from "./buildClassMethod";
 import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
 
+export let pairProgrammingSessionName: string | undefined = undefined;
+export let showPairProgrammingHTML: boolean = false;
+export let socket: Socket;
+
 let backendHttp: string | undefined;
 let frontendHttp: string | undefined;
-let socket: Socket;
 let provider: ExplorVizApiCodeLens | undefined;
 let codeLensDisposable: vscode.Disposable | undefined;
 let vizData: OrderTuple[] | undefined;
+let disposableSessionViewProvider: vscode.Disposable | undefined;
 
 // import * as vsls from 'vsls';
 // import { getApi } from "vsls";
@@ -45,6 +49,8 @@ const collabTextSelectionDecorationType =
   });
 
 export let monitoringData: MonitoringData[] = [];
+
+let sessionViewProvier: SessionViewProvider;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -84,6 +90,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   vscode.window.onDidChangeTextEditorSelection(
     (e: vscode.TextEditorSelectionChangeEvent) => {
+      if (!pairProgrammingSessionName) {
+        return;
+      }
+
       const startLine = e.textEditor.selection.start.line;
       const startChar = e.textEditor.selection.start.character;
       const endLine = e.textEditor.selection.end.line;
@@ -119,14 +129,12 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandJoinPairProgramming(context);
   registerCommandWebview(context);
 
-  const provider = new SessionViewProvider(context.extensionUri);
-
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      SessionViewProvider.viewType,
-      provider
-    )
+  sessionViewProvier = new SessionViewProvider(context.extensionUri);
+  disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
+    SessionViewProvider.viewType,
+    sessionViewProvier
   );
+  context.subscriptions.push(disposableSessionViewProvider);
 
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
@@ -360,16 +368,18 @@ function registerCommandJoinPairProgramming(context: vscode.ExtensionContext) {
       socket.emit(
         "join-pair-programming-room",
         inputBox,
-        (joinedRoom: string | undefined) => {
-          if (!joinedRoom) {
+        (joinedSessionName: string | undefined) => {
+          if (!joinedSessionName) {
             vscode.window.showErrorMessage(
               `Could not join session: ${inputBox}. Did you use a valid session name?`
             );
           } else {
             vscode.window.setStatusBarMessage(
-              `Joined sessions: ${joinedRoom}. Text selections are now shared among participants.`,
+              `Joined sessions: ${joinedSessionName}. Text selections are now shared among participants.`,
               4000
             );
+            pairProgrammingSessionName = joinedSessionName;
+            sessionViewProvier.refreshHTML();
           }
         }
       );
@@ -429,6 +439,8 @@ function registerCommandCreatePairProgramming(
               `Created and joined sessions: ${createdSession}. Text selections are now shared among participants.`,
               4000
             );
+            pairProgrammingSessionName = createdSession;
+            sessionViewProvier.refreshHTML();
           }
         }
       );
@@ -499,6 +511,8 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
                 "explorviz.showPairProgrammingCommand",
                 true
               );
+              showPairProgrammingHTML = true;
+              sessionViewProvier.refreshHTML();
             }
           }
         );
