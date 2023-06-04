@@ -31,6 +31,8 @@ let codeLensDisposable: vscode.Disposable | undefined;
 let vizData: OrderTuple[] | undefined;
 let disposableSessionViewProvider: vscode.Disposable | undefined;
 
+let iFrameViewContainer: IFrameViewContainer | undefined;
+
 // import * as vsls from 'vsls';
 // import { getApi } from "vsls";
 
@@ -153,8 +155,14 @@ export function deactivate() {}
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor
 
-function emitToBackend(dest: IDEApiDest, apiCall: IDEApiCall) {
-  socket.emit(dest, apiCall);
+function emitToBackend(eventName: string, payload: IDEApiCall) {
+  if (socket && socket.connected) {
+    socket.emit(eventName, payload);
+  }
+
+  if (iFrameViewContainer) {
+    iFrameViewContainer.postMessage(eventName, payload);
+  }
 }
 
 function emitTextSelection(selectionPayload: TextSelection) {
@@ -550,7 +558,7 @@ function registerCommandWebview() {
           ],
         }
       );
-      const iFrameViewContainer = new IFrameViewContainer(
+      iFrameViewContainer = new IFrameViewContainer(
         extensionContext!.extensionUri,
         panel.webview
       );

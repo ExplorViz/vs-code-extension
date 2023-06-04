@@ -6,6 +6,7 @@ import {
   showPairProgrammingHTML,
   socket,
 } from "./extension";
+import { IDEApiCall } from "./types";
 
 export class IFrameViewContainer {
   public static readonly viewType = "explorviz-iframe-view";
@@ -29,6 +30,13 @@ export class IFrameViewContainer {
 
     this.view.onDidReceiveMessage((data) => {
       handleIncomingVizEvent(data);
+    });
+  }
+
+  public postMessage(eventName: string, payload: IDEApiCall) {
+    this.view.postMessage({
+      event: eventName,
+      data: payload,
     });
   }
 
@@ -67,7 +75,6 @@ export class IFrameViewContainer {
 
 				<meta http-equiv="Content-Security-Policy" 
           content="frame-src http://localhost:4200;
-          default-src *;
           style-src ${webview.cspSource};
           script-src 'nonce-${nonce}';"
         >
@@ -84,7 +91,7 @@ export class IFrameViewContainer {
 			</head>
 			<body>    
 
-      <iframe src="${frontendHttp}" width="100%" height="1000px"></iframe>
+      <iframe id="explorviz-iframe" src="${frontendHttp}" width="100%" height="1000px"></iframe>
 
 			<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
