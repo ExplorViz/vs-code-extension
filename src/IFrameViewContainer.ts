@@ -28,7 +28,6 @@ export class IFrameViewContainer {
     this.refreshHTML();
 
     this.view.onDidReceiveMessage((data) => {
-      console.log("its beatiful");
       handleIncomingVizEvent(data);
     });
   }
