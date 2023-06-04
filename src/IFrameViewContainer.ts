@@ -6,30 +6,27 @@ import {
   socket,
 } from "./extension";
 
-export class IFrameViewProvider implements vscode.WebviewViewProvider {
+export class IFrameViewContainer {
   public static readonly viewType = "explorviz-iframe-view";
 
-  private _view?: vscode.WebviewView;
+  private view: vscode.Webview;
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  private extensionUri: vscode.Uri;
 
-  public resolveWebviewView(
-    webviewView: vscode.WebviewView,
-    _context: vscode.WebviewViewResolveContext,
-    _token: vscode.CancellationToken
-  ) {
-    this._view = webviewView;
+  constructor(extensionUri: vscode.Uri, webview: vscode.Webview) {
+    this.extensionUri = extensionUri;
+    this.view = webview;
 
-    webviewView.webview.options = {
+    webview.options = {
       // Allow scripts in the webview
       enableScripts: true,
 
-      localResourceRoots: [this._extensionUri],
+      localResourceRoots: [this.extensionUri],
     };
 
     this.refreshHTML();
 
-    this._view.webview.onDidReceiveMessage((data) => {
+    this.view.onDidReceiveMessage((data) => {
       console.log("its beatiful");
       /*switch (data.type) {
         case "executeExplorVizCommand": {
@@ -41,16 +38,19 @@ export class IFrameViewProvider implements vscode.WebviewViewProvider {
   }
 
   public refreshHTML() {
-    if (this._view) {
-      this._view.show?.(true);
-      this._view.webview.html = this._getHtmlForWebview(this._view.webview);
+    if (this.view) {
+      this.view.html = this._getHtmlForWebview(this.view);
     }
   }
 
-  public _getHtmlForWebview(webview: vscode.Webview) {
+  public getHtmlForWebview() {
+    return this.view.html;
+  }
+
+  private _getHtmlForWebview(webview: vscode.Webview) {
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
-        this._extensionUri,
+        this.extensionUri,
         "media",
         "cross-communication-webview.js"
       )

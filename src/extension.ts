@@ -17,7 +17,7 @@ import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
 import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
-import { IFrameViewProvider } from "./IFrameViewProvider";
+import { IFrameViewContainer } from "./IFrameViewContainer";
 
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
@@ -560,14 +560,20 @@ function registerCommandWebview(context: vscode.ExtensionContext) {
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
     function () {
-      const iFrameViewProvider = new IFrameViewProvider(context.extensionUri);
-
-      context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider(
-          IFrameViewProvider.viewType,
-          iFrameViewProvider
-        )
+      let panel = vscode.window.createWebviewPanel(
+        "websiteViewer", // Identifies the type of the webview. Used internally
+        "ExplorViz", // Title of the panel displayed to the user
+        vscode.ViewColumn.Nine,
+        {
+          enableScripts: true,
+          localResourceRoots: [vscode.Uri.file(context.extensionPath)],
+        }
       );
+      const iFrameViewContainer = new IFrameViewContainer(
+        context.extensionUri,
+        panel.webview
+      );
+      panel.webview.html = iFrameViewContainer.getHtmlForWebview();
     }
   );
   context.subscriptions.push(webview);
