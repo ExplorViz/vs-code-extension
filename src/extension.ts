@@ -18,6 +18,7 @@ import { buildClassMethodArr } from "./buildClassMethod";
 import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
 import { IFrameViewContainer } from "./IFrameViewContainer";
+import { downloadAndUnzipVSCode } from "@vscode/test-electron";
 
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
@@ -250,15 +251,21 @@ function refreshEditorHightlights() {
   // https://stackoverflow.com/a/69175803/3250397
 
   codeLensDisposable?.dispose();
-  // hoverDisposable.dispose();
 
   codeLensDisposable = vscode.languages.registerCodeLensProvider(
     "java",
     provider
   );
-  // hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
 
   extensionContext!.subscriptions.push(codeLensDisposable);
+}
+
+function removeEditorHighlights() {
+  codeLensDisposable?.dispose();
+  const activeEditor = vscode.window.visibleTextEditors[0];
+  if (activeEditor) {
+    activeEditor.setDecorations(decorationType, []);
+  }
 }
 
 // Command registrations
@@ -548,6 +555,10 @@ function registerCommandWebview() {
         panel.webview
       );
       panel.webview.html = iFrameViewContainer.getHtmlForWebview();
+
+      panel.onDidDispose((_e) => {
+        removeEditorHighlights();
+      });
     }
   );
   extensionContext!.subscriptions.push(webview);
