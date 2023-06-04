@@ -17,13 +17,14 @@ import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
 import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
+import { IFrameViewProvider } from "./IFrameViewProvider";
 
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
 export let socket: Socket;
 
 let backendHttp: string | undefined;
-let frontendHttp: string | undefined;
+export let frontendHttp: string | undefined;
 let provider: ExplorVizApiCodeLens | undefined;
 let codeLensDisposable: vscode.Disposable | undefined;
 let vizData: OrderTuple[] | undefined;
@@ -153,28 +154,6 @@ function emitToBackend(dest: IDEApiDest, apiCall: IDEApiCall) {
 
 function emitTextSelection(selectionPayload: TextSelection) {
   socket.emit("broadcast-text-selection", selectionPayload);
-}
-
-function getWebviewContent() {
-  let websiteUrl = frontendHttp;
-  return `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            html, body {
-                height: 100%;
-                margin: 0;
-                overflow: hidden;
-            }
-        </style>
-        <title>Website Viewer</title>
-    </head>
-    <body>
-        <iframe src="${websiteUrl}" width="100%" height="100%"></iframe>
-    </body>
-    </html>`;
 }
 
 function cutSameStrings(arr: string[]): string[] {
@@ -581,16 +560,14 @@ function registerCommandWebview(context: vscode.ExtensionContext) {
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
     function () {
-      let panel = vscode.window.createWebviewPanel(
-        "websiteViewer", // Identifies the type of the webview. Used internally
-        "ExplorViz", // Title of the panel displayed to the user
-        vscode.ViewColumn.Nine,
-        {
-          enableScripts: true,
-          localResourceRoots: [vscode.Uri.file(context.extensionPath)],
-        }
+      const iFrameViewProvider = new IFrameViewProvider(context.extensionUri);
+
+      context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(
+          IFrameViewProvider.viewType,
+          iFrameViewProvider
+        )
       );
-      panel.webview.html = getWebviewContent();
     }
   );
   context.subscriptions.push(webview);
