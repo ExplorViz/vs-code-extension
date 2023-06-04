@@ -17,17 +17,21 @@ import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
 import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
+import { IFrameViewContainer } from "./IFrameViewContainer";
+import { downloadAndUnzipVSCode } from "@vscode/test-electron";
 
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
 export let socket: Socket;
 
 let backendHttp: string | undefined;
-let frontendHttp: string | undefined;
+export let frontendHttp: string | undefined;
 let provider: ExplorVizApiCodeLens | undefined;
 let codeLensDisposable: vscode.Disposable | undefined;
 let vizData: OrderTuple[] | undefined;
 let disposableSessionViewProvider: vscode.Disposable | undefined;
+
+let iFrameViewContainer: IFrameViewContainer | undefined;
 
 // import * as vsls from 'vsls';
 // import { getApi } from "vsls";
@@ -52,10 +56,14 @@ export let monitoringData: MonitoringData[] = [];
 
 let sessionViewProvier: SessionViewProvider;
 
+let extensionContext: vscode.ExtensionContext | undefined;
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
   const settings = vscode.workspace.getConfiguration("explorviz");
+
+  extensionContext = context;
 
   backendHttp = settings.get("backendUrl");
 
@@ -85,7 +93,7 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    refreshEditorHightlights(context);
+    refreshEditorHightlights();
   });
 
   vscode.window.onDidChangeTextEditorSelection(
@@ -123,11 +131,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // register Shift + p commands
 
-  registerCommandOpenInExplorViz(context);
-  registerCommandConnectToRoom(context);
-  registerCommandCreatePairProgramming(context);
-  registerCommandJoinPairProgramming(context);
-  registerCommandWebview(context);
+  registerCommandOpenInExplorViz();
+  registerCommandConnectToRoom();
+  registerCommandCreatePairProgramming();
+  registerCommandJoinPairProgramming();
+  registerCommandWebview();
 
   sessionViewProvier = new SessionViewProvider(context.extensionUri);
   disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
@@ -147,34 +155,18 @@ export function deactivate() {}
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor
 
-function emitToBackend(dest: IDEApiDest, apiCall: IDEApiCall) {
-  socket.emit(dest, apiCall);
+function emitToBackend(eventName: string, payload: IDEApiCall) {
+  if (socket && socket.connected) {
+    socket.emit(eventName, payload);
+  }
+
+  if (iFrameViewContainer) {
+    iFrameViewContainer.postMessage(eventName, payload);
+  }
 }
 
 function emitTextSelection(selectionPayload: TextSelection) {
   socket.emit("broadcast-text-selection", selectionPayload);
-}
-
-function getWebviewContent() {
-  let websiteUrl = frontendHttp;
-  return `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            html, body {
-                height: 100%;
-                margin: 0;
-                overflow: hidden;
-            }
-        </style>
-        <title>Website Viewer</title>
-    </head>
-    <body>
-        <iframe src="${websiteUrl}" width="100%" height="100%"></iframe>
-    </body>
-    </html>`;
 }
 
 function cutSameStrings(arr: string[]): string[] {
@@ -249,7 +241,7 @@ function getOccurrenceIDsFromVizData(
   return result;
 }
 
-function refreshEditorHightlights(context: vscode.ExtensionContext) {
+function refreshEditorHightlights() {
   if (!vizData) {
     return;
   }
@@ -267,20 +259,26 @@ function refreshEditorHightlights(context: vscode.ExtensionContext) {
   // https://stackoverflow.com/a/69175803/3250397
 
   codeLensDisposable?.dispose();
-  // hoverDisposable.dispose();
 
   codeLensDisposable = vscode.languages.registerCodeLensProvider(
     "java",
     provider
   );
-  // hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
 
-  context.subscriptions.push(codeLensDisposable);
+  extensionContext!.subscriptions.push(codeLensDisposable);
+}
+
+function removeEditorHighlights() {
+  codeLensDisposable?.dispose();
+  const activeEditor = vscode.window.visibleTextEditors[0];
+  if (activeEditor) {
+    activeEditor.setDecorations(decorationType, []);
+  }
 }
 
 // Command registrations
 
-function registerCommandOpenInExplorViz(context: vscode.ExtensionContext) {
+function registerCommandOpenInExplorViz() {
   let openInExplorViz = vscode.commands.registerCommand(
     "explorviz-vscode-extension.OpenInExplorViz",
     function (name: string, fqn: string, vizData: OrderTuple[]) {
@@ -335,10 +333,10 @@ function registerCommandOpenInExplorViz(context: vscode.ExtensionContext) {
       });
     }
   );
-  context.subscriptions.push(openInExplorViz);
+  extensionContext!.subscriptions.push(openInExplorViz);
 }
 
-function registerCommandJoinPairProgramming(context: vscode.ExtensionContext) {
+function registerCommandJoinPairProgramming() {
   let connectToPairProgrammingSession = vscode.commands.registerCommand(
     "explorviz-vscode-extension.joinPairProgramming",
     async () => {
@@ -406,12 +404,10 @@ function registerCommandJoinPairProgramming(context: vscode.ExtensionContext) {
       });
     }
   );
-  context.subscriptions.push(connectToPairProgrammingSession);
+  extensionContext!.subscriptions.push(connectToPairProgrammingSession);
 }
 
-function registerCommandCreatePairProgramming(
-  context: vscode.ExtensionContext
-) {
+function registerCommandCreatePairProgramming() {
   let createPairProgramming = vscode.commands.registerCommand(
     "explorviz-vscode-extension.createPairProgramming",
     async () => {
@@ -467,10 +463,10 @@ function registerCommandCreatePairProgramming(
       });
     }
   );
-  context.subscriptions.push(createPairProgramming);
+  extensionContext!.subscriptions.push(createPairProgramming);
 }
 
-function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
+function registerCommandConnectToRoom() {
   let connectToRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.connectToRoom",
     async () => {
@@ -540,44 +536,14 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
       });
 
       socket.on(IDEApiDest.IDEDo, (data) => {
-        switch (data.action) {
-          case IDEApiActions.JumpToMonitoringClass:
-            monitoringData = data.monitoringData;
-            break;
-
-          case IDEApiActions.JumpToLocation:
-            let isMethod: boolean = data.meshId.split("_").length === 3;
-            goToLocationsByMeshId(data.meshId, data.data, isMethod);
-            break;
-
-          case IDEApiActions.ClickTimeline:
-            vscode.commands.executeCommand(
-              "explorviz-vscode-extension.IdeTestCallback"
-            );
-            break;
-
-          case IDEApiActions.DoubleClickOnMesh:
-            break;
-
-          case IDEApiActions.Refresh:
-            vizData = data.data;
-            refreshEditorHightlights(context);
-            break;
-
-          case IDEApiActions.SingleClickOnMesh:
-            // goToLocationsByMeshId(data.meshId, data.data)
-            break;
-
-          default:
-            break;
-        }
+        handleIncomingVizEvent(data);
       });
     }
   );
-  context.subscriptions.push(connectToRoom);
+  extensionContext!.subscriptions.push(connectToRoom);
 }
 
-function registerCommandWebview(context: vscode.ExtensionContext) {
+function registerCommandWebview() {
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
     function () {
@@ -587,11 +553,55 @@ function registerCommandWebview(context: vscode.ExtensionContext) {
         vscode.ViewColumn.Nine,
         {
           enableScripts: true,
-          localResourceRoots: [vscode.Uri.file(context.extensionPath)],
+          localResourceRoots: [
+            vscode.Uri.file(extensionContext!.extensionPath),
+          ],
         }
       );
-      panel.webview.html = getWebviewContent();
+      iFrameViewContainer = new IFrameViewContainer(
+        extensionContext!.extensionUri,
+        panel.webview
+      );
+      panel.webview.html = iFrameViewContainer.getHtmlForWebview();
+
+      panel.onDidDispose((_e) => {
+        removeEditorHighlights();
+      });
     }
   );
-  context.subscriptions.push(webview);
+  extensionContext!.subscriptions.push(webview);
+}
+
+export function handleIncomingVizEvent(data: any) {
+  switch (data.action) {
+    case IDEApiActions.JumpToMonitoringClass:
+      monitoringData = data.monitoringData;
+      break;
+
+    case IDEApiActions.JumpToLocation:
+      let isMethod: boolean = data.meshId.split("_").length === 3;
+      goToLocationsByMeshId(data.meshId, data.data, isMethod);
+      break;
+
+    case IDEApiActions.ClickTimeline:
+      vscode.commands.executeCommand(
+        "explorviz-vscode-extension.IdeTestCallback"
+      );
+      break;
+
+    case IDEApiActions.DoubleClickOnMesh:
+      break;
+
+    case IDEApiActions.Refresh:
+      vizData = data.data;
+      refreshEditorHightlights();
+      break;
+
+    case IDEApiActions.SingleClickOnMesh:
+      // goToLocationsByMeshId(data.meshId, data.data)
+      break;
+
+    default:
+      break;
+  }
 }

@@ -54,7 +54,6 @@
   });
 
   function executeExtensionCommand(stringCommand) {
-    console.log("executecommand");
     vscode.postMessage({
       type: "executeExplorVizCommand",
       command: stringCommand,
