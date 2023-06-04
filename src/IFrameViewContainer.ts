@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import {
   frontendHttp,
+  handleIncomingVizEvent,
   pairProgrammingSessionName,
   showPairProgrammingHTML,
   socket,
@@ -28,12 +29,7 @@ export class IFrameViewContainer {
 
     this.view.onDidReceiveMessage((data) => {
       console.log("its beatiful");
-      /*switch (data.type) {
-        case "executeExplorVizCommand": {
-          vscode.commands.executeCommand(data.command);
-          break;
-        }
-      }*/
+      handleIncomingVizEvent(data);
     });
   }
 

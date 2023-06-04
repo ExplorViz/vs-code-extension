@@ -53,10 +53,14 @@ export let monitoringData: MonitoringData[] = [];
 
 let sessionViewProvier: SessionViewProvider;
 
+let extensionContext: vscode.ExtensionContext | undefined;
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
   const settings = vscode.workspace.getConfiguration("explorviz");
+
+  extensionContext = context;
 
   backendHttp = settings.get("backendUrl");
 
@@ -86,7 +90,7 @@ export async function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    refreshEditorHightlights(context);
+    refreshEditorHightlights();
   });
 
   vscode.window.onDidChangeTextEditorSelection(
@@ -124,11 +128,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // register Shift + p commands
 
-  registerCommandOpenInExplorViz(context);
-  registerCommandConnectToRoom(context);
-  registerCommandCreatePairProgramming(context);
-  registerCommandJoinPairProgramming(context);
-  registerCommandWebview(context);
+  registerCommandOpenInExplorViz();
+  registerCommandConnectToRoom();
+  registerCommandCreatePairProgramming();
+  registerCommandJoinPairProgramming();
+  registerCommandWebview();
 
   sessionViewProvier = new SessionViewProvider(context.extensionUri);
   disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
@@ -228,7 +232,7 @@ function getOccurrenceIDsFromVizData(
   return result;
 }
 
-function refreshEditorHightlights(context: vscode.ExtensionContext) {
+function refreshEditorHightlights() {
   if (!vizData) {
     return;
   }
@@ -254,12 +258,12 @@ function refreshEditorHightlights(context: vscode.ExtensionContext) {
   );
   // hoverDisposable = vscode.languages.registerHoverProvider('java', provider);
 
-  context.subscriptions.push(codeLensDisposable);
+  extensionContext!.subscriptions.push(codeLensDisposable);
 }
 
 // Command registrations
 
-function registerCommandOpenInExplorViz(context: vscode.ExtensionContext) {
+function registerCommandOpenInExplorViz() {
   let openInExplorViz = vscode.commands.registerCommand(
     "explorviz-vscode-extension.OpenInExplorViz",
     function (name: string, fqn: string, vizData: OrderTuple[]) {
@@ -314,10 +318,10 @@ function registerCommandOpenInExplorViz(context: vscode.ExtensionContext) {
       });
     }
   );
-  context.subscriptions.push(openInExplorViz);
+  extensionContext!.subscriptions.push(openInExplorViz);
 }
 
-function registerCommandJoinPairProgramming(context: vscode.ExtensionContext) {
+function registerCommandJoinPairProgramming() {
   let connectToPairProgrammingSession = vscode.commands.registerCommand(
     "explorviz-vscode-extension.joinPairProgramming",
     async () => {
@@ -385,12 +389,10 @@ function registerCommandJoinPairProgramming(context: vscode.ExtensionContext) {
       });
     }
   );
-  context.subscriptions.push(connectToPairProgrammingSession);
+  extensionContext!.subscriptions.push(connectToPairProgrammingSession);
 }
 
-function registerCommandCreatePairProgramming(
-  context: vscode.ExtensionContext
-) {
+function registerCommandCreatePairProgramming() {
   let createPairProgramming = vscode.commands.registerCommand(
     "explorviz-vscode-extension.createPairProgramming",
     async () => {
@@ -446,10 +448,10 @@ function registerCommandCreatePairProgramming(
       });
     }
   );
-  context.subscriptions.push(createPairProgramming);
+  extensionContext!.subscriptions.push(createPairProgramming);
 }
 
-function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
+function registerCommandConnectToRoom() {
   let connectToRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.connectToRoom",
     async () => {
@@ -519,44 +521,14 @@ function registerCommandConnectToRoom(context: vscode.ExtensionContext) {
       });
 
       socket.on(IDEApiDest.IDEDo, (data) => {
-        switch (data.action) {
-          case IDEApiActions.JumpToMonitoringClass:
-            monitoringData = data.monitoringData;
-            break;
-
-          case IDEApiActions.JumpToLocation:
-            let isMethod: boolean = data.meshId.split("_").length === 3;
-            goToLocationsByMeshId(data.meshId, data.data, isMethod);
-            break;
-
-          case IDEApiActions.ClickTimeline:
-            vscode.commands.executeCommand(
-              "explorviz-vscode-extension.IdeTestCallback"
-            );
-            break;
-
-          case IDEApiActions.DoubleClickOnMesh:
-            break;
-
-          case IDEApiActions.Refresh:
-            vizData = data.data;
-            refreshEditorHightlights(context);
-            break;
-
-          case IDEApiActions.SingleClickOnMesh:
-            // goToLocationsByMeshId(data.meshId, data.data)
-            break;
-
-          default:
-            break;
-        }
+        handleIncomingVizEvent(data);
       });
     }
   );
-  context.subscriptions.push(connectToRoom);
+  extensionContext!.subscriptions.push(connectToRoom);
 }
 
-function registerCommandWebview(context: vscode.ExtensionContext) {
+function registerCommandWebview() {
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
     function () {
@@ -566,15 +538,51 @@ function registerCommandWebview(context: vscode.ExtensionContext) {
         vscode.ViewColumn.Nine,
         {
           enableScripts: true,
-          localResourceRoots: [vscode.Uri.file(context.extensionPath)],
+          localResourceRoots: [
+            vscode.Uri.file(extensionContext!.extensionPath),
+          ],
         }
       );
       const iFrameViewContainer = new IFrameViewContainer(
-        context.extensionUri,
+        extensionContext!.extensionUri,
         panel.webview
       );
       panel.webview.html = iFrameViewContainer.getHtmlForWebview();
     }
   );
-  context.subscriptions.push(webview);
+  extensionContext!.subscriptions.push(webview);
+}
+
+export function handleIncomingVizEvent(data: any) {
+  switch (data.action) {
+    case IDEApiActions.JumpToMonitoringClass:
+      monitoringData = data.monitoringData;
+      break;
+
+    case IDEApiActions.JumpToLocation:
+      let isMethod: boolean = data.meshId.split("_").length === 3;
+      goToLocationsByMeshId(data.meshId, data.data, isMethod);
+      break;
+
+    case IDEApiActions.ClickTimeline:
+      vscode.commands.executeCommand(
+        "explorviz-vscode-extension.IdeTestCallback"
+      );
+      break;
+
+    case IDEApiActions.DoubleClickOnMesh:
+      break;
+
+    case IDEApiActions.Refresh:
+      vizData = data.data;
+      refreshEditorHightlights();
+      break;
+
+    case IDEApiActions.SingleClickOnMesh:
+      // goToLocationsByMeshId(data.meshId, data.data)
+      break;
+
+    default:
+      break;
+  }
 }

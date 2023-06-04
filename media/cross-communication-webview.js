@@ -5,21 +5,13 @@
   const vscode = acquireVsCodeApi();
 
   window.addEventListener("message", (event) => {
-    console.log("test cross webview");
-    const message = event.data;
-    switch (message.type) {
-      case "connectToViz": {
-        //forwardToExtension("explorviz-vscode-extension.connectToRoom");
-        break;
-      }
+    const payload = event.data;
+    if (payload) {
+      forwardToExtension(payload);
     }
   });
 
-  function forwardToExtension(stringCommand) {
-    console.log("executecommand");
-    vscode.postMessage({
-      type: "executeExplorVizCommand",
-      command: stringCommand,
-    });
+  function forwardToExtension(data) {
+    vscode.postMessage(data);
   }
 })();
