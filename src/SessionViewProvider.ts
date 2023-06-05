@@ -86,18 +86,10 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
       </br></br>
 
-      ${renderConnectToVizButton()}
-
       </br>     
       </br>
 
-      ${renderInputPP()}
-
-      ${renderCreatePPVizButton()}
-
-      </br></br>
-
-      ${renderJoinPPButton()}      
+      ${renderInputPP()}  
 
 			<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>

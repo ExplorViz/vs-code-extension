@@ -1,9 +1,12 @@
 import * as vscode from "vscode";
 import {
+  connectWithBackendSocket,
   frontendHttp,
   handleIncomingVizEvent,
+  joinPairProgrammingRoom,
   pairProgrammingSessionName,
-  showPairProgrammingHTML,
+  setShowPairProgrammingHTML,
+  setcrossOriginCommunication,
   socket,
 } from "./extension";
 import { IDEApiCall } from "./types";
@@ -29,7 +32,16 @@ export class IFrameViewContainer {
     this.refreshHTML();
 
     this.view.onDidReceiveMessage((data) => {
+      vscode.commands.executeCommand(
+        "setContext",
+        "explorviz.showPairProgrammingCommand",
+        true
+      );
+      setcrossOriginCommunication(true);
+      setShowPairProgrammingHTML(true);
       handleIncomingVizEvent(data);
+      connectWithBackendSocket();
+      joinPairProgrammingRoom("experiment");
     });
   }
 
