@@ -18,7 +18,6 @@ import { buildClassMethodArr } from "./buildClassMethod";
 import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
 import { IFrameViewContainer } from "./IFrameViewContainer";
-import { downloadAndUnzipVSCode } from "@vscode/test-electron";
 
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
@@ -26,6 +25,7 @@ export let socket: Socket;
 
 let backendHttp: string | undefined;
 export let frontendHttp: string | undefined;
+export let crossOriginCommunication: boolean = false;
 let provider: ExplorVizApiCodeLens | undefined;
 let codeLensDisposable: vscode.Disposable | undefined;
 let vizData: OrderTuple[] | undefined;
@@ -363,45 +363,7 @@ function registerCommandJoinPairProgramming() {
         return;
       }
 
-      socket.emit(
-        "join-pair-programming-room",
-        inputBox,
-        (joinedSessionName: string | undefined) => {
-          if (!joinedSessionName) {
-            vscode.window.showErrorMessage(
-              `Could not join session: ${inputBox}. Did you use a valid session name?`
-            );
-          } else {
-            vscode.window.setStatusBarMessage(
-              `Joined sessions: ${joinedSessionName}. Text selections are now shared among participants.`,
-              4000
-            );
-            pairProgrammingSessionName = joinedSessionName;
-            sessionViewProvier.refreshHTML();
-          }
-        }
-      );
-
-      socket.on("receive-text-selection", (textSelection: TextSelection) => {
-        const editor = vscode.window.activeTextEditor;
-
-        if (!editor) {
-          return;
-        }
-
-        if (textSelection) {
-          const { documentUri, startLine, startCharPos, endLine, endCharPos } =
-            textSelection;
-
-          if (editor.document.uri.toString() === documentUri) {
-            editor.setDecorations(collabTextSelectionDecorationType, [
-              new vscode.Range(startLine, startCharPos, endLine, endCharPos),
-            ]);
-          }
-        } else {
-          editor.setDecorations(collabTextSelectionDecorationType, []);
-        }
-      });
+      joinPairProgrammingRoom(inputBox);
     }
   );
   extensionContext!.subscriptions.push(connectToPairProgrammingSession);
@@ -436,7 +398,7 @@ function registerCommandCreatePairProgramming() {
               4000
             );
             pairProgrammingSessionName = createdSession;
-            sessionViewProvier.refreshHTML();
+            setShowPairProgrammingHTML(true);
           }
         }
       );
@@ -466,14 +428,70 @@ function registerCommandCreatePairProgramming() {
   extensionContext!.subscriptions.push(createPairProgramming);
 }
 
+export function connectWithBackendSocket() {
+  if (!backendHttp) {
+    console.error("ExplorViz backend URL not valid string", backendHttp);
+    return;
+  }
+
+  if (!socket || socket.disconnected) {
+    socket = io(backendHttp, {
+      path: "/v2/ide/",
+    });
+  }
+}
+
+export function joinPairProgrammingRoom(roomName: string) {
+  if (pairProgrammingSessionName) {
+    return;
+  }
+
+  socket.emit(
+    "join-pair-programming-room",
+    roomName,
+    (joinedSessionName: string | undefined) => {
+      if (!joinedSessionName) {
+        vscode.window.showErrorMessage(
+          `Could not join session: ${roomName}. Did you use a valid session name?`
+        );
+      } else {
+        vscode.window.setStatusBarMessage(
+          `Joined sessions: ${joinedSessionName}. Text selections are now shared among participants.`,
+          4000
+        );
+        pairProgrammingSessionName = joinedSessionName;
+        sessionViewProvier.refreshHTML();
+      }
+    }
+  );
+
+  socket.on("receive-text-selection", (textSelection: TextSelection) => {
+    const editor = vscode.window.activeTextEditor;
+
+    if (!editor) {
+      return;
+    }
+
+    if (textSelection) {
+      const { documentUri, startLine, startCharPos, endLine, endCharPos } =
+        textSelection;
+
+      if (editor.document.uri.toString() === documentUri) {
+        editor.setDecorations(collabTextSelectionDecorationType, [
+          new vscode.Range(startLine, startCharPos, endLine, endCharPos),
+        ]);
+      }
+    } else {
+      editor.setDecorations(collabTextSelectionDecorationType, []);
+    }
+  });
+}
+
 function registerCommandConnectToRoom() {
   let connectToRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.connectToRoom",
     async () => {
-      if (!backendHttp) {
-        console.error("ExplorViz backend URL not valid string", backendHttp);
-        return;
-      }
+      connectWithBackendSocket();
 
       const vsCodeInputOptions: vscode.InputBoxOptions = {
         prompt: "Enter the room name from the ExplorViz frontend.",
@@ -483,10 +501,6 @@ function registerCommandConnectToRoom() {
       if (!inputBox || inputBox.length < 3) {
         return;
       }
-
-      socket = io(backendHttp, {
-        path: "/v2/ide/",
-      });
 
       socket.on("connect", () => {
         socket.emit(
@@ -507,8 +521,7 @@ function registerCommandConnectToRoom() {
                 "explorviz.showPairProgrammingCommand",
                 true
               );
-              showPairProgrammingHTML = true;
-              sessionViewProvier.refreshHTML();
+              setShowPairProgrammingHTML(true);
             }
           }
         );
@@ -604,4 +617,13 @@ export function handleIncomingVizEvent(data: any) {
     default:
       break;
   }
+}
+
+export function setcrossOriginCommunication(value: boolean) {
+  crossOriginCommunication = value;
+}
+
+export function setShowPairProgrammingHTML(value: boolean) {
+  showPairProgrammingHTML = value;
+  sessionViewProvier.refreshHTML();
 }
