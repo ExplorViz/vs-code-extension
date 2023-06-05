@@ -30,6 +30,7 @@ let provider: ExplorVizApiCodeLens | undefined;
 let codeLensDisposable: vscode.Disposable | undefined;
 let vizData: OrderTuple[] | undefined;
 let disposableSessionViewProvider: vscode.Disposable | undefined;
+let latestTextSelection: TextSelection | undefined;
 
 let iFrameViewContainer: IFrameViewContainer | undefined;
 
@@ -94,6 +95,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     refreshEditorHightlights();
+    applyLatestTextSelection();
   });
 
   vscode.window.onDidChangeTextEditorSelection(
@@ -404,28 +406,33 @@ function registerCommandCreatePairProgramming() {
       );
 
       socket.on("receive-text-selection", (textSelection: TextSelection) => {
-        const editor = vscode.window.activeTextEditor;
-
-        if (!editor) {
-          return;
-        }
-
-        if (textSelection) {
-          const { documentUri, startLine, startCharPos, endLine, endCharPos } =
-            textSelection;
-
-          if (editor.document.uri.toString() === documentUri) {
-            editor.setDecorations(collabTextSelectionDecorationType, [
-              new vscode.Range(startLine, startCharPos, endLine, endCharPos),
-            ]);
-          }
-        } else {
-          editor.setDecorations(collabTextSelectionDecorationType, []);
-        }
+        latestTextSelection = textSelection;
+        applyLatestTextSelection();
       });
     }
   );
   extensionContext!.subscriptions.push(createPairProgramming);
+}
+
+function applyLatestTextSelection() {
+  const editor = vscode.window.activeTextEditor;
+
+  if (!editor) {
+    return;
+  }
+
+  if (latestTextSelection) {
+    const { documentUri, startLine, startCharPos, endLine, endCharPos } =
+      latestTextSelection;
+
+    if (editor.document.uri.toString() === documentUri) {
+      editor.setDecorations(collabTextSelectionDecorationType, [
+        new vscode.Range(startLine, startCharPos, endLine, endCharPos),
+      ]);
+    }
+  } else {
+    editor.setDecorations(collabTextSelectionDecorationType, []);
+  }
 }
 
 export function connectWithBackendSocket() {
@@ -466,24 +473,8 @@ export function joinPairProgrammingRoom(roomName: string) {
   );
 
   socket.on("receive-text-selection", (textSelection: TextSelection) => {
-    const editor = vscode.window.activeTextEditor;
-
-    if (!editor) {
-      return;
-    }
-
-    if (textSelection) {
-      const { documentUri, startLine, startCharPos, endLine, endCharPos } =
-        textSelection;
-
-      if (editor.document.uri.toString() === documentUri) {
-        editor.setDecorations(collabTextSelectionDecorationType, [
-          new vscode.Range(startLine, startCharPos, endLine, endCharPos),
-        ]);
-      }
-    } else {
-      editor.setDecorations(collabTextSelectionDecorationType, []);
-    }
+    latestTextSelection = textSelection;
+    applyLatestTextSelection();
   });
 }
 
@@ -525,27 +516,6 @@ function registerCommandConnectToRoom() {
             }
           }
         );
-      });
-
-      socket.on("receive-text-selection", (textSelection: TextSelection) => {
-        const editor = vscode.window.activeTextEditor;
-
-        if (!editor) {
-          return;
-        }
-
-        if (textSelection) {
-          const { documentUri, startLine, startCharPos, endLine, endCharPos } =
-            textSelection;
-
-          if (editor.document.uri.toString() === documentUri) {
-            editor.setDecorations(collabTextSelectionDecorationType, [
-              new vscode.Range(startLine, startCharPos, endLine, endCharPos),
-            ]);
-          }
-        } else {
-          editor.setDecorations(collabTextSelectionDecorationType, []);
-        }
       });
 
       socket.on(IDEApiDest.IDEDo, (data) => {
