@@ -37,6 +37,7 @@ export class IFrameViewContainer {
     this.view.postMessage({
       event: eventName,
       data: payload,
+      targetOrigin: frontendHttp,
     });
   }
 
@@ -74,7 +75,7 @@ export class IFrameViewContainer {
 				-->
 
 				<meta http-equiv="Content-Security-Policy" 
-          content="frame-src http://localhost:4200;
+          content="frame-src ${frontendHttp};
           style-src ${webview.cspSource};
           script-src 'nonce-${nonce}';"
         >

@@ -5,20 +5,20 @@
   const vscode = acquireVsCodeApi();
 
   window.addEventListener("message", (event) => {
-    const payload = event.data;
-    if (payload) {
-      if (payload.event) {
+    const data = event.data;
+    if (data) {
+      if (data.event) {
         let iframe = document.getElementById("explorviz-iframe");
 
         if (iframe) {
           // @ts-ignore
           const iFrameWindow = iframe.contentWindow;
           // forward extension request to iframe
-          iFrameWindow.postMessage(payload.data, "http://localhost:4200");
+          iFrameWindow.postMessage(data.data, data.targetOrigin);
         }
       } else {
         // forward iframe request to extension
-        forwardToExtension(payload);
+        forwardToExtension(data);
       }
     }
   });
