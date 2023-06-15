@@ -67,9 +67,25 @@ export async function activate(context: vscode.ExtensionContext) {
   extensionContext = context;
 
   backendHttp = settings.get("backendUrl");
-
-  backendHttp = settings.get("backendUrl");
   frontendHttp = settings.get("frontendUrl");
+
+  const envBackendUrl = process.env.VS_CODE_BACKEND_URL;
+
+  if (envBackendUrl) {
+    backendHttp = envBackendUrl;
+    console.debug(
+      `ATTENTION: Setting 'backendUrl' has no effect, since it is overriden by environment variable 'VS_CODE_BACKEND_URL' with value: ${envBackendUrl}`
+    );
+  }
+
+  const envFrontendUrl = process.env.FRONTEND_URL;
+
+  if (envBackendUrl) {
+    frontendHttp = envFrontendUrl;
+    console.debug(
+      `ATTENTION: Setting 'frontendHttp' has no effect, since it is overriden by environment variable 'FRONTEND_URL' with value: ${envFrontendUrl}`
+    );
+  }
 
   decorationType = vscode.window.createTextEditorDecorationType({
     gutterIconPath: context.asAbsolutePath("./images/explorviz-globe.png"),
