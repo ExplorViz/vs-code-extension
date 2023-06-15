@@ -610,6 +610,8 @@ export function setcrossOriginCommunication(value: boolean) {
 }
 
 export function setShowPairProgrammingHTML(value: boolean) {
-  showPairProgrammingHTML = value;
-  sessionViewProvier.refreshHTML();
+  if (value !== showPairProgrammingHTML) {
+    showPairProgrammingHTML = value;
+    sessionViewProvier.refreshHTML();
+  }
 }
