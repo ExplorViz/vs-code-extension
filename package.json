@@ -52,7 +52,7 @@
         "explorviz.frontendUrl": {
           "type": "string",
           "scope": "application",
-          "default": "http://localhost:4200",
+          "default": "http://localhost:8080",
           "description": "Specify URL for ExplorViz's frontend."
         },
         "explorviz.packageBaseDir": {

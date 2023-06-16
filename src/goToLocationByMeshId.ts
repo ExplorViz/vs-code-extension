@@ -219,14 +219,19 @@ function openFileCommand(
       } else if (stats.isFile()) {
         console.error("is File");
       }
-      return vscode.commands.executeCommand(
-        "editor.action.goToLocations",
-        vscode.Uri.file(normalizedPath),
-        new vscode.Position(0, 0),
-        [new vscode.Position(0, 0)],
-        "goto",
-        "No File Found to go to"
-      );
+      const activeEditor = vscode.window.visibleTextEditors[0];
+      if (activeEditor.document.uri.path !== normalizedPath) {
+        return vscode.commands.executeCommand(
+          "editor.action.goToLocations",
+          vscode.Uri.file(normalizedPath),
+          new vscode.Position(0, 0),
+          [new vscode.Position(0, 0)],
+          "goto",
+          "No File Found to go to"
+        );
+      } else {
+        return Promise.reject();
+      }
     })
     .then(() => {
       let classMethod = buildClassMethodArr(
