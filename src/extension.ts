@@ -566,6 +566,7 @@ function registerCommandWebview() {
       panel.onDidDispose((_e) => {
         removeEditorHighlights();
       });
+      vscode.commands.executeCommand("workbench.view.explorer");
     }
   );
   extensionContext!.subscriptions.push(webview);
@@ -612,6 +613,6 @@ export function setcrossOriginCommunication(value: boolean) {
 export function setShowPairProgrammingHTML(value: boolean) {
   if (value !== showPairProgrammingHTML) {
     showPairProgrammingHTML = value;
-    sessionViewProvier.refreshHTML();
+    //sessionViewProvier.refreshHTML();
   }
 }
