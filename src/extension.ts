@@ -465,6 +465,11 @@ export function connectWithBackendSocket() {
 }
 
 export function joinPairProgrammingRoom(roomName: string) {
+  if (process.env.VS_CODE_AUTO_COLLAB_JOIN === "false") {
+    console.log("AUTO_COLLAB_JOIN is set to false, won't join PP room.");
+    return;
+  }
+
   if (pairProgrammingSessionName) {
     return;
   }
