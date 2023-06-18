@@ -34,6 +34,11 @@ let latestTextSelection: TextSelection | undefined;
 
 let iFrameViewContainer: IFrameViewContainer | undefined;
 
+const username = process.env.VSCODE_EXP_USERNAME;
+const scenarioNumber = process.env.SCENARIO_NUMBER;
+const globalStateKeyIde = `${username}-s${scenarioNumber}-ide`;
+const globalStateKeyViz = `${username}-s${scenarioNumber}-viz`;
+
 // import * as vsls from 'vsls';
 // import { getApi } from "vsls";
 
@@ -58,6 +63,11 @@ export let monitoringData: MonitoringData[] = [];
 let sessionViewProvier: SessionViewProvider;
 
 let extensionContext: vscode.ExtensionContext | undefined;
+
+let iFrameUsageTimerStart: number | null = null;
+let iFrameUsageTimerEnd: number | null = null;
+let ideUsageTimerStart: number | null = null;
+let ideUsageTimerEnd: number | null = null;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -107,7 +117,40 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.window.onDidChangeActiveTextEditor(async (e) => {
     if (!e) {
       // https://github.com/microsoft/vscode/issues/108868#issuecomment-711799190
+
+      // triggered when iFrame is in focus
+      iFrameUsageTimerStart = performance.now();
+      ideUsageTimerEnd = performance.now();
+
+      // save delta for ide, since now iFrame is inFocus
+      if (ideUsageTimerStart) {
+        const ideTimeSoFar = (await context.globalState.get(
+          globalStateKeyIde
+        )) as number;
+        const latestUsageTime = ideUsageTimerEnd - ideUsageTimerStart;
+        await context.globalState.update(
+          globalStateKeyIde,
+          ideTimeSoFar + latestUsageTime
+        );
+      }
+
       return;
+    }
+
+    // triggered when editor is in focus
+    iFrameUsageTimerEnd = performance.now();
+    ideUsageTimerStart = performance.now();
+
+    // save delta for iFrame, since now ide is inFocus
+    if (iFrameUsageTimerStart) {
+      const iFrameTimeSoFar = (await context.globalState.get(
+        globalStateKeyViz
+      )) as number;
+      const latestUsageTime = iFrameUsageTimerEnd - iFrameUsageTimerStart;
+      await context.globalState.update(
+        globalStateKeyViz,
+        iFrameTimeSoFar + latestUsageTime
+      );
     }
 
     refreshEditorHightlights();
