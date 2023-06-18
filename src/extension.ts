@@ -2,6 +2,8 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
 import io, { Socket } from "socket.io-client";
+import * as fs from "fs";
+import os from "os";
 
 import {
   FoundationOccurrences,
@@ -36,8 +38,9 @@ let iFrameViewContainer: IFrameViewContainer | undefined;
 
 const username = process.env.VSCODE_EXP_USERNAME;
 const scenarioNumber = process.env.SCENARIO_NUMBER;
-const globalStateKeyIde = `${username}-s${scenarioNumber}-ide`;
-const globalStateKeyViz = `${username}-s${scenarioNumber}-viz`;
+
+const homedir = os.homedir();
+const pathToState = `${homedir}/explorviz-experiment-logging.csv`;
 
 // import * as vsls from 'vsls';
 // import { getApi } from "vsls";
@@ -114,43 +117,35 @@ export async function activate(context: vscode.ExtensionContext) {
     });
   });
 
+  const csvHeader = `username,type,startepoch,elapsedmill\r\n`;
+  fs.appendFileSync(pathToState, csvHeader);
+
   vscode.window.onDidChangeActiveTextEditor(async (e) => {
     if (!e) {
       // https://github.com/microsoft/vscode/issues/108868#issuecomment-711799190
 
       // triggered when iFrame is in focus
-      iFrameUsageTimerStart = performance.now();
-      ideUsageTimerEnd = performance.now();
+      iFrameUsageTimerStart = Date.now();
+      ideUsageTimerEnd = Date.now();
 
       // save delta for ide, since now iFrame is inFocus
       if (ideUsageTimerStart) {
-        const ideTimeSoFar = (await context.globalState.get(
-          globalStateKeyIde
-        )) as number;
         const latestUsageTime = ideUsageTimerEnd - ideUsageTimerStart;
-        await context.globalState.update(
-          globalStateKeyIde,
-          ideTimeSoFar + latestUsageTime
-        );
+        const timeEvent = `${username},ide,${ideUsageTimerStart},${latestUsageTime}\r\n`;
+        fs.appendFileSync(pathToState, timeEvent);
       }
-
       return;
     }
 
     // triggered when editor is in focus
-    iFrameUsageTimerEnd = performance.now();
-    ideUsageTimerStart = performance.now();
+    iFrameUsageTimerEnd = Date.now();
+    ideUsageTimerStart = Date.now();
 
     // save delta for iFrame, since now ide is inFocus
     if (iFrameUsageTimerStart) {
-      const iFrameTimeSoFar = (await context.globalState.get(
-        globalStateKeyViz
-      )) as number;
       const latestUsageTime = iFrameUsageTimerEnd - iFrameUsageTimerStart;
-      await context.globalState.update(
-        globalStateKeyViz,
-        iFrameTimeSoFar + latestUsageTime
-      );
+      const timeEvent = `${username},viz,${iFrameUsageTimerStart},${latestUsageTime}\r\n`;
+      fs.appendFileSync(pathToState, timeEvent);
     }
 
     refreshEditorHightlights();
