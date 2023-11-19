@@ -206,7 +206,7 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
 
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor
@@ -537,6 +537,7 @@ export function joinPairProgrammingRoom(roomName: string) {
   });
 }
 
+// Function, which describes the actual behaviour of the establishing of the connection to a room via a websocket.
 function registerCommandConnectToRoom() {
   let connectToRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.connectToRoom",
@@ -548,34 +549,54 @@ function registerCommandConnectToRoom() {
       };
 
       const inputBox = await vscode.window.showInputBox(vsCodeInputOptions);
-      if (!inputBox || inputBox.length < 3) {
+      // Why does (in the old version) the input length need to be ≥3?
+      // Room numbers also include 1 and 2.
+      if (!inputBox || inputBox.length < 0) {
         return;
       }
 
-      socket.on("connect", () => {
-        socket.emit(
-          "join-custom-room",
-          { roomId: inputBox },
-          (joinedRoom: string | undefined) => {
-            if (!joinedRoom) {
-              vscode.window.showErrorMessage(
-                `Could not join room: ${inputBox}. Did you use a valid room name?`
-              );
-            } else {
-              vscode.window.setStatusBarMessage(
-                `Joined room: ${joinedRoom}. `,
-                2000
-              );
-              vscode.commands.executeCommand(
-                "setContext",
-                "explorviz.showPairProgrammingCommand",
-                true
-              );
-              setShowPairProgrammingHTML(true);
-            }
-          }
+      // For debugging:
+      vscode.window.setStatusBarMessage(
+        "registerCommandConnectToRoom(): inputBox is neither null nor empty."
+      );
+
+      // Socket.on() should behave the same way, but this way I can print an error message.
+      if (!socket || socket.disconnected) {
+        vscode.window.showErrorMessage(
+          `Join-Room: No connection was established.`
         );
-      });
+        return;
+      }
+
+      //socket.on("connect", () => {
+      // For debugging:
+      vscode.window.setStatusBarMessage(
+        "registerCommandConnectToRoom(): The socket is connected."
+      );
+      // Why isn't at least one of the messages displayed?
+      socket.emit(
+        "join-custom-room",
+        { roomId: inputBox },
+        (joinedRoom: string | undefined) => {
+          if (!joinedRoom) {
+            vscode.window.showErrorMessage(
+              `Could not join room: ${inputBox}. Did you use a valid room name?`
+            );
+          } else {
+            vscode.window.setStatusBarMessage(
+              `Joined room: ${joinedRoom}. `,
+              2000
+            );
+            vscode.commands.executeCommand(
+              "setContext",
+              "explorviz.showPairProgrammingCommand",
+              true
+            );
+            setShowPairProgrammingHTML(true);
+          }
+        }
+      );
+      //});
 
       socket.on(IDEApiDest.IDEDo, (data) => {
         handleIncomingVizEvent(data);

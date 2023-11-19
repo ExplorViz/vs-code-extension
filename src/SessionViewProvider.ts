@@ -86,6 +86,7 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
       </br></br>
 
+      ${renderConnectToVizButton()}
       </br>     
       </br>
 
