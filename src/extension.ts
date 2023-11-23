@@ -34,6 +34,9 @@ let vizData: OrderTuple[] | undefined;
 let disposableSessionViewProvider: vscode.Disposable | undefined;
 let latestTextSelection: TextSelection | undefined;
 
+// Necessary to check which mode is activated.
+let webSocketFlag: boolean | undefined;
+
 let iFrameViewContainer: IFrameViewContainer | undefined;
 
 const username = process.env.VSCODE_EXP_USERNAME;
@@ -81,6 +84,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   backendHttp = settings.get("backendUrl");
   frontendHttp = settings.get("frontendUrl");
+  webSocketFlag = settings.get("isWebsocket");
 
   const envBackendUrl = process.env.VS_CODE_BACKEND_URL;
 
@@ -565,7 +569,7 @@ function registerCommandConnectToRoom() {
         return;
       }
 
-      socket.on("connect", () => {
+      //socket.on("connect", () => {
       socket.emit(
         "join-custom-room",
         { roomId: inputBox },
@@ -585,10 +589,13 @@ function registerCommandConnectToRoom() {
               true
             );
             setShowPairProgrammingHTML(true);
+            // Activate the websocket mode for the current session.
+            webSocketFlag = true;
+            vscode.commands.executeCommand("workbench.view.explorer");
           }
         }
       );
-      });
+      //});
 
       socket.on(IDEApiDest.IDEDo, (data) => {
         handleIncomingVizEvent(data);
@@ -598,7 +605,11 @@ function registerCommandConnectToRoom() {
   extensionContext!.subscriptions.push(connectToRoom);
 }
 
+// Function which is activated when clicked on "Open Visualization".
 function registerCommandWebview() {
+  // Deactivate the websocket flag.
+  webSocketFlag = false;
+
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
     function () {
