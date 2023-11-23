@@ -590,7 +590,14 @@ function registerCommandConnectToRoom() {
             );
             setShowPairProgrammingHTML(true);
             // Activate the websocket mode for the current session.
-            webSocketFlag = true;
+            // Deactivate the cross-window mode.
+            if (!webSocketFlag) {
+              webSocketFlag = true;
+
+              vscode.window.setStatusBarMessage(
+                `Disconnect from Cross-Window Mode.`
+              );
+            }
             vscode.commands.executeCommand("workbench.view.explorer");
           }
         }
@@ -602,17 +609,27 @@ function registerCommandConnectToRoom() {
       });
     }
   );
-  extensionContext!.subscriptions.push(connectToRoom);
+
+  if (webSocketFlag) {
+    extensionContext!.subscriptions.push(connectToRoom);
+  }
 }
 
 // Function which is activated when clicked on "Open Visualization".
 function registerCommandWebview() {
-  // Deactivate the websocket flag.
-  webSocketFlag = false;
-
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
     function () {
+      // Deactivate the websocket flag.
+      if (webSocketFlag) {
+        webSocketFlag = false;
+        socket.disconnect();
+
+        vscode.window.setStatusBarMessage(
+          `Disconnect from Websocket Mode.`
+        );
+      }
+
       let panel = vscode.window.createWebviewPanel(
         "websiteViewer", // Identifies the type of the webview. Used internally
         "ExplorViz", // Title of the panel displayed to the user
