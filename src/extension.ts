@@ -63,7 +63,7 @@ const collabTextSelectionDecorationType =
 
 export let monitoringData: MonitoringData[] = [];
 
-let sessionViewProvier: SessionViewProvider;
+let sessionViewProvider: SessionViewProvider;
 
 let extensionContext: vscode.ExtensionContext | undefined;
 
@@ -193,10 +193,10 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandJoinPairProgramming();
   registerCommandWebview();
 
-  sessionViewProvier = new SessionViewProvider(context.extensionUri);
+  sessionViewProvider = new SessionViewProvider(context.extensionUri);
   disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
     SessionViewProvider.viewType,
-    sessionViewProvier
+    sessionViewProvider
   );
   context.subscriptions.push(disposableSessionViewProvider);
 
@@ -526,7 +526,7 @@ export function joinPairProgrammingRoom(roomName: string) {
           4000
         );
         pairProgrammingSessionName = joinedSessionName;
-        sessionViewProvier.refreshHTML();
+        sessionViewProvider.refreshHTML();
       }
     }
   );
@@ -544,21 +544,18 @@ function registerCommandConnectToRoom() {
     async () => {
       connectWithBackendSocket();
 
+      // Enter the IDE-Room
       const vsCodeInputOptions: vscode.InputBoxOptions = {
         prompt: "Enter the room name from the ExplorViz frontend.",
       };
 
       const inputBox = await vscode.window.showInputBox(vsCodeInputOptions);
-      // Why does (in the old version) the input length need to be ≥3?
-      // Room numbers also include 1 and 2.
-      if (!inputBox || inputBox.length < 0) {
+      if (!inputBox || inputBox.length < 3) {
+        vscode.window.showErrorMessage(
+          `Join-Room: Please enter a valid IDE room with length ≥3.`
+        );
         return;
       }
-
-      // For debugging:
-      vscode.window.setStatusBarMessage(
-        "registerCommandConnectToRoom(): inputBox is neither null nor empty."
-      );
 
       // Socket.on() should behave the same way, but this way I can print an error message.
       if (!socket || socket.disconnected) {
@@ -568,12 +565,7 @@ function registerCommandConnectToRoom() {
         return;
       }
 
-      //socket.on("connect", () => {
-      // For debugging:
-      vscode.window.setStatusBarMessage(
-        "registerCommandConnectToRoom(): The socket is connected."
-      );
-      // Why isn't at least one of the messages displayed?
+      socket.on("connect", () => {
       socket.emit(
         "join-custom-room",
         { roomId: inputBox },
@@ -596,7 +588,7 @@ function registerCommandConnectToRoom() {
           }
         }
       );
-      //});
+      });
 
       socket.on(IDEApiDest.IDEDo, (data) => {
         handleIncomingVizEvent(data);
