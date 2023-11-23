@@ -87,7 +87,7 @@ export async function activate(context: vscode.ExtensionContext) {
   if (envBackendUrl) {
     backendHttp = envBackendUrl;
     console.debug(
-      `ATTENTION: Setting 'backendUrl' has no effect, since it is overriden by environment variable 'VS_CODE_BACKEND_URL' with value: ${envBackendUrl}`
+      `ATTENTION: Setting 'backendUrl' has no effect, since it is overridden by environment variable 'VS_CODE_BACKEND_URL' with value: ${envBackendUrl}`
     );
   }
 
@@ -96,7 +96,7 @@ export async function activate(context: vscode.ExtensionContext) {
   if (envBackendUrl) {
     frontendHttp = envFrontendUrl;
     console.debug(
-      `ATTENTION: Setting 'frontendHttp' has no effect, since it is overriden by environment variable 'FRONTEND_URL' with value: ${envFrontendUrl}`
+      `ATTENTION: Setting 'frontendHttp' has no effect, since it is overridden by environment variable 'FRONTEND_URL' with value: ${envFrontendUrl}`
     );
   }
 
@@ -148,7 +148,7 @@ export async function activate(context: vscode.ExtensionContext) {
       fs.appendFileSync(pathToState, timeEvent);
     }
 
-    refreshEditorHightlights();
+    refreshEditorHighlights();
     applyLatestTextSelection();
   });
 
@@ -236,8 +236,8 @@ function cutSameStrings(arr: string[]): string[] {
       if (path.length - 1 === i || path.length - 2 === i) {
         trimmedPath += "/" + subPath;
       } else {
-        test.forEach((pathTotest) => {
-          if (pathTotest.includes(subPath)) {
+        test.forEach((pathToTest) => {
+          if (pathToTest.includes(subPath)) {
             // trimmedPath += "./"
           } else if (!trimmedPath.includes(subPath)) {
             trimmedPath += ".../" + subPath + "/...";
@@ -269,8 +269,8 @@ function getOccurrenceIDsFromVizData(
   vizData: OrderTuple[]
 ): FoundationOccurrences[] {
   // [
-  //  {fqn: "asd.fgh.asd.", occurences: [1, 2, 3...]},
-  //  {fqn: "asd.fgh.asd.asd", occurences: [1, 2, 3...]},
+  //  {fqn: "asd.fgh.asd.", occurrences: [1, 2, 3...]},
+  //  {fqn: "asd.fgh.asd.asd", occurrences: [1, 2, 3...]},
   // ...]
   // let result: FoundationOccurrences[] = [{ foundation: "petclinic-demo", occurrences: [1,2,3] }];
   // let result: FoundationOccurrences[] = [{ foundation: "petclinic-api-gateway", occurrences: [] }];
@@ -297,7 +297,7 @@ function getOccurrenceIDsFromVizData(
   return result;
 }
 
-function refreshEditorHightlights() {
+function refreshEditorHighlights() {
   if (!vizData) {
     return;
   }
@@ -650,7 +650,7 @@ export function handleIncomingVizEvent(data: any) {
 
     case IDEApiActions.Refresh:
       vizData = data.data;
-      refreshEditorHightlights();
+      refreshEditorHighlights();
       break;
 
     case IDEApiActions.SingleClickOnMesh:
@@ -662,13 +662,13 @@ export function handleIncomingVizEvent(data: any) {
   }
 }
 
-export function setcrossOriginCommunication(value: boolean) {
+export function setCrossOriginCommunication(value: boolean) {
   crossOriginCommunication = value;
 }
 
 export function setShowPairProgrammingHTML(value: boolean) {
   if (value !== showPairProgrammingHTML) {
     showPairProgrammingHTML = value;
-    //sessionViewProvier.refreshHTML();
+    //sessionViewProvider.refreshHTML();
   }
 }
