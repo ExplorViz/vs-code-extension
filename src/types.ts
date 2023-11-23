@@ -48,14 +48,14 @@ export type VizDataRaw = {
 
 export type ParentOrder = {
   fqn: string;
-  childs: ParentOrder[];
+  children: ParentOrder[];
   meshId: string;
 };
 
 // export type ParentOrder = {
 //   fqn: string;
-//   meshid: string;
-//   childs: ParentOrder[];
+//   meshId: string;
+//   children: ParentOrder[];
 //   methods: ParentOrder[];
 // };
 
@@ -64,7 +64,7 @@ export type OrderTuple = {
   meshes: { meshNames: string[]; meshIds: string[] };
 };
 
-export type classMethod = {
+export type ClassMethod = {
   name: string;
   fqn: string;
   lineString: string;
