@@ -41,7 +41,7 @@ export class IFrameViewContainer {
       setShowPairProgrammingHTML(true);
       handleIncomingVizEvent(data);
       connectWithBackendSocket();
-      joinPairProgrammingRoom("experiment");
+      //joinPairProgrammingRoom("experiment");
     });
   }
 

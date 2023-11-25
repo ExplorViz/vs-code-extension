@@ -594,7 +594,7 @@ function registerCommandConnectToRoom() {
             if (!webSocketFlag) {
               webSocketFlag = true;
 
-              vscode.window.setStatusBarMessage(
+              vscode.window.showInformationMessage(
                 `Disconnect from Cross-Window Mode.`
               );
             }
