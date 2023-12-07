@@ -24,6 +24,8 @@ export enum IDEApiActions {
   GetVizData = "getVizData",
   JumpToLocation = "jumpToLocation",
   JumpToMonitoringClass = "jumpToMonitoringClass",
+  ConnectIDE = "connectIDE",
+  DisconnectIDE = "disconnectIDE",
 }
 
 export type CommunicationLink = {

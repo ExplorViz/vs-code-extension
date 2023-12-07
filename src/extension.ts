@@ -594,6 +594,15 @@ function registerCommandConnectToRoom() {
             if (!webSocketFlag) {
               webSocketFlag = true;
 
+              emitToBackend(IDEApiDest.VizDo, {
+                action: IDEApiActions.ConnectIDE,
+                data: [],
+                meshId: "",
+                occurrenceID: -1,
+                fqn: "",
+                foundationCommunicationLinks: [],
+              }); 
+
               vscode.window.showInformationMessage(
                 `Disconnect from Cross-Window Mode.`
               );
@@ -623,6 +632,16 @@ function registerCommandWebview() {
       // Deactivate the websocket flag.
       if (webSocketFlag) {
         webSocketFlag = false;
+
+        emitToBackend(IDEApiDest.VizDo, {
+          action: IDEApiActions.DisconnectIDE,
+          data: [],
+          meshId: "",
+          occurrenceID: -1,
+          fqn: "",
+          foundationCommunicationLinks: [],
+        });
+
         socket.disconnect();
 
         vscode.window.setStatusBarMessage(
