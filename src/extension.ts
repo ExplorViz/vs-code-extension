@@ -35,7 +35,7 @@ let disposableSessionViewProvider: vscode.Disposable | undefined;
 let latestTextSelection: TextSelection | undefined;
 
 // Necessary to check which mode is activated.
-let webSocketFlag: boolean | undefined;
+let webSocketFlag: boolean | undefined = false;
 
 let iFrameViewContainer: IFrameViewContainer | undefined;
 
@@ -84,7 +84,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   backendHttp = settings.get("backendUrl");
   frontendHttp = settings.get("frontendUrl");
-  webSocketFlag = settings.get("isWebsocket");
 
   const envBackendUrl = process.env.VS_CODE_BACKEND_URL;
 

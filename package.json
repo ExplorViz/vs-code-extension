@@ -60,12 +60,6 @@
           "scope": "application",
           "default": "/src/main/java",
           "description": "Specify if there is a src directory that wouldn't be included into the FQN"
-        },
-        "explorviz.isWebsocket": {
-          "type": "boolean",
-          "scope": "application",
-          "default": false,
-          "description": "Specify whether the websocket mode is your default mode or the cross-window mode."
         }
       }
     },
