@@ -568,7 +568,6 @@ function registerCommandConnectToRoom() {
         return;
       }
 
-      //socket.on("connect", () => {
       socket.emit(
         "join-custom-room",
         { roomId: inputBox },
@@ -606,11 +605,15 @@ function registerCommandConnectToRoom() {
                 `Disconnect from Cross-Window Mode.`
               );
             }
+            /* extensionContext != webviewContext
+            => The WebView does not get to be re-build.
+            => We also need to refresh the WebViewContext.
+            */
+            sessionViewProvider.refreshHTML();
             vscode.commands.executeCommand("workbench.view.explorer");
           }
         }
       );
-      //});
 
       socket.on(IDEApiDest.IDEDo, (data) => {
         handleIncomingVizEvent(data);
@@ -618,9 +621,7 @@ function registerCommandConnectToRoom() {
     }
   );
 
-  if (webSocketFlag) {
-    extensionContext!.subscriptions.push(connectToRoom);
-  }
+  extensionContext!.subscriptions.push(connectToRoom);
 }
 
 // Function which is activated when clicked on "Open Visualization".
@@ -642,6 +643,7 @@ function registerCommandWebview() {
         });
 
         socket.disconnect();
+        sessionViewProvider.refreshHTML();
 
         vscode.window.setStatusBarMessage(
           `Disconnect from Websocket Mode.`
