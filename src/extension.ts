@@ -35,7 +35,7 @@ let disposableSessionViewProvider: vscode.Disposable | undefined;
 let latestTextSelection: TextSelection | undefined;
 
 // Necessary to check which mode is activated.
-let webSocketFlag: boolean | undefined = false;
+let webSocketFlag: boolean = false;
 
 let iFrameViewContainer: IFrameViewContainer | undefined;
 
@@ -195,6 +195,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandCreatePairProgramming();
   registerCommandJoinPairProgramming();
   registerCommandWebview();
+  registerCommandDisconnectFromRoom();
 
   sessionViewProvider = new SessionViewProvider(context.extensionUri);
   disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
@@ -620,8 +621,39 @@ function registerCommandConnectToRoom() {
       });
     }
   );
-
   extensionContext!.subscriptions.push(connectToRoom);
+}
+
+function disconnectIDE() {
+  webSocketFlag = false;
+
+  emitToBackend(IDEApiDest.VizDo, {
+    action: IDEApiActions.DisconnectIDE,
+    data: [],
+    meshId: "",
+    occurrenceID: -1,
+    fqn: "",
+    foundationCommunicationLinks: [],
+  });
+
+  socket.disconnect();
+  sessionViewProvider.refreshHTML();
+
+  vscode.window.setStatusBarMessage(
+    `Disconnect from Websocket Mode.`
+  );
+}
+
+// Command which is executed the "Disconnect-Button" from the IDE is triggered.
+function registerCommandDisconnectFromRoom() {
+  let disconnectFromRoom = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.disconnectFromRoom",
+    async () => {
+      vscode.window.showInformationMessage("Disconnect button was clicked.");
+      disconnectIDE();
+    }
+  );
+  extensionContext!.subscriptions.push(disconnectFromRoom);
 }
 
 // Function which is activated when clicked on "Open Visualization".
@@ -631,23 +663,7 @@ function registerCommandWebview() {
     function () {
       // Deactivate the websocket flag.
       if (webSocketFlag) {
-        webSocketFlag = false;
-
-        emitToBackend(IDEApiDest.VizDo, {
-          action: IDEApiActions.DisconnectIDE,
-          data: [],
-          meshId: "",
-          occurrenceID: -1,
-          fqn: "",
-          foundationCommunicationLinks: [],
-        });
-
-        socket.disconnect();
-        sessionViewProvider.refreshHTML();
-
-        vscode.window.setStatusBarMessage(
-          `Disconnect from Websocket Mode.`
-        );
+        disconnectIDE(); 
       }
 
       let panel = vscode.window.createWebviewPanel(
