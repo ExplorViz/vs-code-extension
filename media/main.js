@@ -22,7 +22,6 @@
 
   if (disconnectFromVizButton) {
     disconnectFromVizButton.addEventListener("click", () => {
-      // TODO: Register and implement the command!
       executeExtensionCommand(
         "explorviz-vscode-extension.disconnectFromRoom"
       );

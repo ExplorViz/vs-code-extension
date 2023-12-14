@@ -722,6 +722,7 @@ export function handleIncomingVizEvent(data: any) {
 
     case IDEApiActions.DisconnectFrontend:
       vscode.window.showErrorMessage("The frontend disconnected.");
+      disconnectIDE();
       break;
 
     default:
