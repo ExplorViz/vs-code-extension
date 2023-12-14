@@ -649,7 +649,6 @@ function registerCommandDisconnectFromRoom() {
   let disconnectFromRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.disconnectFromRoom",
     async () => {
-      vscode.window.showInformationMessage("Disconnect button was clicked.");
       disconnectIDE();
     }
   );
