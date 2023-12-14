@@ -26,6 +26,7 @@ export enum IDEApiActions {
   JumpToMonitoringClass = "jumpToMonitoringClass",
   ConnectIDE = "connectIDE",
   DisconnectIDE = "disconnectIDE",
+  DisconnectFrontend = "disconnectFrontend",
 }
 
 export type CommunicationLink = {

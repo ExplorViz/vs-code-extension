@@ -721,6 +721,10 @@ export function handleIncomingVizEvent(data: any) {
       // goToLocationsByMeshId(data.meshId, data.data)
       break;
 
+    case IDEApiActions.DisconnectFrontend:
+      vscode.window.showErrorMessage("The frontend disconnected.");
+      break;
+
     default:
       break;
   }
