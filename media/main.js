@@ -16,6 +16,18 @@
     });
   }
 
+  const disconnectFromVizButton = document.querySelector(
+    "#explorviz-disconnect-room-button"
+  );
+
+  if (disconnectFromVizButton) {
+    disconnectFromVizButton.addEventListener("click", () => {
+      executeExtensionCommand(
+        "explorviz-vscode-extension.disconnectFromRoom"
+      );
+    });
+  }
+
   const createPPButton = document.querySelector("#explorviz-create-pp-button");
 
   if (createPPButton) {

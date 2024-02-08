@@ -37,6 +37,10 @@
       {
         "command": "explorviz-vscode-extension.connectToRoom",
         "title": "ExplorViz: Connect to visualization ..."
+      },
+      {
+        "command": "explorviz-vscode-extension.disconnectFromRoom",
+        "title": "ExplorViz: Disconnect from visualisation ..."
       }
     ],
     "configuration": {

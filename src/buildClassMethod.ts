@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { classMethod, MonitoringData, OrderTuple } from "./types";
+import { ClassMethod, MonitoringData, OrderTuple } from "./types";
 import { decorationType, monitoringDecorationType } from "./extension";
 
 export function buildClassMethodArr(
@@ -7,8 +7,8 @@ export function buildClassMethodArr(
   vizData: OrderTuple[],
   monitoringData: MonitoringData[],
   decorate: boolean
-): classMethod[] {
-  let classMethodArray: classMethod[] = [];
+): ClassMethod[] {
+  let classMethodArray: ClassMethod[] = [];
   let sourceCode = editor.document.getText();
   // class\s([\w\d]+)[\w\s]+(.+)|[\w\d\<>]+\s([\w]+)(\(\)|\([\w\s]+\))(.+)|(}{1}|{{1})
   // class\s([\w\d]+)[\w\s]+{

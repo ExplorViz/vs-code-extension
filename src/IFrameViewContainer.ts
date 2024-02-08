@@ -6,7 +6,7 @@ import {
   joinPairProgrammingRoom,
   pairProgrammingSessionName,
   setShowPairProgrammingHTML,
-  setcrossOriginCommunication,
+  setCrossOriginCommunication,
   socket,
 } from "./extension";
 import { IDEApiCall } from "./types";
@@ -37,11 +37,11 @@ export class IFrameViewContainer {
         "explorviz.showPairProgrammingCommand",
         true
       );
-      setcrossOriginCommunication(true);
+      setCrossOriginCommunication(true);
       setShowPairProgrammingHTML(true);
       handleIncomingVizEvent(data);
       connectWithBackendSocket();
-      joinPairProgrammingRoom("experiment");
+      //joinPairProgrammingRoom("experiment");
     });
   }
 

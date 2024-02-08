@@ -86,6 +86,7 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
       </br></br>
 
+      ${renderConnectToVizButton()}
       </br>     
       </br>
 
@@ -101,7 +102,7 @@ function renderConnectToVizButton() {
   if (!socket || socket.disconnected) {
     return "<button id='explorviz-join-room-button'>Connect to Visualization ...</button>";
   } else {
-    return "<button id='explorviz-disconnect-room-button' disabled>Disconnect from Visualization</button>";
+    return "<button id='explorviz-disconnect-room-button'>Disconnect from Visualization</button>";
   }
 }
 

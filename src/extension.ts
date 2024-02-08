@@ -34,6 +34,9 @@ let vizData: OrderTuple[] | undefined;
 let disposableSessionViewProvider: vscode.Disposable | undefined;
 let latestTextSelection: TextSelection | undefined;
 
+// Necessary to check which mode is activated.
+let webSocketFlag: boolean = false;
+
 let iFrameViewContainer: IFrameViewContainer | undefined;
 
 const username = process.env.VSCODE_EXP_USERNAME;
@@ -63,7 +66,7 @@ const collabTextSelectionDecorationType =
 
 export let monitoringData: MonitoringData[] = [];
 
-let sessionViewProvier: SessionViewProvider;
+let sessionViewProvider: SessionViewProvider;
 
 let extensionContext: vscode.ExtensionContext | undefined;
 
@@ -87,7 +90,7 @@ export async function activate(context: vscode.ExtensionContext) {
   if (envBackendUrl) {
     backendHttp = envBackendUrl;
     console.debug(
-      `ATTENTION: Setting 'backendUrl' has no effect, since it is overriden by environment variable 'VS_CODE_BACKEND_URL' with value: ${envBackendUrl}`
+      `ATTENTION: Setting 'backendUrl' has no effect, since it is overridden by environment variable 'VS_CODE_BACKEND_URL' with value: ${envBackendUrl}`
     );
   }
 
@@ -96,7 +99,7 @@ export async function activate(context: vscode.ExtensionContext) {
   if (envBackendUrl) {
     frontendHttp = envFrontendUrl;
     console.debug(
-      `ATTENTION: Setting 'frontendHttp' has no effect, since it is overriden by environment variable 'FRONTEND_URL' with value: ${envFrontendUrl}`
+      `ATTENTION: Setting 'frontendHttp' has no effect, since it is overridden by environment variable 'FRONTEND_URL' with value: ${envFrontendUrl}`
     );
   }
 
@@ -148,7 +151,7 @@ export async function activate(context: vscode.ExtensionContext) {
       fs.appendFileSync(pathToState, timeEvent);
     }
 
-    refreshEditorHightlights();
+    refreshEditorHighlights();
     applyLatestTextSelection();
   });
 
@@ -192,11 +195,12 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandCreatePairProgramming();
   registerCommandJoinPairProgramming();
   registerCommandWebview();
+  registerCommandDisconnectFromRoom();
 
-  sessionViewProvier = new SessionViewProvider(context.extensionUri);
+  sessionViewProvider = new SessionViewProvider(context.extensionUri);
   disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
     SessionViewProvider.viewType,
-    sessionViewProvier
+    sessionViewProvider
   );
   context.subscriptions.push(disposableSessionViewProvider);
 
@@ -206,7 +210,7 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
 
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor
@@ -236,8 +240,8 @@ function cutSameStrings(arr: string[]): string[] {
       if (path.length - 1 === i || path.length - 2 === i) {
         trimmedPath += "/" + subPath;
       } else {
-        test.forEach((pathTotest) => {
-          if (pathTotest.includes(subPath)) {
+        test.forEach((pathToTest) => {
+          if (pathToTest.includes(subPath)) {
             // trimmedPath += "./"
           } else if (!trimmedPath.includes(subPath)) {
             trimmedPath += ".../" + subPath + "/...";
@@ -269,8 +273,8 @@ function getOccurrenceIDsFromVizData(
   vizData: OrderTuple[]
 ): FoundationOccurrences[] {
   // [
-  //  {fqn: "asd.fgh.asd.", occurences: [1, 2, 3...]},
-  //  {fqn: "asd.fgh.asd.asd", occurences: [1, 2, 3...]},
+  //  {fqn: "asd.fgh.asd.", occurrences: [1, 2, 3...]},
+  //  {fqn: "asd.fgh.asd.asd", occurrences: [1, 2, 3...]},
   // ...]
   // let result: FoundationOccurrences[] = [{ foundation: "petclinic-demo", occurrences: [1,2,3] }];
   // let result: FoundationOccurrences[] = [{ foundation: "petclinic-api-gateway", occurrences: [] }];
@@ -297,7 +301,7 @@ function getOccurrenceIDsFromVizData(
   return result;
 }
 
-function refreshEditorHightlights() {
+function refreshEditorHighlights() {
   if (!vizData) {
     return;
   }
@@ -526,7 +530,7 @@ export function joinPairProgrammingRoom(roomName: string) {
           4000
         );
         pairProgrammingSessionName = joinedSessionName;
-        sessionViewProvier.refreshHTML();
+        sessionViewProvider.refreshHTML();
       }
     }
   );
@@ -537,45 +541,80 @@ export function joinPairProgrammingRoom(roomName: string) {
   });
 }
 
+// Function, which describes the actual behaviour of the establishing of the connection to a room via a websocket.
 function registerCommandConnectToRoom() {
   let connectToRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.connectToRoom",
     async () => {
       connectWithBackendSocket();
 
+      // Enter the IDE-Room
       const vsCodeInputOptions: vscode.InputBoxOptions = {
         prompt: "Enter the room name from the ExplorViz frontend.",
       };
 
       const inputBox = await vscode.window.showInputBox(vsCodeInputOptions);
       if (!inputBox || inputBox.length < 3) {
+        vscode.window.showErrorMessage(
+          `Join-Room: Please enter a valid IDE room with length ≥3.`
+        );
         return;
       }
 
-      socket.on("connect", () => {
-        socket.emit(
-          "join-custom-room",
-          { roomId: inputBox },
-          (joinedRoom: string | undefined) => {
-            if (!joinedRoom) {
-              vscode.window.showErrorMessage(
-                `Could not join room: ${inputBox}. Did you use a valid room name?`
-              );
-            } else {
-              vscode.window.setStatusBarMessage(
-                `Joined room: ${joinedRoom}. `,
-                2000
-              );
-              vscode.commands.executeCommand(
-                "setContext",
-                "explorviz.showPairProgrammingCommand",
-                true
-              );
-              setShowPairProgrammingHTML(true);
-            }
-          }
+      // Socket.on() should behave the same way, but this way I can print an error message.
+      if (!socket || socket.disconnected) {
+        vscode.window.showErrorMessage(
+          `Join-Room: No connection was established.`
         );
-      });
+        return;
+      }
+
+      socket.emit(
+        "join-custom-room",
+        { roomId: inputBox },
+        (joinedRoom: string | undefined) => {
+          if (!joinedRoom) {
+            vscode.window.showErrorMessage(
+              `Could not join room: ${inputBox}. Did you use a valid room name?`
+            );
+          } else {
+            vscode.window.setStatusBarMessage(
+              `Joined room: ${joinedRoom}. `,
+              2000
+            );
+            vscode.commands.executeCommand(
+              "setContext",
+              "explorviz.showPairProgrammingCommand",
+              true
+            );
+            setShowPairProgrammingHTML(true);
+            // Activate the websocket mode for the current session.
+            // Deactivate the cross-window mode.
+            if (!webSocketFlag) {
+              webSocketFlag = true;
+
+              emitToBackend(IDEApiDest.VizDo, {
+                action: IDEApiActions.ConnectIDE,
+                data: [],
+                meshId: "",
+                occurrenceID: -1,
+                fqn: "",
+                foundationCommunicationLinks: [],
+              }); 
+
+              vscode.window.showInformationMessage(
+                `Disconnect from Cross-Window Mode.`
+              );
+            }
+            /* extensionContext != webviewContext
+            => The WebView does not get to be re-build.
+            => We also need to refresh the WebViewContext.
+            */
+            sessionViewProvider.refreshHTML();
+            vscode.commands.executeCommand("workbench.view.explorer");
+          }
+        }
+      );
 
       socket.on(IDEApiDest.IDEDo, (data) => {
         handleIncomingVizEvent(data);
@@ -585,10 +624,47 @@ function registerCommandConnectToRoom() {
   extensionContext!.subscriptions.push(connectToRoom);
 }
 
+function disconnectIDE() {
+  webSocketFlag = false;
+
+  emitToBackend(IDEApiDest.VizDo, {
+    action: IDEApiActions.DisconnectIDE,
+    data: [],
+    meshId: "",
+    occurrenceID: -1,
+    fqn: "",
+    foundationCommunicationLinks: [],
+  });
+
+  socket.disconnect();
+  sessionViewProvider.refreshHTML();
+
+  vscode.window.setStatusBarMessage(
+    `Disconnect from Websocket Mode.`
+  );
+}
+
+// Command which is executed the "Disconnect-Button" from the IDE is triggered.
+function registerCommandDisconnectFromRoom() {
+  let disconnectFromRoom = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.disconnectFromRoom",
+    async () => {
+      disconnectIDE();
+    }
+  );
+  extensionContext!.subscriptions.push(disconnectFromRoom);
+}
+
+// Function which is activated when clicked on "Open Visualization".
 function registerCommandWebview() {
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
     function () {
+      // Deactivate the websocket flag.
+      if (webSocketFlag) {
+        disconnectIDE(); 
+      }
+
       let panel = vscode.window.createWebviewPanel(
         "websiteViewer", // Identifies the type of the webview. Used internally
         "ExplorViz", // Title of the panel displayed to the user
@@ -637,11 +713,16 @@ export function handleIncomingVizEvent(data: any) {
 
     case IDEApiActions.Refresh:
       vizData = data.data;
-      refreshEditorHightlights();
+      refreshEditorHighlights();
       break;
 
     case IDEApiActions.SingleClickOnMesh:
       // goToLocationsByMeshId(data.meshId, data.data)
+      break;
+
+    case IDEApiActions.DisconnectFrontend:
+      vscode.window.showErrorMessage("The frontend disconnected.");
+      disconnectIDE();
       break;
 
     default:
@@ -649,13 +730,13 @@ export function handleIncomingVizEvent(data: any) {
   }
 }
 
-export function setcrossOriginCommunication(value: boolean) {
+export function setCrossOriginCommunication(value: boolean) {
   crossOriginCommunication = value;
 }
 
 export function setShowPairProgrammingHTML(value: boolean) {
   if (value !== showPairProgrammingHTML) {
     showPairProgrammingHTML = value;
-    //sessionViewProvier.refreshHTML();
+    //sessionViewProvider.refreshHTML();
   }
 }
