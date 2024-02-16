@@ -25,8 +25,7 @@ import { IFrameViewContainer } from "./IFrameViewContainer";
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
 export let socket: Socket;
-// TODO: Let the default value be set in the extension settings.
-export let currentMode: ModesEnum = ModesEnum.crossWindow;
+export let currentMode: ModesEnum | undefined;
 
 let backendHttp: string | undefined;
 export let frontendHttp: string | undefined;
@@ -87,6 +86,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   backendHttp = settings.get("backendUrl");
   frontendHttp = settings.get("frontendUrl");
+  currentMode = ModesEnum[settings.get("defaultMode") as keyof typeof ModesEnum];
 
   const envBackendUrl = process.env.VS_CODE_BACKEND_URL;
 
@@ -556,12 +556,12 @@ function registerCommandConnectToRoom() {
 
       vscode.window.showQuickPick(dropDownMenu).then(selectedMode => {
         switch (selectedMode?.label) {
-          case 'Cross Window':
+          case 'crossWindow':
             currentMode = ModesEnum.crossWindow;
             // TODO: Activate CrossWindow?
             setConnectedToVis(true);
             break;
-          case 'Websocket':
+          case 'websocket':
             currentMode = ModesEnum.websocket;
             connectToRoomWebsocket();
             break;

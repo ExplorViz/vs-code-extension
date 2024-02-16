@@ -99,7 +99,7 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       </br>
 
       <p>Current Mode:</p>
-      ${currentMode.toString()}
+      ${currentMode ?? "None"}
       </br>
       </br>
 
