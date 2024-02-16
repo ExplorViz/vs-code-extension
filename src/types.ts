@@ -89,5 +89,5 @@ export type LocationFind = {
 
 export enum ModesEnum {
   crossWindow = 'Cross Window',
-  websocket = 'Websocket'
+  websocket = 'Websocket',
 };

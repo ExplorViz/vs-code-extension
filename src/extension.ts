@@ -552,7 +552,7 @@ function registerCommandConnectToRoom() {
 
       vscode.window.showQuickPick(dropDownMenu).then(selectedMode => {
         switch (selectedMode?.label) {
-          case 'CrossWindow':
+          case 'Cross Window':
             currentMode = ModesEnum.crossWindow;
             // TODO: Activate CrossWindow?
             break;
