@@ -25,10 +25,11 @@ export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
 export let socket: Socket;
 enum ModesEnum {
-  crossWindow,
-  websocket
+  crossWindow = 'Cross Window',
+  websocket = 'Websocket',
+  none = 'None',
 }
-export let currentMode: ModesEnum;
+export let currentMode: ModesEnum = ModesEnum.none;
 
 let backendHttp: string | undefined;
 export let frontendHttp: string | undefined;
@@ -38,9 +39,6 @@ let codeLensDisposable: vscode.Disposable | undefined;
 let vizData: OrderTuple[] | undefined;
 let disposableSessionViewProvider: vscode.Disposable | undefined;
 let latestTextSelection: TextSelection | undefined;
-
-// Necessary to check which mode is activated.
-let webSocketFlag: boolean = false;
 
 let iFrameViewContainer: IFrameViewContainer | undefined;
 
@@ -546,13 +544,32 @@ export function joinPairProgrammingRoom(roomName: string) {
   });
 }
 
-// TODO: This function shall be used to set the current mode: Cross-Window or Websocket.
+// This function shall be used to set the current mode.
 function registerCommandConnectToRoom() {
-  /*let connectToRoom = vscode.commands.registerCommand(
+  let connectToRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.connectToRoom",
-    // TODO: Implement me!
+    async () => {
+      // Choose the Mode.
+      const dropDownMenu: vscode.QuickPickItem[] = Object.values(ModesEnum).map(value => ({
+        label: value.toString()
+      }));
+
+      vscode.window.showQuickPick(dropDownMenu).then(selectedMode => {
+        switch (selectedMode?.label) {
+          case 'CrossWindow':
+            currentMode = ModesEnum.crossWindow;
+            // TODO: Activate CrossWindow?
+            break;
+          case 'Websocket':
+            currentMode = ModesEnum.websocket;
+            connectToRoomWebsocket();
+            break;
+        }
+        sessionViewProvider.refreshHTML();
+      });
+    }
   );
-  extensionContext!.subscriptions.push(connectToRoom);*/
+  extensionContext!.subscriptions.push(connectToRoom);
 }
 
 // Function, which describes the actual behaviour of the establishing of the connection to a room via a websocket.
@@ -602,9 +619,7 @@ function connectToRoomWebsocket() {
             setShowPairProgrammingHTML(true);
             // Activate the websocket mode for the current session.
             // Deactivate the cross-window mode.
-            if (!webSocketFlag) {
-              webSocketFlag = true;
-
+            if (currentMode === ModesEnum.websocket) {
               emitToBackend(IDEApiDest.VizDo, {
                 action: IDEApiActions.ConnectIDE,
                 data: [],
@@ -635,7 +650,7 @@ function connectToRoomWebsocket() {
 }
 
 function disconnectIDE() {
-  webSocketFlag = false;
+  currentMode = ModesEnum.none; 
 
   emitToBackend(IDEApiDest.VizDo, {
     action: IDEApiActions.DisconnectIDE,
@@ -666,12 +681,13 @@ function registerCommandDisconnectFromRoom() {
 }
 
 // Function which is activated when clicked on "Open Visualization".
+// TODO: How to deactivate/isolate Cross-Window?
 function registerCommandWebview() {
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
     function () {
       // Deactivate the websocket flag.
-      if (webSocketFlag) {
+      if (currentMode === ModesEnum.crossWindow) {
         disconnectIDE(); 
       }
 

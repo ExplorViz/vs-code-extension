@@ -95,7 +95,7 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       </br>
       </br>
       <p>Current Mode:</p>
-      ${currentMode}
+      ${currentMode.toString()}
 
 			<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
