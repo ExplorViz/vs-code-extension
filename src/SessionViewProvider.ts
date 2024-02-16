@@ -3,6 +3,7 @@ import {
   pairProgrammingSessionName,
   showPairProgrammingHTML,
   socket,
+  currentMode
 } from "./extension";
 
 export class SessionViewProvider implements vscode.WebviewViewProvider {
@@ -91,6 +92,10 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       </br>
 
       ${renderInputPP()}  
+      </br>
+      </br>
+      <p>Current Mode:</p>
+      ${currentMode}
 
 			<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>

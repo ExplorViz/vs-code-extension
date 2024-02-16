@@ -11,7 +11,7 @@ import {
   IDEApiCall,
   IDEApiDest,
   OrderTuple,
-  ParentOrder,
+  //ParentOrder,
   MonitoringData,
   TextSelection,
 } from "./types";
@@ -24,6 +24,11 @@ import { IFrameViewContainer } from "./IFrameViewContainer";
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
 export let socket: Socket;
+enum ModesEnum {
+  crossWindow,
+  websocket
+}
+export let currentMode: ModesEnum;
 
 let backendHttp: string | undefined;
 export let frontendHttp: string | undefined;
@@ -40,7 +45,7 @@ let webSocketFlag: boolean = false;
 let iFrameViewContainer: IFrameViewContainer | undefined;
 
 const username = process.env.VSCODE_EXP_USERNAME;
-const scenarioNumber = process.env.SCENARIO_NUMBER;
+//const scenarioNumber = process.env.SCENARIO_NUMBER;
 
 const homedir = os.homedir();
 const pathToState = `${homedir}/explorviz-experiment-logging.csv`;
@@ -541,10 +546,17 @@ export function joinPairProgrammingRoom(roomName: string) {
   });
 }
 
-// Function, which describes the actual behaviour of the establishing of the connection to a room via a websocket.
+// TODO: This function shall be used to set the current mode: Cross-Window or Websocket.
 function registerCommandConnectToRoom() {
-  let connectToRoom = vscode.commands.registerCommand(
+  /*let connectToRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.connectToRoom",
+    // TODO: Implement me!
+  );
+  extensionContext!.subscriptions.push(connectToRoom);*/
+}
+
+// Function, which describes the actual behaviour of the establishing of the connection to a room via a websocket.
+function connectToRoomWebsocket() {
     async () => {
       connectWithBackendSocket();
 
@@ -619,9 +631,7 @@ function registerCommandConnectToRoom() {
       socket.on(IDEApiDest.IDEDo, (data) => {
         handleIncomingVizEvent(data);
       });
-    }
-  );
-  extensionContext!.subscriptions.push(connectToRoom);
+    };
 }
 
 function disconnectIDE() {
