@@ -86,3 +86,8 @@ export type LocationFind = {
   dirs: string[];
   javaFile: string[];
 };
+
+export enum ModesEnum {
+  crossWindow = 'Cross Window',
+  websocket = 'Websocket'
+};

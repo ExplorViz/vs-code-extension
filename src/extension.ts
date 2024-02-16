@@ -14,6 +14,7 @@ import {
   //ParentOrder,
   MonitoringData,
   TextSelection,
+  ModesEnum,
 } from "./types";
 import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
@@ -24,12 +25,7 @@ import { IFrameViewContainer } from "./IFrameViewContainer";
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
 export let socket: Socket;
-enum ModesEnum {
-  crossWindow = 'Cross Window',
-  websocket = 'Websocket',
-  none = 'None',
-}
-export let currentMode: ModesEnum = ModesEnum.none;
+export let currentMode: ModesEnum = ModesEnum.crossWindow;
 
 let backendHttp: string | undefined;
 export let frontendHttp: string | undefined;
@@ -650,7 +646,7 @@ function connectToRoomWebsocket() {
 }
 
 function disconnectIDE() {
-  currentMode = ModesEnum.none; 
+  currentMode = ModesEnum.crossWindow; 
 
   emitToBackend(IDEApiDest.VizDo, {
     action: IDEApiActions.DisconnectIDE,
