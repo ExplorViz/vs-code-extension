@@ -25,6 +25,7 @@ import { IFrameViewContainer } from "./IFrameViewContainer";
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
 export let socket: Socket;
+// TODO: Let the default value be set in the extension settings.
 export let currentMode: ModesEnum = ModesEnum.crossWindow;
 
 let backendHttp: string | undefined;
@@ -75,6 +76,7 @@ let ideUsageTimerStart: number | null = null;
 let ideUsageTimerEnd: number | null = null;
 
 export let connectedToVis: boolean = false;
+export let currentRoom: String | undefined;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -605,6 +607,8 @@ async function connectToRoomWebsocket() {
           `Could not join room: ${inputBox}. Did you use a valid room name?`
         );
       } else {
+        currentRoom = joinedRoom;
+        sessionViewProvider.refreshHTML();
         vscode.window.setStatusBarMessage(
           `Joined room: ${joinedRoom}. `,
           2000
@@ -684,7 +688,7 @@ function registerCommandDisconnectFromRoom() {
 }
 
 // Function which is activated when clicked on "Open Visualization".
-// TODO: How to deactivate/isolate Cross-Window?
+// TODO: How to deactivate/isolate Cross-Window? At the moment are both modes simultaneously activated.
 function registerCommandWebview() {
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",

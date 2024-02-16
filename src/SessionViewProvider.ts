@@ -4,8 +4,10 @@ import {
   showPairProgrammingHTML,
   socket,
   currentMode,
-  connectedToVis
+  connectedToVis,
+  currentRoom,
 } from "./extension";
+import { ModesEnum } from "./types";
 
 export class SessionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "explorviz-session-view";
@@ -95,8 +97,13 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       ${renderInputPP()}  
       </br>
       </br>
+
       <p>Current Mode:</p>
       ${currentMode.toString()}
+      </br>
+      </br>
+
+      ${renderCurrentIDERoom()}
 
 			<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
@@ -114,6 +121,13 @@ function renderConnectToVizButton() {
 
 function renderOpenVizButton() {
   return "<button id='explorviz-open-viz-button'>Open Visualization</button>";
+}
+
+function renderCurrentIDERoom() {
+  if (currentMode === ModesEnum.websocket) {
+    return `<p>Joined Room:</p> ${currentRoom}`;
+  }
+  return "";
 }
 
 function renderInputPP() {
