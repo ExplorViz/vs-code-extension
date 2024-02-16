@@ -674,7 +674,9 @@ function registerCommandDisconnectFromRoom() {
   let disconnectFromRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.disconnectFromRoom",
     async () => {
-      disconnectIDE();
+      if (currentMode === ModesEnum.websocket) {
+        disconnectIDE();
+      }
       setConnectedToVis(false);
     }
   );
