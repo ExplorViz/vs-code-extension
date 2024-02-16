@@ -3,11 +3,11 @@ import {
   connectWithBackendSocket,
   frontendHttp,
   handleIncomingVizEvent,
-  joinPairProgrammingRoom,
-  pairProgrammingSessionName,
+  //joinPairProgrammingRoom,
+  //pairProgrammingSessionName,
   setShowPairProgrammingHTML,
   setCrossOriginCommunication,
-  socket,
+  //socket,
 } from "./extension";
 import { IDEApiCall } from "./types";
 
