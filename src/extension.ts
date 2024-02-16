@@ -74,6 +74,8 @@ let iFrameUsageTimerEnd: number | null = null;
 let ideUsageTimerStart: number | null = null;
 let ideUsageTimerEnd: number | null = null;
 
+export let connectedToVis: boolean = false;
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
@@ -555,6 +557,7 @@ function registerCommandConnectToRoom() {
           case 'Cross Window':
             currentMode = ModesEnum.crossWindow;
             // TODO: Activate CrossWindow?
+            setConnectedToVis(true);
             break;
           case 'Websocket':
             currentMode = ModesEnum.websocket;
@@ -569,85 +572,86 @@ function registerCommandConnectToRoom() {
 }
 
 // Function, which describes the actual behaviour of the establishing of the connection to a room via a websocket.
-function connectToRoomWebsocket() {
-    async () => {
-      connectWithBackendSocket();
+async function connectToRoomWebsocket() {
+  connectWithBackendSocket();
 
-      // Enter the IDE-Room
-      const vsCodeInputOptions: vscode.InputBoxOptions = {
-        prompt: "Enter the room name from the ExplorViz frontend.",
-      };
+  // Enter the IDE-Room
+  const vsCodeInputOptions: vscode.InputBoxOptions = {
+    prompt: "Enter the room name from the ExplorViz frontend.",
+  };
 
-      const inputBox = await vscode.window.showInputBox(vsCodeInputOptions);
-      if (!inputBox || inputBox.length < 3) {
+  const inputBox = await vscode.window.showInputBox(vsCodeInputOptions);
+  if (!inputBox || inputBox.length < 3) {
+    vscode.window.showErrorMessage(
+      `Join-Room: Please enter a valid IDE room with length ≥3.`
+    );
+    return;
+  }
+
+  // Socket.on() should behave the same way, but this way I can print an error message.
+  if (!socket || socket.disconnected) {
+    vscode.window.showErrorMessage(
+      `Join-Room: No connection was established.`
+    );
+    return;
+  }
+
+  socket.emit(
+    "join-custom-room",
+    { roomId: inputBox },
+    (joinedRoom: string | undefined) => {
+      if (!joinedRoom) {
         vscode.window.showErrorMessage(
-          `Join-Room: Please enter a valid IDE room with length ≥3.`
+          `Could not join room: ${inputBox}. Did you use a valid room name?`
         );
-        return;
-      }
-
-      // Socket.on() should behave the same way, but this way I can print an error message.
-      if (!socket || socket.disconnected) {
-        vscode.window.showErrorMessage(
-          `Join-Room: No connection was established.`
+      } else {
+        vscode.window.setStatusBarMessage(
+          `Joined room: ${joinedRoom}. `,
+          2000
         );
-        return;
-      }
+        vscode.commands.executeCommand(
+          "setContext",
+          "explorviz.showPairProgrammingCommand",
+          true
+        );
+        setShowPairProgrammingHTML(true);
+        // Activate the websocket mode for the current session.
+        // Deactivate the cross-window mode.
+        if (currentMode === ModesEnum.websocket) {
+          emitToBackend(IDEApiDest.VizDo, {
+            action: IDEApiActions.ConnectIDE,
+            data: [],
+            meshId: "",
+            occurrenceID: -1,
+            fqn: "",
+            foundationCommunicationLinks: [],
+          });
 
-      socket.emit(
-        "join-custom-room",
-        { roomId: inputBox },
-        (joinedRoom: string | undefined) => {
-          if (!joinedRoom) {
-            vscode.window.showErrorMessage(
-              `Could not join room: ${inputBox}. Did you use a valid room name?`
-            );
-          } else {
-            vscode.window.setStatusBarMessage(
-              `Joined room: ${joinedRoom}. `,
-              2000
-            );
-            vscode.commands.executeCommand(
-              "setContext",
-              "explorviz.showPairProgrammingCommand",
-              true
-            );
-            setShowPairProgrammingHTML(true);
-            // Activate the websocket mode for the current session.
-            // Deactivate the cross-window mode.
-            if (currentMode === ModesEnum.websocket) {
-              emitToBackend(IDEApiDest.VizDo, {
-                action: IDEApiActions.ConnectIDE,
-                data: [],
-                meshId: "",
-                occurrenceID: -1,
-                fqn: "",
-                foundationCommunicationLinks: [],
-              }); 
-
-              vscode.window.showInformationMessage(
-                `Disconnect from Cross-Window Mode.`
-              );
-            }
-            /* extensionContext != webviewContext
-            => The WebView does not get to be re-build.
-            => We also need to refresh the WebViewContext.
-            */
-            sessionViewProvider.refreshHTML();
-            vscode.commands.executeCommand("workbench.view.explorer");
-          }
+          vscode.window.showInformationMessage(
+            `Disconnect from Cross-Window Mode.`
+          );
         }
-      );
+        setConnectedToVis(true);
+        vscode.commands.executeCommand("workbench.view.explorer");
+      }
+    }
+  );
 
-      socket.on(IDEApiDest.IDEDo, (data) => {
-        handleIncomingVizEvent(data);
-      });
-    };
+  socket.on(IDEApiDest.IDEDo, (data) => {
+    handleIncomingVizEvent(data);
+  });
+};
+
+function setConnectedToVis(b: boolean) {
+  connectedToVis = b;
+  /* extensionContext != webviewContext
+    => The WebView does not get to be re-build.
+    => We also need to refresh the WebViewContext.
+  */
+  sessionViewProvider.refreshHTML();
 }
 
 function disconnectIDE() {
-  currentMode = ModesEnum.crossWindow; 
-
   emitToBackend(IDEApiDest.VizDo, {
     action: IDEApiActions.DisconnectIDE,
     data: [],
@@ -671,6 +675,7 @@ function registerCommandDisconnectFromRoom() {
     "explorviz-vscode-extension.disconnectFromRoom",
     async () => {
       disconnectIDE();
+      setConnectedToVis(false);
     }
   );
   extensionContext!.subscriptions.push(disconnectFromRoom);
@@ -686,6 +691,8 @@ function registerCommandWebview() {
       if (currentMode === ModesEnum.crossWindow) {
         disconnectIDE(); 
       }
+
+      setConnectedToVis(true);
 
       let panel = vscode.window.createWebviewPanel(
         "websiteViewer", // Identifies the type of the webview. Used internally
