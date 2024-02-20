@@ -5,9 +5,9 @@ import {
   handleIncomingVizEvent,
   //joinPairProgrammingRoom,
   //pairProgrammingSessionName,
-  setShowPairProgrammingHTML,
+  //setShowPairProgrammingHTML,
   setCrossOriginCommunication,
-  //socket,
+  socket,
 } from "./extension";
 import { IDEApiCall } from "./types";
 
@@ -38,13 +38,21 @@ export class IFrameViewContainer {
         true
       );
       setCrossOriginCommunication(true);
-      setShowPairProgrammingHTML(true);
+      //setShowPairProgrammingHTML(true);
       handleIncomingVizEvent(data);
-      connectWithBackendSocket();
+
+      if (!socket || socket.disconnected) {
+        connectWithBackendSocket();
+      }
       //joinPairProgrammingRoom("experiment");
     });
   }
 
+  /**
+   * Post a message to the webview.
+   * @param eventName Name of the event.
+   * @param payload IDEApiCall
+   */
   public postMessage(eventName: string, payload: IDEApiCall) {
     this.view.postMessage({
       event: eventName,

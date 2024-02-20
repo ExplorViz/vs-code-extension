@@ -217,13 +217,17 @@ export function deactivate() { }
 
 // https://vscode.rocks/decorations/
 // editor: vscode.TextEditor
-
+/**
+ * Talking to the backend and/or iFrame through dedicated Events.
+ * @param eventName Name of the event.
+ * @param payload IDEApiCall
+ */
 function emitToBackend(eventName: string, payload: IDEApiCall) {
-  if (socket && socket.connected) {
+  if (currentMode === ModesEnum.websocket && socket && socket.connected) {
     socket.emit(eventName, payload);
   }
 
-  if (iFrameViewContainer) {
+  if (currentMode === ModesEnum.crossWindow && iFrameViewContainer) {
     iFrameViewContainer.postMessage(eventName, payload);
   }
 }
@@ -544,7 +548,9 @@ export function joinPairProgrammingRoom(roomName: string) {
   });
 }
 
-// This function shall be used to set the current mode.
+/**
+* This command shall be used to set the current mode.
+*/
 function registerCommandConnectToRoom() {
   let connectToRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.connectToRoom",
@@ -558,7 +564,6 @@ function registerCommandConnectToRoom() {
         switch (selectedMode?.label) {
           case 'crossWindow':
             currentMode = ModesEnum.crossWindow;
-            // TODO: Activate CrossWindow?
             setConnectedToVis(true);
             break;
           case 'websocket':
@@ -573,7 +578,9 @@ function registerCommandConnectToRoom() {
   extensionContext!.subscriptions.push(connectToRoom);
 }
 
-// Function, which describes the actual behaviour of the establishing of the connection to a room via a websocket.
+/**
+ * Describes the actual behaviour of establishing the connection to a room via a websocket.
+ */
 async function connectToRoomWebsocket() {
   connectWithBackendSocket();
 
@@ -646,6 +653,10 @@ async function connectToRoomWebsocket() {
   });
 };
 
+/**
+ * Set the boolean connectedToVis = b.
+ * @param b Boolean value
+ */
 function setConnectedToVis(b: boolean) {
   connectedToVis = b;
   /* extensionContext != webviewContext
@@ -655,7 +666,14 @@ function setConnectedToVis(b: boolean) {
   sessionViewProvider.refreshHTML();
 }
 
+/**
+ * Disconnect from IDE, if the socket has been connected in the first place.
+ */
 function disconnectIDE() {
+  if (!socket || socket.disconnected) {
+    return;
+  }
+
   emitToBackend(IDEApiDest.VizDo, {
     action: IDEApiActions.DisconnectIDE,
     data: [],
@@ -666,6 +684,8 @@ function disconnectIDE() {
   });
 
   socket.disconnect();
+  currentMode = ModesEnum.crossWindow;
+  currentRoom = ""; 
   sessionViewProvider.refreshHTML();
 
   vscode.window.setStatusBarMessage(
@@ -673,7 +693,9 @@ function disconnectIDE() {
   );
 }
 
-// Command which is executed the "Disconnect-Button" from the IDE is triggered.
+/** 
+* Command which is executed when the "Disconnect-Button" from the IDE is triggered.
+*/
 function registerCommandDisconnectFromRoom() {
   let disconnectFromRoom = vscode.commands.registerCommand(
     "explorviz-vscode-extension.disconnectFromRoom",
@@ -687,8 +709,9 @@ function registerCommandDisconnectFromRoom() {
   extensionContext!.subscriptions.push(disconnectFromRoom);
 }
 
-// Function which is activated when clicked on "Open Visualization".
-// TODO: How to deactivate/isolate Cross-Window? At the moment are both modes simultaneously activated.
+/**
+ * Command which is activated when clicked on "Open Visualization".
+ */
 function registerCommandWebview() {
   let webview = vscode.commands.registerCommand(
     "explorviz-vscode-extension.webview",
