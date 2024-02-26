@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import {
   connectWithBackendSocket,
+  currentMode,
   frontendHttp,
   handleIncomingVizEvent,
   //joinPairProgrammingRoom,
@@ -9,7 +10,7 @@ import {
   setCrossOriginCommunication,
   socket,
 } from "./extension";
-import { IDEApiCall } from "./types";
+import { IDEApiCall, ModesEnum } from "./types";
 
 export class IFrameViewContainer {
   public static readonly viewType = "explorviz-iframe-view";
@@ -83,7 +84,7 @@ export class IFrameViewContainer {
     // Use a nonce to only allow a specific script to be run.
     const nonce = getNonce();
 
-    return `<!DOCTYPE html>
+    var htmlCode = `<!DOCTYPE html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8">
@@ -112,11 +113,18 @@ export class IFrameViewContainer {
 			</head>
 			<body>    
 
-      <iframe id="explorviz-iframe" src="${frontendHttp}" width="100%" height="1000px"></iframe>
+      <iframe id="explorviz-iframe" src="${frontendHttp}" width="100%" height="1000px"></iframe>`;
 
+    if (currentMode === ModesEnum.websocket) {
+      htmlCode += `<div id="roomId">dummy</div>`;
+    }
+
+    htmlCode += `
 			<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
 			</html>`;
+
+    return htmlCode;
   }
 }
 
