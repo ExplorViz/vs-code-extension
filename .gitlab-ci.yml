@@ -60,21 +60,13 @@ publish-dockerhub-main:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_BRANCH == "main"'
 
-publish-dockerhub-dev:
-  extends:
-    - .publish-to-dockerhub
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_BRANCH == "dev"'
-      variables:
-        DOCKERHUB_TAG: "dev"
-
-publish-dockerhub-dev-mr:
+publish-dockerhub-mr:
   extends:
     - .publish-to-dockerhub
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
       variables:
-        DOCKERHUB_TAG: "dev-mr-$CI_COMMIT_SHORT_SHA"
+        DOCKERHUB_TAG: "merge-request-$CI_COMMIT_SHORT_SHA"
 
 retag-dockerhub-image:
   stage: publish:retagging
