@@ -1,15 +1,16 @@
 import * as vscode from "vscode";
-import { classMethod, OrderTuple } from "./types";
+import { ClassMethod, OrderTuple } from "./types";
 
 export class ExplorVizApiCodeLens
   implements vscode.CodeLensProvider, vscode.HoverProvider
 {
-  classMethodArr: classMethod[];
+  classMethodArr: ClassMethod[];
   vizData: OrderTuple[];
-  constructor(classMethodArr: classMethod[], vizData: OrderTuple[]) {
+  constructor(classMethodArr: ClassMethod[], vizData: OrderTuple[]) {
     this.classMethodArr = classMethodArr;
     this.vizData = vizData;
   }
+
   public provideCodeLenses(
     document: vscode.TextDocument,
     token: vscode.CancellationToken

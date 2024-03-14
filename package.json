@@ -6,12 +6,14 @@
   "engines": {
     "vscode": "^1.78.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ExplorViz/vs-code-extension"
+  },
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onStartupFinished"
-  ],
+  "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -20,12 +22,25 @@
         "title": "ExplorViz: Open Webview"
       },
       {
+        "command": "explorviz-vscode-extension.joinPairProgramming",
+        "title": "ExplorViz: Join Pair Programming Session ...",
+        "enablement": "explorviz.showPairProgrammingCommand"
+      },
+      {
+        "command": "explorviz-vscode-extension.createPairProgramming",
+        "title": "ExplorViz: Create Pair Programming Session"
+      },
+      {
         "command": "explorviz-vscode-extension.OpenInExplorViz",
         "title": "OpenInExplorViz"
       },
       {
         "command": "explorviz-vscode-extension.connectToRoom",
-        "title": "ExplorViz: Connect to room ..."
+        "title": "ExplorViz: Connect to visualization ..."
+      },
+      {
+        "command": "explorviz-vscode-extension.disconnectFromRoom",
+        "title": "ExplorViz: Disconnect from visualisation ..."
       }
     ],
     "configuration": {
@@ -34,20 +49,41 @@
       "properties": {
         "explorviz.backendUrl": {
           "type": "string",
+          "scope": "application",
           "default": "http://localhost:3000",
           "description": "Specify URL for ExplorViz's VS Code backend."
         },
         "explorviz.frontendUrl": {
           "type": "string",
-          "default": "http://localhost:4200",
+          "scope": "application",
+          "default": "http://localhost:8080",
           "description": "Specify URL for ExplorViz's frontend."
         },
         "explorviz.packageBaseDir": {
           "type": "string",
+          "scope": "application",
           "default": "/src/main/java",
           "description": "Specify if there is a src directory that wouldn't be included into the FQN"
         }
       }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "explorviz-session-view-container",
+          "title": "ExplorViz",
+          "icon": "images/explorviz-view-container-scaled.svg"
+        }
+      ]
+    },
+    "views": {
+      "explorviz-session-view-container": [
+        {
+          "type": "webview",
+          "id": "explorviz-session-view",
+          "name": "Session Information"
+        }
+      ]
     }
   },
   "scripts": {

@@ -49,11 +49,11 @@ export async function goToLocationsByMeshId(
 
   if (finds.javaFile.length > 0) {
     if (finds.javaFile.length === 1) {
-      openFileCommand(finds.javaFile[0], fqn, vizData);
+      await openFileCommand(finds.javaFile[0], fqn, vizData);
     } else {
       let selected = await selectOption(finds.javaFile, "Select file ", true);
       if (selected) {
-        openFileCommand(selected, fqn, vizData);
+        await openFileCommand(selected, fqn, vizData);
         vscode.window.showInformationMessage(`Selected option: ${selected}`);
       }
     }
@@ -62,12 +62,14 @@ export async function goToLocationsByMeshId(
 
     let selected = await selectOption(finds.javaFiles, "Select file ", true);
     if (selected) {
-      openFileCommand(selected, fqn, vizData);
+      await openFileCommand(selected, fqn, vizData);
       vscode.window.showInformationMessage(`Selected option: ${selected}`);
     }
   } else {
-    console.error("Nothing to open!", finds);
-    vscode.window.showInformationMessage("Nothing to open!");
+    //console.error("Nothing to open!", finds);
+    vscode.window.showInformationMessage(
+      "Entity not found in source code (could be dependency code)."
+    );
     return;
   }
 }
@@ -195,57 +197,77 @@ function searchjavaFilesAndDirs(dir: string): LocationFind {
   return { javaFiles: javaFilesFinds, dirs: dirFinds, javaFile: [javaFile] };
 }
 
-function openFileCommand(
+async function openFileCommand(
   pathToLocation: string,
   fqn: string,
   vizData: OrderTuple[]
 ) {
-  vscode.commands
-    .executeCommand("workbench.action.focusFirstEditorGroup")
-    .then(() => {
-      let normalizedPath = path.normalize(pathToLocation);
+  // workaround to not open file in the same editorgroup as ExplorViz
+  // Normally, you would lock the editorgroup
+  // This cannot be done programatically at the moment, but requires user interaction
 
-      let stats = fs.lstatSync(path.join(normalizedPath, ""));
+  const layout: any = await vscode.commands.executeCommand(
+    "vscode.getEditorLayout"
+  );
 
-      if (!stats) {
-        normalizedPath = normalizedPath.split(".")[0];
-        stats = fs.lstatSync(path.join(normalizedPath, ""));
-      }
-      if (stats.isDirectory()) {
-        // select file to open
-        // find javaFiles
-
-        console.error("is Dir:");
-      } else if (stats.isFile()) {
-        console.error("is File");
-      }
-      return vscode.commands.executeCommand(
-        "editor.action.goToLocations",
-        vscode.Uri.file(normalizedPath),
-        new vscode.Position(0, 0),
-        [new vscode.Position(0, 0)],
-        "goto",
-        "No File Found to go to"
-      );
-    })
-    .then(() => {
-      let classMethod = buildClassMethodArr(
-        vscode.window.visibleTextEditors[0],
-        vizData,
-        monitoringData,
-        true
-      );
-      let lineNUmber = -1;
-      if (classMethod) {
-        classMethod.forEach((element) => {
-          if (fqn.search(element.fqn) !== -1) {
-            lineNUmber = element.lineNumber;
-          }
-        });
-      }
-      return vscode.commands.executeCommand("revealLine", {
-        lineNumber: lineNUmber - 1,
-        at: "top",
-      });
+  if (layout.groups.length === 1) {
+    // force split screen first
+    console.log("layout", layout.groups);
+    await vscode.commands.executeCommand("vscode.setEditorLayout", {
+      orientation: 1,
+      groups: [{ groups: [{}, {}], size: 0.5 }],
     });
+    await vscode.commands.executeCommand(
+      "workbench.action.moveActiveEditorGroupRight"
+    );
+  }
+
+  await vscode.commands.executeCommand(
+    "workbench.action.focusFirstEditorGroup"
+  );
+
+  let normalizedPath = path.normalize(pathToLocation);
+
+  let stats = fs.lstatSync(path.join(normalizedPath, ""));
+
+  if (!stats) {
+    normalizedPath = normalizedPath.split(".")[0];
+    stats = fs.lstatSync(path.join(normalizedPath, ""));
+  }
+  if (stats.isDirectory()) {
+    // select file to open
+    // find javaFiles
+
+    console.error("is Dir:");
+  } else if (stats.isFile()) {
+    console.error("is File");
+  }
+
+  await vscode.commands.executeCommand(
+    "editor.action.goToLocations",
+    vscode.Uri.file(normalizedPath),
+    new vscode.Position(0, 0),
+    [new vscode.Position(0, 0)],
+    "goto",
+    "No File Found to go to"
+  );
+
+  let classMethod = buildClassMethodArr(
+    vscode.window.visibleTextEditors[0],
+    vizData,
+    monitoringData,
+    true
+  );
+  let lineNUmber = -1;
+  if (classMethod) {
+    classMethod.forEach((element) => {
+      if (fqn.search(element.fqn) !== -1) {
+        lineNUmber = element.lineNumber;
+      }
+    });
+  }
+  return vscode.commands.executeCommand("revealLine", {
+    lineNumber: lineNUmber - 1,
+    at: "top",
+  });
 }
