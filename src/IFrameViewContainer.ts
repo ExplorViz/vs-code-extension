@@ -1,15 +1,16 @@
 import * as vscode from "vscode";
 import {
   connectWithBackendSocket,
+  currentMode,
   frontendHttp,
   handleIncomingVizEvent,
-  joinPairProgrammingRoom,
-  pairProgrammingSessionName,
-  setShowPairProgrammingHTML,
+  //joinPairProgrammingRoom,
+  //pairProgrammingSessionName,
+  //setShowPairProgrammingHTML,
   setCrossOriginCommunication,
   socket,
 } from "./extension";
-import { IDEApiCall } from "./types";
+import { IDEApiCall, ModesEnum } from "./types";
 
 export class IFrameViewContainer {
   public static readonly viewType = "explorviz-iframe-view";
@@ -38,13 +39,21 @@ export class IFrameViewContainer {
         true
       );
       setCrossOriginCommunication(true);
-      setShowPairProgrammingHTML(true);
+      //setShowPairProgrammingHTML(true);
       handleIncomingVizEvent(data);
-      connectWithBackendSocket();
+
+      if (!socket || socket.disconnected) {
+        connectWithBackendSocket();
+      }
       //joinPairProgrammingRoom("experiment");
     });
   }
 
+  /**
+   * Post a message to the webview.
+   * @param eventName Name of the event.
+   * @param payload IDEApiCall
+   */
   public postMessage(eventName: string, payload: IDEApiCall) {
     this.view.postMessage({
       event: eventName,
@@ -75,7 +84,7 @@ export class IFrameViewContainer {
     // Use a nonce to only allow a specific script to be run.
     const nonce = getNonce();
 
-    return `<!DOCTYPE html>
+    var htmlCode = `<!DOCTYPE html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8">
@@ -104,11 +113,18 @@ export class IFrameViewContainer {
 			</head>
 			<body>    
 
-      <iframe id="explorviz-iframe" src="${frontendHttp}" width="100%" height="1000px"></iframe>
+      <iframe id="explorviz-iframe" src="${frontendHttp}" width="100%" height="1000px"></iframe>`;
 
+    if (currentMode === ModesEnum.websocket) {
+      htmlCode += `<div id="roomId">dummy</div>`;
+    }
+
+    htmlCode += `
 			<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
 			</html>`;
+
+    return htmlCode;
   }
 }
 

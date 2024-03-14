@@ -64,6 +64,11 @@
           "scope": "application",
           "default": "/src/main/java",
           "description": "Specify if there is a src directory that wouldn't be included into the FQN"
+        },
+        "explorviz.defaultMode": {
+          "type": "string",
+          "default": "crossWindow",
+          "description": "Specify the default connection mode."
         }
       }
     },

@@ -7,6 +7,8 @@
   window.addEventListener("message", (event) => {
     const data = event.data;
     if (data) {
+      let roomId = document.getElementById("roomId");
+      if (roomId === null) {
       if (data.event) {
         let iframe = document.getElementById("explorviz-iframe");
 
@@ -19,6 +21,7 @@
       } else {
         // forward iframe request to extension
         forwardToExtension(data);
+      }
       }
     }
   });
