@@ -91,3 +91,14 @@ export enum ModesEnum {
   crossWindow = 'crossWindow',
   websocket = 'websocket',
 };
+
+
+export type InspectITConfig = {
+  inspectit: {
+    tags: {
+      extra: {
+        [key: string ]: string | number;
+      }
+    }
+  }
+}

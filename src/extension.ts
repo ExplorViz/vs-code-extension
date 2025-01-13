@@ -4,6 +4,7 @@ import * as vscode from "vscode";
 import io, { Socket } from "socket.io-client";
 import * as fs from "fs";
 import os from "os";
+import { load, dump } from "js-yaml";
 
 import {
   FoundationOccurrences,
@@ -15,6 +16,7 @@ import {
   MonitoringData,
   TextSelection,
   ModesEnum,
+  InspectITConfig,
 } from "./types";
 import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
@@ -76,6 +78,10 @@ let ideUsageTimerEnd: number | null = null;
 
 export let connectedToVis: boolean = false;
 export let currentRoom: String | undefined;
+export let isInDebugSession: boolean = false;
+
+let debuggedAppPID: number | undefined;
+const terminal = getTerminal();
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -199,6 +205,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandJoinPairProgramming();
   registerCommandWebview();
   registerCommandDisconnectFromRoom();
+  registerCommandStartVisualizationForDebugSession();
 
   sessionViewProvider = new SessionViewProvider(context.extensionUri);
   disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
@@ -582,7 +589,9 @@ function registerCommandConnectToRoom() {
  * Describes the actual behaviour of establishing the connection to a room via a websocket.
  */
 async function connectToRoomWebsocket() {
-  connectWithBackendSocket();
+  connectWithBackendSocket(); 
+
+  // TODO: Does the following part really fit here? The user should first have created a pair programming room before he can actually join one
 
   // Enter the IDE-Room
   const vsCodeInputOptions: vscode.InputBoxOptions = {
@@ -797,4 +806,161 @@ export function setShowPairProgrammingHTML(value: boolean) {
     showPairProgrammingHTML = value;
     //sessionViewProvider.refreshHTML();
   }
+}
+
+
+
+
+
+
+
+
+
+
+
+// ExplorViz + Debug Session Feature 
+
+/**
+ * Command which is executed when the "Visualize Current Debug Session" button from the IDE is triggered
+ */
+function registerCommandStartVisualizationForDebugSession() {
+  const startVisualizationForDebugSession = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.startVisualizationForDebugSession",
+    async () => {
+      const debuggedAppPID = await  getDebuggedApplicationPID();
+      if(!debuggedAppPID) {
+        return;
+      }
+
+      const debugSessionName = await askForDebugSessionName();
+      if(!debugSessionName) {
+        vscode.window.showErrorMessage("No name for debug session provided!");
+        return;
+      }
+      
+      if(!didModifyBundledYmlFile(debugSessionName)) {
+        return;
+      }
+      
+
+
+      // attach inspectIT Ocelot to debugged application
+      //terminal.sendText(`java -jar ${extensionContext!.extensionPath}/ocelot/inspectit-ocelot-agent-2.6.5.jar ${processId} '{ "inspectit": { "config": { "file-based": {"path": "${extensionContext!.extensionPath}/ocelot" }}}}'`);
+
+      // TODO: create new tokens whenever a new debug session has started and switch to that explorviz room too in the webview
+    }
+  );
+  extensionContext!.subscriptions.push(startVisualizationForDebugSession);
+}
+
+function getDebuggedApplicationPID(): Promise<number|undefined> {
+  return new Promise<number|undefined>((resolve) => {
+    let counter = 0;
+    const interval = setInterval(() => {
+      if((debuggedAppPID !== undefined) || counter === 1000) {
+        clearInterval(interval);
+        resolve(debuggedAppPID);
+      }
+      counter++;
+    }, 100);
+  });
+};
+
+
+vscode.debug.onDidStartDebugSession( (session) => {
+  console.log("Started debug session");
+
+  // show command in command palette (see package.json)
+  vscode.commands.executeCommand(
+    "setContext",
+    "explorviz.showStartVisualizationForDebugSessionCommand",
+    true
+  );
+
+  // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
+  isInDebugSession = true;
+});
+
+vscode.debug.registerDebugAdapterTrackerFactory('java', {
+  createDebugAdapterTracker(session: vscode.DebugSession) {
+    return {
+      onWillReceiveMessage: m => {
+        //console.log(`> ${JSON.stringify(m, undefined, 2)}`);
+      },
+      onDidSendMessage: m => {
+        //console.log(`< ${JSON.stringify(m, undefined, 2)}`);
+
+        if(m?.event === "processid" && m?.body?.processId) {
+          debuggedAppPID = m.body.processId;
+        }
+      }
+    };
+  }
+});
+
+function getTerminal(): vscode.Terminal {
+	return vscode.window.createTerminal('explorviz-terminal');
+}
+
+function askForDebugSessionName() {
+  return vscode.window.showInputBox({
+    prompt: 'Please give the current debug session a name',
+  });
+}
+
+//...
+function didModifyBundledYmlFile(debugSessionName: string): boolean {
+  // Get the file path for the bundled YAML file
+  const filePath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot", "inspectit.yml");
+  let ret = false;
+  // Read the YAML file from the extension's directory
+  fs.readFile(filePath.fsPath, 'utf8', (err, data) => {
+      if (err) {
+          vscode.window.showErrorMessage('Failed to read the YAML file.');
+      }
+
+      try {
+          // Parse the YAML data into a JavaScript object
+          let yamlData: InspectITConfig = load(data) as InspectITConfig;
+
+          const activeSession = vscode.debug.activeDebugSession;
+          if (!activeSession) {
+            vscode.window.showErrorMessage("Debug session has been closed!");
+            return;
+          }
+          const workspaceFolder = activeSession.workspaceFolder;
+          if(!workspaceFolder) {
+            vscode.window.showErrorMessage("No workspace folder of this debug session found!");
+            return;
+          }
+
+          console.log("yamlData: ", yamlData);
+
+          yamlData.inspectit.tags.extra["explorviz.token.id"] = "xyz";
+          yamlData.inspectit.tags.extra["landscape_token"] = "xyz2";
+          yamlData.inspectit.tags.extra["service.name"] = workspaceFolder.name;
+          yamlData.inspectit.tags.extra["landscape_token"] = "xyz";
+          yamlData.inspectit.tags.extra["token_secret"] = "xyz2";
+          yamlData.inspectit.tags.extra["application_name"] = workspaceFolder.name;
+
+          // Modify the YAML data (example: adding a new key-value pair)
+          //yamlData.newKey = 'newValue';
+
+          // Serialize the JavaScript object back into YAML format
+          //const newYamlText = yaml.dump(yamlData);
+
+          // Now write the modified YAML back to the same file
+          /*fs.writeFile(filePath.fsPath, newYamlText, 'utf8', (writeErr) => {
+              if (writeErr) {
+                  vscode.window.showErrorMessage('Failed to write the modified YAML file.');
+              } else {
+                  vscode.window.showInformationMessage('YAML file modified and saved!');
+              }
+          });*/
+        ret = true;
+      } catch (e) {
+          vscode.window.showErrorMessage('Failed to parse YAML data.');
+      }
+  });
+  return ret;
 }

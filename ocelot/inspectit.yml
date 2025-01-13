@@ -1,0 +1,73 @@
+inspectit:
+  tags:
+    extra:
+      explorviz.token.id: mytokenvalue
+      explorviz.token.secret: mytokensecret
+      service.name: "petclinic"
+      service.instance.id: "0"
+      telemetry.sdk.language: "java"
+
+      # The following attributes are for compatibility with older ExplorViz versions
+      landscape_token: mytokenvalue
+      token_secret: mytokensecret
+      application_name: "petclinic"
+      application_instance_id: 0
+      application_language: "java"
+
+  tracing:
+    add-common-tags: ALWAYS
+
+  metrics:
+    enabled: false
+
+  instrumentation:
+    scopes:
+      s_allClasses:
+        type:
+          name: org.springframework.samples
+          matcher-mode: STARTS_WITH_IGNORE_CASE
+
+    rules:
+      r_all_methods_no_input_return:
+        scopes:
+          s_allClasses: true
+        tracing:
+          start-span: true
+          attributes:
+            code.function: method_name
+            code.namespace: class_fqn
+            java.fqn: method_fqn_attr # For compatibility with older ExplorViz versions
+        entry:
+          method_name:
+            action: a_get_method_name
+          class_fqn:
+            action: a_get_class_fqn
+          method_fqn_attr:
+            action: a_get_method_fqn
+
+    actions:
+      a_get_method_name:
+        input:
+          _methodName: String
+        value: "_methodName"
+      a_get_class_fqn:
+        input:
+          _class: Class
+        value: "_class.getName()"
+      a_get_method_fqn:
+        input:
+          _methodName: String
+          _class: Class
+        value: "new StringBuilder(_class.getName()).append('.').append(_methodName).toString()"
+
+  logging:
+    debug: true
+    trace: false
+
+  exporters:
+    tracing:
+      service-name: "Ocelot Otel Exporter"
+      otlp:
+        enabled: true
+        endpoint: "http://localhost:55678"
+        protocol: grpc
