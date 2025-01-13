@@ -936,6 +936,25 @@ function didModifyBundledYmlFile(debugSessionName: string): boolean {
 
           console.log("yamlData: ", yamlData);
 
+          try {
+            connectWithBackendSocket();
+            if (!socket || socket.disconnected) {
+              vscode.window.showErrorMessage(
+                `Join-Room: No connection was established.`
+              );
+              return;
+            }
+
+            // TODO: emit
+
+          } catch (error) {
+            vscode.window.showErrorMessage(
+              `Some unexpected error happened: ${error}`
+            );
+            return;
+          }
+
+
           yamlData.inspectit.tags.extra["explorviz.token.id"] = "xyz";
           yamlData.inspectit.tags.extra["landscape_token"] = "xyz2";
           yamlData.inspectit.tags.extra["service.name"] = workspaceFolder.name;
