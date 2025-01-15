@@ -207,6 +207,10 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandDisconnectFromRoom();
   registerCommandStartVisualizationForDebugSession();
 
+
+  // in case a debug session has already been started before the extension was activated
+  checkForDebugSession();
+
   sessionViewProvider = new SessionViewProvider(context.extensionUri);
   disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
     SessionViewProvider.viewType,
@@ -827,6 +831,35 @@ function registerCommandStartVisualizationForDebugSession() {
   const startVisualizationForDebugSession = vscode.commands.registerCommand(
     "explorviz-vscode-extension.startVisualizationForDebugSession",
     async () => {
+      try {
+        connectWithBackendSocket();
+        if (!socket || socket.disconnected) {
+          vscode.window.showErrorMessage(
+            `Unable to connect to backend!`
+          );
+          return;
+        }
+        const data = frontendHttp;
+        socket.emit(
+          'check-frontend-connection', 
+          frontendHttp, 
+          (isConnected: boolean | undefined) => {
+            if (!isConnected) {
+              console.log("frontendHttp from extension to backend: ", frontendHttp);
+              vscode.window.showErrorMessage("The frontend is not connected to our extension!");
+              return;
+            }
+        });
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Some unexpected error happened: ${error}`
+        );
+        return;
+      }
+
+
+
+
       const debuggedAppPID = await  getDebuggedApplicationPID();
       if(!debuggedAppPID) {
         return;
@@ -934,18 +967,20 @@ function didModifyBundledYmlFile(debugSessionName: string): boolean {
             return;
           }
 
-          console.log("yamlData: ", yamlData);
+          //console.log("yamlData: ", yamlData);
 
           try {
             connectWithBackendSocket();
             if (!socket || socket.disconnected) {
               vscode.window.showErrorMessage(
-                `Join-Room: No connection was established.`
+                `Unable to connect to backend!`
               );
               return;
             }
 
-            // TODO: emit
+            socket.emit('create-landscape', (tokenData: {id: string; secret: string;} | undefined) => {
+              console.log('i received: ', tokenData);
+            });
 
           } catch (error) {
             vscode.window.showErrorMessage(
@@ -982,4 +1017,20 @@ function didModifyBundledYmlFile(debugSessionName: string): boolean {
       }
   });
   return ret;
+}
+
+function checkForDebugSession() {
+  if(vscode.debug.activeDebugSession) {
+    console.log("Started debug session");
+
+    // show command in command palette (see package.json)
+    vscode.commands.executeCommand(
+      "setContext",
+      "explorviz.showStartVisualizationForDebugSessionCommand",
+      true
+    );
+
+    // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
+    isInDebugSession = true;
+  }
 }
