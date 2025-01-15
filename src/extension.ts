@@ -520,6 +520,7 @@ export function connectWithBackendSocket() {
   if (!socket || socket.disconnected) {
     socket = io(backendHttp, {
       path: "/v2/ide/",
+      query: { client: 'extension' },
     });
   }
 }
