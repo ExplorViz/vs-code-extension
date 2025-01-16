@@ -6,6 +6,13 @@
   // @ts-ignore
   const vscode = acquireVsCodeApi();
 
+  const visualizeDebugSessionButton = document.querySelector('#explorviz-visualize-debug-session-button');
+  if (visualizeDebugSessionButton) {
+    visualizeDebugSessionButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.startVisualizationForDebugSession");
+    });
+  }
+
   const connectToVizButton = document.querySelector(
     "#explorviz-join-room-button"
   );

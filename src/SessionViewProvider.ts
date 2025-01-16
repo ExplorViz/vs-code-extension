@@ -6,6 +6,7 @@ import {
   currentMode,
   connectedToVis,
   currentRoom,
+  isInDebugSession
 } from "./extension";
 import { ModesEnum } from "./types";
 
@@ -86,6 +87,10 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
       </br>
 
+      ${renderStartVisualizationForDebugSessionButton()}
+
+      </br></br>
+
       ${renderOpenVizButton()}
 
       </br></br>
@@ -109,6 +114,13 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 			</body>
 			</html>`;
   }
+}
+
+function renderStartVisualizationForDebugSessionButton() {
+  if(isInDebugSession) {
+    return "<button id='explorviz-visualize-debug-session-button'>Start Visualization For Debug Session</button>";
+  }
+  return "";
 }
 
 function renderConnectToVizButton() {

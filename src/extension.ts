@@ -841,16 +841,19 @@ function registerCommandStartVisualizationForDebugSession() {
           return;
         }
         const data = frontendHttp;
+        let isConnected: boolean | undefined = undefined;
         socket.emit(
           'check-frontend-connection', 
           frontendHttp, 
-          (isConnected: boolean | undefined) => {
-            if (!isConnected) {
-              console.log("frontendHttp from extension to backend: ", frontendHttp);
+          (payload: boolean | undefined) => {
+            if (!payload) {
               vscode.window.showErrorMessage("The frontend is not connected to our extension!");
-              return;
             }
+            isConnected = payload;
         });
+        if (!isConnected) {
+          return;
+        }
       } catch (error) {
         vscode.window.showErrorMessage(
           `Some unexpected error happened: ${error}`
@@ -859,10 +862,9 @@ function registerCommandStartVisualizationForDebugSession() {
       }
 
 
-
-
       const debuggedAppPID = await  getDebuggedApplicationPID();
       if(!debuggedAppPID) {
+        vscode.window.showErrorMessage("Unable to find the debuggee PID");
         return;
       }
 
@@ -913,6 +915,8 @@ vscode.debug.onDidStartDebugSession( (session) => {
 
   // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
   isInDebugSession = true;
+
+  sessionViewProvider.refreshHTML();
 });
 
 vscode.debug.registerDebugAdapterTrackerFactory('java', {
@@ -969,26 +973,16 @@ function didModifyBundledYmlFile(debugSessionName: string): boolean {
           }
 
           //console.log("yamlData: ", yamlData);
+          socket.emit('create-landscape', (tokenData: {id: string; secret: string;} | undefined) => {
+            console.log('i received: ', tokenData);
 
-          try {
-            connectWithBackendSocket();
-            if (!socket || socket.disconnected) {
-              vscode.window.showErrorMessage(
-                `Unable to connect to backend!`
-              );
-              return;
-            }
 
-            socket.emit('create-landscape', (tokenData: {id: string; secret: string;} | undefined) => {
-              console.log('i received: ', tokenData);
-            });
 
-          } catch (error) {
-            vscode.window.showErrorMessage(
-              `Some unexpected error happened: ${error}`
-            );
-            return;
-          }
+
+
+            
+          });
+         
 
 
           yamlData.inspectit.tags.extra["explorviz.token.id"] = "xyz";
@@ -1014,7 +1008,7 @@ function didModifyBundledYmlFile(debugSessionName: string): boolean {
           });*/
         ret = true;
       } catch (e) {
-          vscode.window.showErrorMessage('Failed to parse YAML data.');
+          vscode.window.showErrorMessage('Failed to parse YAML data');
       }
   });
   return ret;
@@ -1033,5 +1027,7 @@ function checkForDebugSession() {
 
     // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
     isInDebugSession = true;
+
+    sessionViewProvider.refreshHTML();
   }
 }
