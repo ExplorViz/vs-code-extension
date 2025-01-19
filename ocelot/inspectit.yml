@@ -1,32 +1,26 @@
 inspectit:
   tags:
     extra:
-      explorviz.token.id: mytokenvalue
-      explorviz.token.secret: mytokensecret
-      service.name: "petclinic"
-      service.instance.id: "0"
-      telemetry.sdk.language: "java"
-
-      # The following attributes are for compatibility with older ExplorViz versions
-      landscape_token: mytokenvalue
-      token_secret: mytokensecret
-      application_name: "petclinic"
+      explorviz.token.id: b73731fe-4a60-4afc-8788-e9a2cfc1f2c2
+      explorviz.token.secret: FWNdieKftpQ9NoT8
+      service.name: spring-petclinic
+      service.instance.id: '0'
+      telemetry.sdk.language: java
+      landscape_token: b73731fe-4a60-4afc-8788-e9a2cfc1f2c2
+      token_secret: FWNdieKftpQ9NoT8
+      application_name: spring-petclinic
       application_instance_id: 0
-      application_language: "java"
-
+      application_language: java
   tracing:
     add-common-tags: ALWAYS
-
   metrics:
     enabled: false
-
   instrumentation:
     scopes:
       s_allClasses:
         type:
           name: org.springframework.samples
           matcher-mode: STARTS_WITH_IGNORE_CASE
-
     rules:
       r_all_methods_no_input_return:
         scopes:
@@ -36,7 +30,7 @@ inspectit:
           attributes:
             code.function: method_name
             code.namespace: class_fqn
-            java.fqn: method_fqn_attr # For compatibility with older ExplorViz versions
+            java.fqn: method_fqn_attr
         entry:
           method_name:
             action: a_get_method_name
@@ -44,30 +38,29 @@ inspectit:
             action: a_get_class_fqn
           method_fqn_attr:
             action: a_get_method_fqn
-
     actions:
       a_get_method_name:
         input:
           _methodName: String
-        value: "_methodName"
+        value: _methodName
       a_get_class_fqn:
         input:
           _class: Class
-        value: "_class.getName()"
+        value: _class.getName()
       a_get_method_fqn:
         input:
           _methodName: String
           _class: Class
-        value: "new StringBuilder(_class.getName()).append('.').append(_methodName).toString()"
-
+        value: >-
+          new
+          StringBuilder(_class.getName()).append('.').append(_methodName).toString()
   logging:
     debug: true
     trace: false
-
   exporters:
     tracing:
-      service-name: "Ocelot Otel Exporter"
+      service-name: Ocelot Otel Exporter
       otlp:
         enabled: true
-        endpoint: "http://localhost:55678"
+        endpoint: http://localhost:55678
         protocol: grpc

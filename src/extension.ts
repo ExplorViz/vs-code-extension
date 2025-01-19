@@ -823,7 +823,7 @@ export function setShowPairProgrammingHTML(value: boolean) {
 
 
 
-// ExplorViz + Debug Session Feature 
+// #region Debug Session Feature 
 
 /**
  * Command which is executed when the "Visualize Current Debug Session" button from the IDE is triggered
@@ -840,20 +840,40 @@ function registerCommandStartVisualizationForDebugSession() {
           );
           return;
         }
-        const data = frontendHttp;
         let isConnected: boolean | undefined = undefined;
         socket.emit(
           'check-frontend-connection', 
           frontendHttp, 
-          (payload: boolean | undefined) => {
+          async (payload: boolean | undefined) => {
             if (!payload) {
               vscode.window.showErrorMessage("The frontend is not connected to our extension!");
             }
             isConnected = payload;
+            if(!isConnected) {
+              return;
+            }
+
+            const debuggedAppPID = await  getDebuggedApplicationPID();
+            if(!debuggedAppPID) {
+              vscode.window.showErrorMessage("Unable to find the debuggee PID");
+              return;
+            }
+
+            const debugSessionName = await askForDebugSessionName();
+            if(!debugSessionName) {
+              vscode.window.showErrorMessage("No name for debug session provided!");
+              return;
+            }
+      
+            if(!(await didModifyBundledYmlFile(debugSessionName))) {
+              return;
+            }
+
+            console.log("time to attach ocelot");
+            // attach inspectIT Ocelot to debugged application
+            terminal.sendText(`java -jar ${extensionContext!.extensionPath}/ocelot/inspectit-ocelot-agent-2.6.5.jar ${debuggedAppPID} '{ "inspectit": { "config": { "file-based": {"path": "${extensionContext!.extensionPath}/ocelot" }}}}'`);
+      
         });
-        if (!isConnected) {
-          return;
-        }
       } catch (error) {
         vscode.window.showErrorMessage(
           `Some unexpected error happened: ${error}`
@@ -861,29 +881,6 @@ function registerCommandStartVisualizationForDebugSession() {
         return;
       }
 
-
-      const debuggedAppPID = await  getDebuggedApplicationPID();
-      if(!debuggedAppPID) {
-        vscode.window.showErrorMessage("Unable to find the debuggee PID");
-        return;
-      }
-
-      const debugSessionName = await askForDebugSessionName();
-      if(!debugSessionName) {
-        vscode.window.showErrorMessage("No name for debug session provided!");
-        return;
-      }
-      
-      if(!didModifyBundledYmlFile(debugSessionName)) {
-        return;
-      }
-      
-
-
-      // attach inspectIT Ocelot to debugged application
-      //terminal.sendText(`java -jar ${extensionContext!.extensionPath}/ocelot/inspectit-ocelot-agent-2.6.5.jar ${processId} '{ "inspectit": { "config": { "file-based": {"path": "${extensionContext!.extensionPath}/ocelot" }}}}'`);
-
-      // TODO: create new tokens whenever a new debug session has started and switch to that explorviz room too in the webview
     }
   );
   extensionContext!.subscriptions.push(startVisualizationForDebugSession);
@@ -946,71 +943,62 @@ function askForDebugSessionName() {
   });
 }
 
-//...
-function didModifyBundledYmlFile(debugSessionName: string): boolean {
+ // modify yml file such that ocelot agent collects spans for the right landscape
+async function didModifyBundledYmlFile(debugSessionName: string): Promise<boolean> {
   // Get the file path for the bundled YAML file
   const filePath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot", "inspectit.yml");
   let ret = false;
-  // Read the YAML file from the extension's directory
-  fs.readFile(filePath.fsPath, 'utf8', (err, data) => {
-      if (err) {
-          vscode.window.showErrorMessage('Failed to read the YAML file.');
-      }
+  try {
+    // Read the YAML file from the extension's directory
+    const data = fs.readFileSync(filePath.fsPath, 'utf8');
+    // Parse the YAML data into a JavaScript object
+    let yamlData: InspectITConfig = load(data) as InspectITConfig;
 
-      try {
-          // Parse the YAML data into a JavaScript object
-          let yamlData: InspectITConfig = load(data) as InspectITConfig;
-
-          const activeSession = vscode.debug.activeDebugSession;
-          if (!activeSession) {
-            vscode.window.showErrorMessage("Debug session has been closed!");
-            return;
-          }
-          const workspaceFolder = activeSession.workspaceFolder;
-          if(!workspaceFolder) {
-            vscode.window.showErrorMessage("No workspace folder of this debug session found!");
-            return;
-          }
-
-          //console.log("yamlData: ", yamlData);
-          socket.emit('create-landscape', (tokenData: {id: string; secret: string;} | undefined) => {
-            console.log('i received: ', tokenData);
-
-
-
-
-
-            
-          });
-         
-
-
-          yamlData.inspectit.tags.extra["explorviz.token.id"] = "xyz";
-          yamlData.inspectit.tags.extra["landscape_token"] = "xyz2";
-          yamlData.inspectit.tags.extra["service.name"] = workspaceFolder.name;
-          yamlData.inspectit.tags.extra["landscape_token"] = "xyz";
-          yamlData.inspectit.tags.extra["token_secret"] = "xyz2";
-          yamlData.inspectit.tags.extra["application_name"] = workspaceFolder.name;
-
-          // Modify the YAML data (example: adding a new key-value pair)
-          //yamlData.newKey = 'newValue';
-
-          // Serialize the JavaScript object back into YAML format
-          //const newYamlText = yaml.dump(yamlData);
-
-          // Now write the modified YAML back to the same file
-          /*fs.writeFile(filePath.fsPath, newYamlText, 'utf8', (writeErr) => {
-              if (writeErr) {
-                  vscode.window.showErrorMessage('Failed to write the modified YAML file.');
-              } else {
-                  vscode.window.showInformationMessage('YAML file modified and saved!');
-              }
-          });*/
-        ret = true;
-      } catch (e) {
-          vscode.window.showErrorMessage('Failed to parse YAML data');
-      }
-  });
+    const activeSession = vscode.debug.activeDebugSession;
+    if (!activeSession) {
+      vscode.window.showErrorMessage("Debug session has been closed!");
+      return false;
+    }
+    const workspaceFolder = activeSession.workspaceFolder;
+    if(!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder of this debug session found!");
+      return false;
+    }
+    
+    const alias = debugSessionName;
+    ret = await new Promise((resolve, reject) => {
+      socket.emit('create-landscape', alias, (tokenData: {value: string; secret: string;} | undefined) => {
+        console.log('tokenData received: ', tokenData);
+  
+        if(!tokenData?.value || !tokenData?.secret) {
+          vscode.window.showErrorMessage("Failed to create a landscape for this debug session");
+          resolve(false);
+          return;
+        }
+      
+        yamlData.inspectit.tags.extra["explorviz.token.id"] = tokenData.value;
+        yamlData.inspectit.tags.extra["explorviz.token.secret"] = tokenData.secret;
+        yamlData.inspectit.tags.extra["service.name"] = workspaceFolder.name;
+        yamlData.inspectit.tags.extra["landscape_token"] = tokenData.value;
+        yamlData.inspectit.tags.extra["token_secret"] = tokenData.secret;
+        yamlData.inspectit.tags.extra["application_name"] = workspaceFolder.name;
+  
+        //console.log("yamlData: ", yamlData);
+  
+        const newYamlText = dump(yamlData);
+      
+        // Now write the modified YAML back to the same file
+        fs.writeFileSync(filePath.fsPath, newYamlText, 'utf8');
+        console.log("ret=true set");
+        resolve(true);
+      });
+    });
+    console.log("fast fertig");
+  } catch (error) {
+    console.log("Error: ", error);
+  }
+  
+  console.log("lets return:", ret);
   return ret;
 }
 
@@ -1031,3 +1019,5 @@ function checkForDebugSession() {
     sessionViewProvider.refreshHTML();
   }
 }
+
+// #endregion
