@@ -865,6 +865,7 @@ function registerCommandStartVisualizationForDebugSession() {
   const startVisualizationForDebugSession = vscode.commands.registerCommand(
     "explorviz-vscode-extension.startVisualizationForDebugSession",
     async () => {
+      console.log('startVizsualizationForDebugSession');
       try {
         const workspaceUri = vscode.debug.activeDebugSession?.workspaceFolder?.uri;
         if (!workspaceUri) {
@@ -886,8 +887,6 @@ function registerCommandStartVisualizationForDebugSession() {
           );
           return;
         }
-
-        // TODO: send currentCommit and workspaceUri
         socket.emit(
           'check-frontend-connection', 
           frontendHttp, 
@@ -931,7 +930,6 @@ function registerCommandStartVisualizationForDebugSession() {
         );
         return;
       }
-
     }
   );
   extensionContext!.subscriptions.push(startVisualizationForDebugSession);
@@ -967,14 +965,16 @@ vscode.debug.onDidStartDebugSession( (session) => {
   sessionViewProvider.refreshHTML();
 });
 
+
+// handle stopped events to update extension UI for a button called: Save breakpoint
 vscode.debug.registerDebugAdapterTrackerFactory('java', {
   createDebugAdapterTracker(session: vscode.DebugSession) {
     return {
       onWillReceiveMessage: m => {
-       // console.log(`> ${JSON.stringify(m, undefined, 2)}`);
+        console.log(`> ${JSON.stringify(m, undefined, 2)}`);
       },
       onDidSendMessage: m => {
-       // console.log(`< ${JSON.stringify(m, undefined, 2)}`);
+        console.log(`< ${JSON.stringify(m, undefined, 2)}`);
 
         if(m?.event) {
           switch(m.event) {
@@ -998,16 +998,26 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
               break;
           }
         }
+
+        if(m?.event === "stopped" && (m?.body?.reason === "breakpoint" /*|| m?.body?.reason === "..."*/ )) {
+          // Update extension UI for a button called ,save breakpoint in ExplorViz'
+        }
       }
     };
   }
 });
+
+// should only be called when our program execution is stopped. TODO: what happens when we call it after we made a few next steps from a breakpoint?
+function saveBreakpoint() {
+  //socket.emit("create-breakpoint", );
+} 
 
 function getTerminal(): vscode.Terminal {
 	return vscode.window.createTerminal('explorviz-terminal');
 }
 
 function askForDebugSessionName() {
+  console.log('askForDebugSessionName');
   return vscode.window.showInputBox({
     prompt: 'Please give the current debug session a name',
   });
@@ -1066,6 +1076,7 @@ async function didModifyBundledYmlFile(debugSessionName: string): Promise<boolea
   } catch (error) {
     console.log("Error: ", error);
   }
+  
   return ret;
 }
 
