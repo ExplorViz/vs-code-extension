@@ -23,6 +23,7 @@ import { buildClassMethodArr } from "./buildClassMethod";
 import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
 import { IFrameViewContainer } from "./IFrameViewContainer";
+import { API, GitExtension, Repository } from "./api/git";
 
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
@@ -45,6 +46,7 @@ const username = process.env.VSCODE_EXP_USERNAME;
 
 const homedir = os.homedir();
 const pathToState = `${homedir}/explorviz-experiment-logging.csv`;
+
 
 // import * as vsls from 'vsls';
 // import { getApi } from "vsls";
@@ -78,10 +80,18 @@ let ideUsageTimerEnd: number | null = null;
 
 export let connectedToVis: boolean = false;
 export let currentRoom: String | undefined;
+
 export let isInDebugSession: boolean = false;
+export let currentDebugRooms: any[] = [];
+export let isDebugSessionStopped: boolean = false;
+
 
 let debuggedAppPID: number | undefined;
 const terminal = getTerminal();
+
+// used to check wether the selected debug room is from our workspace
+let git: API | undefined = undefined;
+
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -217,6 +227,16 @@ export async function activate(context: vscode.ExtensionContext) {
     sessionViewProvider
   );
   context.subscriptions.push(disposableSessionViewProvider);
+
+  // TODO: get debug room list!
+
+  // https://github.com/microsoft/vscode/tree/main/extensions/git
+  const gitExtension = vscode.extensions.getExtension<GitExtension>('vscode.git')?.exports;
+  try {
+    git = gitExtension?.getAPI(1); 
+  } catch (error) {
+    console.log(error);
+  }
 
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
@@ -523,6 +543,19 @@ export function connectWithBackendSocket() {
       query: { client: 'extension' },
     });
   }
+
+  socket.on("updates-debug-room-list", (debugRoomList: any[]) => {
+    // TODO: filter debugRoolList to contain only rooms that were created by our extension
+    // idea: within our extension the user can click one of the rooms in that list to receive the 
+    // source code base that was debugged and can jump to the breakpoints by selecting one of them
+    // so it should act as a recorder
+    // therefore when creating debug session rooms we need somehow differentiate between local debug rooms (source code only on host not on github etc.)
+    // and "global" session rooms (debugged source code hosted on github)
+    // so our extension should use a sort of cookie feature that our backend stores and host stores so we can determine the local debug rooms
+    // because we know that our source code would be available there by local git 
+    currentDebugRooms = debugRoomList;
+    sessionViewProvider.refreshHTML();
+  });
 }
 
 export function joinPairProgrammingRoom(roomName: string) {
@@ -833,6 +866,19 @@ function registerCommandStartVisualizationForDebugSession() {
     "explorviz-vscode-extension.startVisualizationForDebugSession",
     async () => {
       try {
+        const workspaceUri = vscode.debug.activeDebugSession?.workspaceFolder?.uri;
+        if (!workspaceUri) {
+          vscode.window.showErrorMessage("No debuggee workspace URI found!");
+          return;
+        }
+        const repository = git?.getRepository(workspaceUri);
+        const currentCommit = repository?.state.HEAD?.commit;
+
+        if(!currentCommit) {
+          vscode.window.showInformationMessage("No commit for this workspace found! Please make sure that your workspace uses a VCS");
+          return;
+        }
+
         connectWithBackendSocket();
         if (!socket || socket.disconnected) {
           vscode.window.showErrorMessage(
@@ -840,16 +886,15 @@ function registerCommandStartVisualizationForDebugSession() {
           );
           return;
         }
-        let isConnected: boolean | undefined = undefined;
+
+        // TODO: send currentCommit and workspaceUri
         socket.emit(
           'check-frontend-connection', 
           frontendHttp, 
           async (payload: boolean | undefined) => {
-            if (!payload) {
-              vscode.window.showErrorMessage("The frontend is not connected to our extension!");
-            }
-            isConnected = payload;
+            const isConnected = payload;
             if(!isConnected) {
+              vscode.window.showErrorMessage("The frontend is not connected to our extension!");
               return;
             }
 
@@ -858,6 +903,13 @@ function registerCommandStartVisualizationForDebugSession() {
               vscode.window.showErrorMessage("Unable to find the debuggee PID");
               return;
             }
+
+            // git state might be set before the callback was registered
+            //updateGitBasedProperties();
+            
+            // only create a debug room for workspaces that are controlled by a VCS
+            // Why? So we can replay the debug session for the right code base
+            // TODO ...
 
             const debugSessionName = await askForDebugSessionName();
             if(!debugSessionName) {
@@ -869,7 +921,6 @@ function registerCommandStartVisualizationForDebugSession() {
               return;
             }
 
-            console.log("time to attach ocelot");
             // attach inspectIT Ocelot to debugged application
             terminal.sendText(`java -jar ${extensionContext!.extensionPath}/ocelot/inspectit-ocelot-agent-2.6.5.jar ${debuggedAppPID} '{ "inspectit": { "config": { "file-based": {"path": "${extensionContext!.extensionPath}/ocelot" }}}}'`);
       
@@ -920,13 +971,32 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
   createDebugAdapterTracker(session: vscode.DebugSession) {
     return {
       onWillReceiveMessage: m => {
-        //console.log(`> ${JSON.stringify(m, undefined, 2)}`);
+       // console.log(`> ${JSON.stringify(m, undefined, 2)}`);
       },
       onDidSendMessage: m => {
-        //console.log(`< ${JSON.stringify(m, undefined, 2)}`);
+       // console.log(`< ${JSON.stringify(m, undefined, 2)}`);
 
-        if(m?.event === "processid" && m?.body?.processId) {
-          debuggedAppPID = m.body.processId;
+        if(m?.event) {
+          switch(m.event) {
+
+            case "processid":
+              if(m?.body?.processId) {
+                debuggedAppPID = m.body.processId;
+              }
+              break;
+            case "breakpoint":
+            case "data breakpoint":
+            case "function breakpoint":
+            case "instruction breakpoint":
+              isDebugSessionStopped = true;
+              break;
+            case "step":
+              break;
+            case "entry":
+              break;
+            case "goto":
+              break;
+          }
         }
       }
     };
@@ -968,7 +1038,6 @@ async function didModifyBundledYmlFile(debugSessionName: string): Promise<boolea
     const alias = debugSessionName;
     ret = await new Promise((resolve, reject) => {
       socket.emit('create-landscape', alias, (tokenData: {value: string; secret: string;} | undefined) => {
-        console.log('tokenData received: ', tokenData);
   
         if(!tokenData?.value || !tokenData?.secret) {
           vscode.window.showErrorMessage("Failed to create a landscape for this debug session");
@@ -989,16 +1058,14 @@ async function didModifyBundledYmlFile(debugSessionName: string): Promise<boolea
       
         // Now write the modified YAML back to the same file
         fs.writeFileSync(filePath.fsPath, newYamlText, 'utf8');
-        console.log("ret=true set");
+
+        socket.emit("adds-or-deletes-debug-room");
         resolve(true);
       });
     });
-    console.log("fast fertig");
   } catch (error) {
     console.log("Error: ", error);
   }
-  
-  console.log("lets return:", ret);
   return ret;
 }
 
@@ -1015,9 +1082,12 @@ function checkForDebugSession() {
 
     // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
     isInDebugSession = true;
-
-    sessionViewProvider.refreshHTML();
   }
 }
+
+function onClickDebugRoom() {
+  //vscode.window.showInformationMessage(`Please open the workspace ${} under its commit ${}`);
+}
+
 
 // #endregion
