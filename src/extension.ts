@@ -986,11 +986,15 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
                 debuggedAppPID = m.body.processId;
               }
               break;
-            case "breakpoint":
-            case "data breakpoint":
-            case "function breakpoint":
-            case "instruction breakpoint":
-              isDebugSessionStopped = true;
+            case "stopped":
+              if(
+                m?.body?.reason === "breakpoint" || 
+                m?.body?.reason === "data breakpoint" || 
+                m?.body?.reason === "function breakpoint" || 
+                m?.body?.reason === "instruction breakpoint"
+              ) {
+                isDebugSessionStopped = true;
+              }
               break;
             case "step":
               break;
@@ -1011,6 +1015,8 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
 
 // should only be called when our program execution is stopped. TODO: what happens when we call it after we made a few next steps from a breakpoint?
 function saveBreakpoint() {
+  //TODO: the user should be able to name variables that are relevant to this breakpoint to be stored
+  // and printed in the frontend
   //socket.emit("create-breakpoint", );
 } 
 
@@ -1078,7 +1084,7 @@ async function didModifyBundledYmlFile(debugSessionName: string): Promise<boolea
   } catch (error) {
     console.log("Error: ", error);
   }
-  
+
   return ret;
 }
 
@@ -1099,8 +1105,9 @@ function checkForDebugSession() {
 }
 
 function onClickDebugRoom() {
-  //vscode.window.showInformationMessage(`Please open the workspace ${} under its commit ${}`);
+  //vscode.window.showInformationMessage(`Please open the workspace ${} under its commit ${}`)
 }
+
 
 
 // #endregion
