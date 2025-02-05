@@ -95,3 +95,22 @@ input::placeholder,
 textarea::placeholder {
   color: var(--vscode-input-placeholderForeground);
 }
+
+#debug-room-list {
+  list-style-type: none;
+  padding: 0;
+}
+
+.debug-room {
+  padding: 10px;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  margin: 5px;
+  cursor: pointer;
+}
+
+/* Hervorhebung des ausgewählten Eintrags */
+.debug-room.selected {
+  background-color: #4CAF50;
+  color: white;
+}
