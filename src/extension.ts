@@ -83,6 +83,7 @@ export let currentRoom: String | undefined;
 
 export let isInDebugSession: boolean = false;
 export let currentDebugRooms: any[] = [];
+export let currentDebugRoomName: string | undefined = undefined;
 export let isDebugSessionStopped: boolean = false;
 
 
@@ -883,7 +884,7 @@ function registerCommandStartVisualizationForDebugSession() {
         connectWithBackendSocket();
         if (!socket || socket.disconnected) {
           vscode.window.showErrorMessage(
-            `Unable to connect to backend!`
+            `Unable to connect to backend, try again!`
           );
           return;
         }
@@ -895,7 +896,7 @@ function registerCommandStartVisualizationForDebugSession() {
           async (payload: boolean | undefined) => {
             const isConnected = payload;
             if(!isConnected) {
-              vscode.window.showErrorMessage("The frontend is not connected to our extension!");
+              vscode.window.showErrorMessage("Please go to the settings in the frontend of ExplorViz to connect it to our extension!");
               return;
             }
 
@@ -921,6 +922,11 @@ function registerCommandStartVisualizationForDebugSession() {
             if(!(await didModifyBundledYmlFile(debugSessionName))) {
               return;
             }
+
+            vscode.window.showInformationMessage(`A room (${debugSessionName}) for this debug session has been successfully created!`);
+
+            currentDebugRoomName = debugSessionName;
+            sessionViewProvider.refreshHTML();
 
             // attach inspectIT Ocelot to debugged application
             terminal.sendText(`java -jar ${extensionContext!.extensionPath}/ocelot/inspectit-ocelot-agent-2.6.5.jar ${debuggedAppPID} '{ "inspectit": { "config": { "file-based": {"path": "${extensionContext!.extensionPath}/ocelot" }}}}'`);
@@ -1056,6 +1062,9 @@ async function didModifyBundledYmlFile(debugSessionName: string): Promise<boolea
     const alias = debugSessionName;
     ret = await new Promise((resolve, reject) => {
       socket.emit('create-landscape', alias, (tokenData: {value: string; secret: string;} | undefined) => {
+
+        console.log('Received tokenData: ', tokenData);
+        
   
         if(!tokenData?.value || !tokenData?.secret) {
           vscode.window.showErrorMessage("Failed to create a landscape for this debug session");
@@ -1111,3 +1120,16 @@ function onClickDebugRoom() {
 
 
 // #endregion
+
+
+
+
+
+
+
+// TODOS:
+
+// - List only rooms in the room list that got created by the extension => adapt frontend and user service for that 
+// - Implement save breakpoint feature
+// - implement debug session replay and notify user when different variable values appear for the variables that got saved in a saved breakpoint
+// - fix a buggy behaviour after you start a debug session before explorviz extension got activated (by clicking its icon in the activity bar)

@@ -6,7 +6,9 @@ import {
   currentMode,
   connectedToVis,
   currentRoom,
-  isInDebugSession
+  isInDebugSession,
+  isDebugSessionStopped,
+  currentDebugRoomName
 } from "./extension";
 import { ModesEnum } from "./types";
 
@@ -91,6 +93,10 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
       </br></br>
 
+      ${renderSaveBreakpointButton()}
+
+      </br></br>
+
       ${renderOpenVizButton()}
 
       </br></br>
@@ -100,6 +106,11 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       </br>
 
       ${renderInputPP()}  
+      </br>
+      </br>
+
+      ${renderDebugRoomList()}
+
       </br>
       </br>
 
@@ -121,6 +132,37 @@ function renderStartVisualizationForDebugSessionButton() {
     return "<button id='explorviz-visualize-debug-session-button'>Start Visualization For Debug Session</button>";
   }
   return "";
+}
+
+function renderSaveBreakpointButton() {
+  if(isDebugSessionStopped) {
+    return "<button id='explorviz-save-breakpoint-button'>Save Breakpoint</button>";
+  }
+  return "";
+}
+
+function renderDebugRoomList() {
+  if(currentDebugRoomName) {
+    return `
+      <p>Current Debug Room Name:</p>
+      <select id="debug-room-list">
+        <option value="1" selected>${currentDebugRoomName}</option>
+        <option value="2">Eintrag 2</option>
+        <option value="3">Eintrag 3</option>
+        <option value="4">Eintrag 4</option>
+      </select>
+      `;
+  } else {
+    return `
+      <p>Current Debug Room Name:</p>
+      <select id="debug-room-list">
+        <option value="1" selected>No room selected</option>
+        <option value="2">Eintrag 2</option>
+        <option value="3">Eintrag 3</option>
+        <option value="4">Eintrag 4</option>
+      </select>
+      `;
+  }
 }
 
 function renderConnectToVizButton() {
