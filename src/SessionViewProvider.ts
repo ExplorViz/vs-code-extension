@@ -8,7 +8,8 @@ import {
   currentRoom,
   isInDebugSession,
   isDebugSessionStopped,
-  currentDebugRoomName
+  currentDebugRoomName,
+  currentDebugRooms
 } from "./extension";
 import { ModesEnum } from "./types";
 
@@ -142,27 +143,34 @@ function renderSaveBreakpointButton() {
 }
 
 function renderDebugRoomList() {
+  let temp = "";
+  if(currentDebugRooms.length === 0) {
+    return temp;
+  }
+
   if(currentDebugRoomName) {
-    return `
+    temp += `
       <p>Current Debug Room Name:</p>
       <select id="debug-room-list">
-        <option value="1" selected>${currentDebugRoomName}</option>
-        <option value="2">Eintrag 2</option>
-        <option value="3">Eintrag 3</option>
-        <option value="4">Eintrag 4</option>
-      </select>
+        <option selected>${currentDebugRoomName}</option>
       `;
   } else {
-    return `
+    temp += `
       <p>Current Debug Room Name:</p>
       <select id="debug-room-list">
-        <option value="1" selected>No room selected</option>
-        <option value="2">Eintrag 2</option>
-        <option value="3">Eintrag 3</option>
-        <option value="4">Eintrag 4</option>
-      </select>
+        <option selected>No room selected</option>
       `;
   }
+
+  for (const room of currentDebugRooms) {
+    if(room.alias === currentDebugRoomName){
+      continue;
+    }
+    temp += `<option value="${room.value}">${room.alias}</option>`;
+
+  }
+  temp += '</select>';
+  return temp;
 }
 
 function renderConnectToVizButton() {

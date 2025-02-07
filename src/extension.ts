@@ -82,7 +82,7 @@ export let connectedToVis: boolean = false;
 export let currentRoom: String | undefined;
 
 export let isInDebugSession: boolean = false;
-export let currentDebugRooms: any[] = [];
+export let currentDebugRooms: {alias: string; secret: string; value: string; }[] = [];
 export let currentDebugRoomName: string | undefined = undefined;
 export let isDebugSessionStopped: boolean = false;
 
@@ -968,7 +968,12 @@ vscode.debug.onDidStartDebugSession( (session) => {
   );
 
   // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
+
   isInDebugSession = true;
+  socket.emit("retrieve-current-debug-room-list");
+  // TODO: visualize loading process in vs code until the room list has been loaded 
+
+  // ------------------------------------------------------------------------------------------------
 
   sessionViewProvider.refreshHTML();
 });
@@ -1086,7 +1091,7 @@ async function didModifyBundledYmlFile(debugSessionName: string): Promise<boolea
         // Now write the modified YAML back to the same file
         fs.writeFileSync(filePath.fsPath, newYamlText, 'utf8');
 
-        socket.emit("adds-or-deletes-debug-room");
+        socket.emit("retrieve-current-debug-room-list");
         resolve(true);
       });
     });
@@ -1110,6 +1115,8 @@ function checkForDebugSession() {
 
     // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
     isInDebugSession = true;
+
+    // TODO: retrieve debug room list
   }
 }
 
