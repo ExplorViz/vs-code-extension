@@ -114,3 +114,65 @@ textarea::placeholder {
   background-color: #4CAF50;
   color: white;
 }
+
+#loading {
+  display: block;
+  margin: 30px auto;
+  width: 30px;
+  height: 30px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+    /* Wrapper for the table */
+    #table-wrapper {
+      width: 80%;  /* Fixed width */
+      height: 200px; /* Fixed height */
+      overflow: auto; /* Make it scrollable if content overflows */
+      border: 1px solid #ccc;
+      margin: 20px auto;
+      color: var(--vscode-button-foreground);
+    }
+
+    /* Basic table styles */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background-color: var(--vscode-button-background);
+      font-weight: normal;
+    }
+
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+
+    /* Make tbody scrollable */
+    tbody {
+      height: 150px; /* Fixed height for the body */
+      overflow-y: auto;
+    }
+
+    /* Make sure columns in the header and body align */
+    th, td {
+      width: 100px; /* Or any other fixed width */
+    }
+
+    .current-room {
+      font-weight: bold;
+    }

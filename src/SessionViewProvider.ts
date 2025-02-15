@@ -9,7 +9,11 @@ import {
   isInDebugSession,
   isDebugSessionStopped,
   currentDebugRoomName,
-  currentDebugRooms
+  currentDebugRooms,
+  isConnectedToBackend,
+  isLoading,
+  backendHttp,
+  currentDebugRoom
 } from "./extension";
 import { ModesEnum } from "./types";
 
@@ -37,9 +41,14 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
     this._view.webview.onDidReceiveMessage((data) => {
       switch (data.type) {
         case "executeExplorVizCommand": {
-          vscode.commands.executeCommand(data.command);
+          if(data.optional){
+            vscode.commands.executeCommand(data.command, data.optional);
+          }else {
+            vscode.commands.executeCommand(data.command);
+          }
           break;
         }
+    
       }
     });
     this.refreshHTML();
@@ -89,6 +98,20 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       <p>Start a collaboratively usable Software Visualization session to comprehend your software using the 3D city metaphor.</p>
 
       </br>
+      ${renderConnectToBackendButton()}
+      ${renderLoadingAnimation()}
+      ${renderCancelConnectionSetupButton()}
+      ${renderDisconnectFromBackendButton()}
+
+      </br>
+
+      ${renderCreateLandscapeForDebugSessionButton()}
+
+      </br>
+
+      ${renderLoadDebugSessionLandscapesButton()}
+
+      </br>
 
       ${renderStartVisualizationForDebugSessionButton()}
 
@@ -110,11 +133,6 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       </br>
       </br>
 
-      ${renderDebugRoomList()}
-
-      </br>
-      </br>
-
       <p>Current Mode:</p>
       ${currentMode ?? "None"}
       </br>
@@ -127,6 +145,38 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 			</html>`;
   }
 }
+
+function renderConnectToBackendButton() {
+  if(!isConnectedToBackend && !isLoading) {
+    return "<button id='explorviz-connect-to-backend-button'>Connect To Backend</button>";
+  }
+  return "";
+}
+
+function renderLoadingAnimation() {
+  if(!isConnectedToBackend && isLoading) {
+    return `
+      <p>Trying to set up a connection to the backend... Please make sure the backend is reachable under ${backendHttp}</p>
+      <div id="loading"></div>
+    `; 
+  }
+  return "";
+}
+
+function renderCancelConnectionSetupButton() {
+  if(!isConnectedToBackend && isLoading) {
+    return "<button id='explorviz-cancel-connection-setup-button'>Cancel Connection Setup</button>";
+  }
+  return "";
+}
+
+function renderDisconnectFromBackendButton() {
+  if(isConnectedToBackend) {
+    return "<button id='explorviz-disconnect-from-backend-button'>Disconnect From Backend</button>";
+  }
+  return "";
+}
+ 
 
 function renderStartVisualizationForDebugSessionButton() {
   if(isInDebugSession) {
@@ -142,34 +192,53 @@ function renderSaveBreakpointButton() {
   return "";
 }
 
-function renderDebugRoomList() {
-  let temp = "";
-  if(currentDebugRooms.length === 0) {
-    return temp;
+function renderCreateLandscapeForDebugSessionButton() {
+  if(isConnectedToBackend) {
+    return "<button id='explorviz-create-landscape-for-debug-session-button'>Create Landscape For Debug Session</button>";
+  }
+  return "";
+}
+
+function renderLoadDebugSessionLandscapesButton() {
+
+
+  let temp = "<button id='explorviz-load-debug-session-landscapes-button'>Load Debug Session Landscapes</button></br>";
+  /*if(!currentDebugRooms || currentDebugRooms.length === 0) {
+    return "<button id='explorviz-load-debug-room-list-button'>Load Debug Room List</button>";
+  }*/
+  temp += `<div id="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Debug Room</th>
+          <th>Project Name</th>
+          <th>Commit Id</th>
+          <th>No. of Breakpoints</th>
+        </tr>
+      </thead>
+      <tbody>
+    `;
+
+
+  if(currentDebugRoom) {
+    temp += `
+      <tr data-token-value="${currentDebugRoom.value}" class="current-room"><td>${currentDebugRoom.alias}</td><td>${currentDebugRoom.projectName}</td><td>${currentDebugRoom.commitId}</td><td>TODO</td></tr>
+      `;
   }
 
-  if(currentDebugRoomName) {
-    temp += `
-      <p>Current Debug Room Name:</p>
-      <select id="debug-room-list">
-        <option selected>${currentDebugRoomName}</option>
-      `;
-  } else {
-    temp += `
-      <p>Current Debug Room Name:</p>
-      <select id="debug-room-list">
-        <option selected>No room selected</option>
-      `;
-  }
-
-  for (const room of currentDebugRooms) {
-    if(room.alias === currentDebugRoomName){
-      continue;
+  if(currentDebugRooms && currentDebugRooms.length > 0){
+    for (const room of currentDebugRooms) {
+      if(room.alias === currentDebugRoom?.alias){
+        continue;
+      }
+      temp += `<tr data-token-value="${room.value}"><td>${room.alias}</td><td>${room.projectName}</td><td>${room.commitId}</td><td>TODO</td></tr>`;
     }
-    temp += `<option value="${room.value}">${room.alias}</option>`;
-
   }
-  temp += '</select>';
+   temp += `
+      </tbody>
+    </table>
+  </div>
+  `;
   return temp;
 }
 
