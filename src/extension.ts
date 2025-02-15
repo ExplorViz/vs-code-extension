@@ -25,12 +25,16 @@ import { SessionViewProvider } from "./SessionViewProvider";
 import { IFrameViewContainer } from "./IFrameViewContainer";
 import { API, GitExtension, Repository } from "./api/git";
 
+export type DebugRoom = { alias: string; secret: string; value: string; projectName: string; commitId: string; };
+export type DebugRoomList = DebugRoom[];
+
 export let pairProgrammingSessionName: string | undefined = undefined;
 export let showPairProgrammingHTML: boolean = false;
 export let socket: Socket;
 export let currentMode: ModesEnum | undefined;
+export let isConnectedToBackend: boolean = false;
 
-let backendHttp: string | undefined;
+export let backendHttp: string | undefined;
 export let frontendHttp: string | undefined;
 export let crossOriginCommunication: boolean = false;
 let provider: ExplorVizApiCodeLens | undefined;
@@ -82,9 +86,11 @@ export let connectedToVis: boolean = false;
 export let currentRoom: String | undefined;
 
 export let isInDebugSession: boolean = false;
-export let currentDebugRooms: {alias: string; secret: string; value: string; }[] = [];
-export let currentDebugRoomName: string | undefined = undefined;
+export let currentDebugRooms: DebugRoomList | undefined = undefined;
+export let currentDebugRoom: DebugRoom | undefined = undefined;
 export let isDebugSessionStopped: boolean = false;
+
+export let isLoading: boolean = false; 
 
 
 let debuggedAppPID: number | undefined;
@@ -208,19 +214,6 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  // register Shift + p commands
-
-  registerCommandOpenInExplorViz();
-  registerCommandConnectToRoom();
-  registerCommandCreatePairProgramming();
-  registerCommandJoinPairProgramming();
-  registerCommandWebview();
-  registerCommandDisconnectFromRoom();
-  registerCommandStartVisualizationForDebugSession();
-
-
-  // in case a debug session has already been started before the extension was activated
-  checkForDebugSession();
 
   sessionViewProvider = new SessionViewProvider(context.extensionUri);
   disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
@@ -229,7 +222,30 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(disposableSessionViewProvider);
 
-  // TODO: get debug room list!
+  // connection with backend
+  connectWithBackendSocket();
+
+  // #region Commands Registration (Shift + p for commands search)
+
+  registerCommandOpenInExplorViz();
+  registerCommandConnectToRoom();
+  registerCommandCreatePairProgramming();
+  registerCommandJoinPairProgramming();
+  registerCommandWebview();
+  registerCommandDisconnectFromRoom();
+  registerCommandStartVisualizationForDebugSession();
+  registerCommandLoadDebugSessionLandscapes();
+  registerCommandConnectToBackend();
+  registerCommandDisconnectFromBackend();
+  registerCommandCreateLandscapeForDebugSession();
+  registerCancelConnectionSetup();
+  registerCommandUpdateWebViewForJoinedDebugRoom();
+
+  // #endregion
+
+  // covers the case in which a debug session
+  // has already been started before the extension was activated
+  checkForDebugSession();
 
   // https://github.com/microsoft/vscode/tree/main/extensions/git
   const gitExtension = vscode.extensions.getExtension<GitExtension>('vscode.git')?.exports;
@@ -533,30 +549,70 @@ function applyLatestTextSelection() {
 }
 
 export function connectWithBackendSocket() {
+  console.log("connectWithBackendSocket");
   if (!backendHttp) {
-    console.error("ExplorViz backend URL not valid string", backendHttp);
+    vscode.window.showErrorMessage("ExplorViz backend URL not valid string:" + backendHttp);
     return;
   }
 
-  if (!socket || socket.disconnected) {
+  /*if(socket) {
+    socket.disconnect();
+  }*/
+
+  if(!socket || socket.disconnected) {
     socket = io(backendHttp, {
       path: "/v2/ide/",
       query: { client: 'extension' },
     });
-  }
 
-  socket.on("updates-debug-room-list", (debugRoomList: any[]) => {
-    // TODO: filter debugRoolList to contain only rooms that were created by our extension
-    // idea: within our extension the user can click one of the rooms in that list to receive the 
-    // source code base that was debugged and can jump to the breakpoints by selecting one of them
-    // so it should act as a recorder
-    // therefore when creating debug session rooms we need somehow differentiate between local debug rooms (source code only on host not on github etc.)
-    // and "global" session rooms (debugged source code hosted on github)
-    // so our extension should use a sort of cookie feature that our backend stores and host stores so we can determine the local debug rooms
-    // because we know that our source code would be available there by local git 
-    currentDebugRooms = debugRoomList;
-    sessionViewProvider.refreshHTML();
-  });
+    socket.on("connect", () => {
+      isConnectedToBackend = socket.connected;
+      isLoading = false;
+      sessionViewProvider.refreshHTML();
+    });
+    socket.on("disconnect", () => {
+      console.debug("disconnect");
+      isConnectedToBackend = socket.connected;
+      isLoading = false;
+      sessionViewProvider.refreshHTML();
+    });
+    socket.on("connect_error", (error) => {
+      const oldIsConnectedToBackend = isConnectedToBackend;
+      isConnectedToBackend = socket.connected;
+      if(socket.active) {
+        // temporary failure, the socket will automatically try to reconnect
+        // Therefore, connect_error event may gets fired multiple times until successfully connected
+        const oldLoadingState = isLoading;
+        isLoading = true;
+
+        if(oldLoadingState !== isLoading){
+          sessionViewProvider.refreshHTML();
+        }
+      }else {
+        const oldLoadingState = isLoading;
+        isLoading = false;
+
+        if(oldLoadingState !== isLoading){
+          sessionViewProvider.refreshHTML();
+        }
+      }
+
+      if(oldIsConnectedToBackend !== isConnectedToBackend) {
+        sessionViewProvider.refreshHTML();
+      }
+      console.debug(error.message);
+    });
+    // important to register it here (i.e. as soon as possible)
+    socket.on("updates-debug-room-list", (debugRoomList: DebugRoomList) => {
+      // idea: within our extension the user can click one of the rooms in that list to receive the 
+      // source code base that was debugged and can jump to the saved breakpoints by selecting one of them
+      // so it should act as a recorder (how to do this the most efficient way? What are possible restrictions?)
+      console.log("current debug rooms:", debugRoomList);
+      currentDebugRooms = debugRoomList;
+      sessionViewProvider.refreshHTML();
+    });
+  }
+    
 }
 
 export function joinPairProgrammingRoom(roomName: string) {
@@ -876,15 +932,17 @@ function registerCommandStartVisualizationForDebugSession() {
         const repository = git?.getRepository(workspaceUri);
         const currentCommit = repository?.state.HEAD?.commit;
 
+        // only create a debug session room for workspaces that are controlled by a VCS
+        // Why? So we can replay the debug session for the right code base 
+        // (=> feature to be implemented soon, ofc there are things like non-determinism to consider)
         if(!currentCommit) {
           vscode.window.showInformationMessage("No commit for this workspace found! Please make sure that your workspace uses a VCS");
           return;
         }
 
-        connectWithBackendSocket();
         if (!socket || socket.disconnected) {
           vscode.window.showErrorMessage(
-            `Unable to connect to backend, try again!`
+            `You must first connect to the backend!`
           );
           return;
         }
@@ -906,14 +964,7 @@ function registerCommandStartVisualizationForDebugSession() {
               return;
             }
 
-            // git state might be set before the callback was registered
-            //updateGitBasedProperties();
-            
-            // only create a debug room for workspaces that are controlled by a VCS
-            // Why? So we can replay the debug session for the right code base
-            // TODO ...
-
-            const debugSessionName = await askForDebugSessionName();
+            const debugSessionName = await askForDebugRoomName();
             if(!debugSessionName) {
               vscode.window.showErrorMessage("No name for debug session provided!");
               return;
@@ -925,7 +976,7 @@ function registerCommandStartVisualizationForDebugSession() {
 
             vscode.window.showInformationMessage(`A room (${debugSessionName}) for this debug session has been successfully created!`);
 
-            currentDebugRoomName = debugSessionName;
+            //currentDebugRoomName = debugSessionName;
             sessionViewProvider.refreshHTML();
 
             // attach inspectIT Ocelot to debugged application
@@ -942,6 +993,168 @@ function registerCommandStartVisualizationForDebugSession() {
   );
   extensionContext!.subscriptions.push(startVisualizationForDebugSession);
 }
+
+function registerCommandConnectToBackend() {
+  const connectToBackend = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.connectToBackend",
+    () => {
+      console.log("Connect To Backend...");
+      connectWithBackendSocket();
+    });
+    extensionContext!.subscriptions.push(connectToBackend);
+}
+
+function registerCommandDisconnectFromBackend() {
+  const disconnectFromBackend = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.disconnectFromBackend",
+    () => {
+      console.log("Disconnect From Backend");
+      if(socket){
+        socket.disconnect();
+        isConnectedToBackend = socket.connected;
+      }
+    });
+    extensionContext!.subscriptions.push(disconnectFromBackend);
+}
+
+function registerCommandUpdateWebViewForJoinedDebugRoom() {
+  const debugging = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.updateWebViewForJoinedDebugRoom",
+    async (tokenValue: string) => {
+      currentDebugRoom = currentDebugRooms?.find(room => room.value === tokenValue);
+      sessionViewProvider.refreshHTML();
+    });
+  
+    extensionContext!.subscriptions.push(debugging);
+}
+
+function registerCommandCreateLandscapeForDebugSession() {
+  const createDebugRoom = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.createLandscapeForDebugSession",
+    async () => {
+      console.log("Create Debug Room");
+
+      if (!socket || socket.disconnected) {
+        vscode.window.showErrorMessage(
+          `You must first connect to the backend!`
+        );
+        return;
+      }
+
+      socket.emit(
+        'check-frontend-connection', 
+        frontendHttp, 
+        async (payload: boolean | undefined) => {
+          const isConnected = payload;
+
+          if(!isConnected) {
+            vscode.window.showErrorMessage("Please go to the settings in the frontend of ExplorViz to connect it to our extension!");
+            return;
+          }
+
+          const workspaceFolder = await askForWorkspaceFolder();
+          if(!workspaceFolder) {
+            return;
+          }
+
+          const workspaceUri = workspaceFolder?.uri;
+          if (!workspaceUri) {
+            vscode.window.showErrorMessage("No workspace URI found!");
+            return;
+          }
+          const repository = git?.getRepository(workspaceUri);
+          const currentCommit = repository?.state.HEAD?.commit;
+
+          // only create a debug session room for workspaces that are controlled by a VCS
+          // Why? So we can replay the debug session for the right code base 
+          // (=> feature to be implemented soon, ofc there are things like non-determinism to consider)
+          if(!currentCommit) {
+            vscode.window.showInformationMessage("No commit for this workspace found! Please make sure that your workspace uses a VCS");
+            return;
+          }
+
+          const debugSessionName = await askForDebugRoomName();
+          if(!debugSessionName) {
+            vscode.window.showErrorMessage("No name for debug session provided!");
+            return;
+          }
+
+          const alias = debugSessionName;
+          const projectName = workspaceFolder.name;
+          const commitId = currentCommit;
+          socket.emit('create-landscape', alias, projectName, commitId, (tokenData: {value: string; secret: string;} | undefined) => {
+        
+          if(!tokenData?.value || !tokenData?.secret) {
+            vscode.window.showErrorMessage("Failed to create a landscape for this debug session");
+            return;
+          }
+          currentDebugRoom = {
+            value: tokenData.value,
+            secret: tokenData.secret,
+            alias: alias,
+            projectName: projectName,
+            commitId: commitId
+          };
+          vscode.commands.executeCommand('explorviz-vscode-extension.loadDebugSessionLandscapes');
+          vscode.window.showInformationMessage(`The debug room (${currentDebugRoom.alias}) has been successfully created!`);
+        });
+
+
+      });
+    }
+  );
+  extensionContext!.subscriptions.push(createDebugRoom);
+}
+
+function registerCancelConnectionSetup() {
+  const cancelConnectionSetup = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.cancelConnectionSetup",
+    () => {
+      console.log("Cancel Connection Setup");
+      if(socket) {
+        socket.disconnect();
+        // it would be more elegant if the values are set within the
+        // disconnect event handler, but unfortunately it doesn't fire
+        // when socket.disconnect(); is called in our case (why?)
+        isConnectedToBackend = socket.connected;
+        isLoading = false;
+
+        // cancel connection setup button only displayed if isLoading is set to true
+        // Therefore, we need to refresh
+        sessionViewProvider.refreshHTML();
+      }
+    });
+    extensionContext!.subscriptions.push(cancelConnectionSetup);
+}
+
+function registerCommandLoadDebugSessionLandscapes() {
+  const loadDebugSessionLandscapes = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.loadDebugSessionLandscapes",
+    () => {
+
+      if (!socket || socket.disconnected) {
+        vscode.window.showErrorMessage(
+          `You must first connect to the backend!`
+        );
+        return;
+      }
+
+      socket.emit("load-debug-room-list", (debugRoomList?: DebugRoomList) => {
+        currentDebugRooms = debugRoomList;
+        if(!debugRoomList) {
+          vscode.window.showInformationMessage("No debug room list received. Make sure that the frontend of ExplorViz is connected to the VSCode backend");
+        }
+      
+        if(debugRoomList && debugRoomList.length === 0) {
+          vscode.window.showInformationMessage("No debug rooms available by now. Feel free to create one when being in a debug session");
+        }
+
+        sessionViewProvider.refreshHTML();
+      });
+    });
+    extensionContext!.subscriptions.push(loadDebugSessionLandscapes);
+}
+
 
 function getDebuggedApplicationPID(): Promise<number|undefined> {
   return new Promise<number|undefined>((resolve) => {
@@ -968,13 +1181,7 @@ vscode.debug.onDidStartDebugSession( (session) => {
   );
 
   // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
-
   isInDebugSession = true;
-  socket.emit("retrieve-current-debug-room-list");
-  // TODO: visualize loading process in vs code until the room list has been loaded 
-
-  // ------------------------------------------------------------------------------------------------
-
   sessionViewProvider.refreshHTML();
 });
 
@@ -1005,6 +1212,7 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
                 m?.body?.reason === "instruction breakpoint"
               ) {
                 isDebugSessionStopped = true;
+                // todo: save breakpoint feature => save state (selection of which variables to save needed)
               }
               break;
             case "step":
@@ -1016,9 +1224,6 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
           }
         }
 
-        if(m?.event === "stopped" && (m?.body?.reason === "breakpoint" /*|| m?.body?.reason === "..."*/ )) {
-          // Update extension UI for a button called ,save breakpoint in ExplorViz'
-        }
       }
     };
   }
@@ -1032,14 +1237,30 @@ function saveBreakpoint() {
 } 
 
 function getTerminal(): vscode.Terminal {
-	return vscode.window.createTerminal('explorviz-terminal');
+	return vscode.window.createTerminal('explorviz-terminal'); // TODO: reuse if already existing
 }
 
-function askForDebugSessionName() {
-  console.log('askForDebugSessionName');
+function askForDebugRoomName() {
   return vscode.window.showInputBox({
-    prompt: 'Please give the current debug session a name',
+    prompt: 'Please give the current debug room a name',
   });
+}
+
+async function askForWorkspaceFolder() {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (workspaceFolders && workspaceFolders.length > 0) {
+    const folder = await vscode.window.showWorkspaceFolderPick({
+        placeHolder: 'Select a workspace folder'
+    });
+
+    if(!folder) {
+      vscode.window.showInformationMessage('No workspace folder selected.');
+    }
+    return folder;
+  } else {
+    vscode.window.showInformationMessage('No workspace folders are open.');
+    return undefined;
+  }
 }
 
  // modify yml file such that ocelot agent collects spans for the right landscape
@@ -1091,6 +1312,8 @@ async function didModifyBundledYmlFile(debugSessionName: string): Promise<boolea
         // Now write the modified YAML back to the same file
         fs.writeFileSync(filePath.fsPath, newYamlText, 'utf8');
 
+        // this may lead in an invocation for an update (see the updates-debug-room-list event) of the debug room list for all extension clients
+        // which are connected to our backend (and therefore our ExplorViz frontend)
         socket.emit("retrieve-current-debug-room-list");
         resolve(true);
       });
@@ -1115,8 +1338,7 @@ function checkForDebugSession() {
 
     // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
     isInDebugSession = true;
-
-    // TODO: retrieve debug room list
+    sessionViewProvider.refreshHTML();
   }
 }
 
@@ -1136,7 +1358,8 @@ function onClickDebugRoom() {
 
 // TODOS:
 
-// - List only rooms in the room list that got created by the extension => adapt frontend and user service for that 
+// - Color rooms that contain the commit id of your current active workspace in a separate color
+// TODO: column for workspace folder name (project name)
 // - Implement save breakpoint feature
 // - implement debug session replay and notify user when different variable values appear for the variables that got saved in a saved breakpoint
 // - fix a buggy behaviour after you start a debug session before explorviz extension got activated (by clicking its icon in the activity bar)

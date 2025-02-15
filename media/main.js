@@ -6,6 +6,41 @@
   // @ts-ignore
   const vscode = acquireVsCodeApi();
 
+  const connectToBackendButton = document.querySelector('#explorviz-connect-to-backend-button');
+  if (connectToBackendButton) {
+    connectToBackendButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.connectToBackend");
+    });
+  }
+
+  const disconnectFromBackendButton = document.querySelector('#explorviz-disconnect-from-backend-button');
+  if (disconnectFromBackendButton) {
+    disconnectFromBackendButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.disconnectFromBackend");
+    });
+  }
+
+  const cancelConnectionSetupButton = document.querySelector('#explorviz-cancel-connection-setup-button');
+  if (cancelConnectionSetupButton) {
+    cancelConnectionSetupButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.cancelConnectionSetup");
+    });
+  }
+
+  const createLandscapeForDebugSessionButton = document.querySelector('#explorviz-create-landscape-for-debug-session-button');
+  if (createLandscapeForDebugSessionButton) {
+    createLandscapeForDebugSessionButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.createLandscapeForDebugSession");
+    });
+  }
+
+  const loadDebugSessionLandscapesButton = document.querySelector('#explorviz-load-debug-session-landscapes-button');
+  if (loadDebugSessionLandscapesButton) {
+    loadDebugSessionLandscapesButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.loadDebugSessionLandscapes");
+    });
+  }
+
   const visualizeDebugSessionButton = document.querySelector('#explorviz-visualize-debug-session-button');
   if (visualizeDebugSessionButton) {
     visualizeDebugSessionButton.addEventListener("click", () => {
@@ -72,10 +107,24 @@
     }
   });
 
-  function executeExtensionCommand(stringCommand) {
+  function executeExtensionCommand(stringCommand, optional) {
     vscode.postMessage({
       type: "executeExplorVizCommand",
       command: stringCommand,
+      optional: optional
     });
   }
+
+ // Event delegation: listen to clicks on the tbody of the table within .table-wrapper
+ const wrapper = document.querySelector("#table-wrapper");
+ if(wrapper) {
+  const trs = wrapper.querySelectorAll('tr');
+  trs.forEach(tr => {
+    tr.addEventListener('click', () => {
+      const tokenValue = tr.getAttribute("data-token-value");
+      executeExtensionCommand("explorviz-vscode-extension.updateWebViewForJoinedDebugRoom", tokenValue);
+    });
+   });
+ }
+ 
 })();

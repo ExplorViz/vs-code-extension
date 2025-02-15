@@ -43,6 +43,14 @@
         "title": "ExplorViz: Disconnect from visualisation ..."
       },
       {
+        "command": "explorviz-vscode-extension.connectToBackend",
+        "title": "ExplorViz: Connect To Backend"
+      },
+      {
+        "command": "explorviz-vscode-extension.loadDebugRoomList",
+        "title": "ExplorViz: Load The Current Available Debug Session Rooms"
+      },
+      {
         "command": "explorviz-vscode-extension.startVisualizationForDebugSession",
         "title": "ExplorViz: Start Visualization For The Current Debug Session",
         "enablement": "explorviz.showStartVisualizationForDebugSessionCommand"
