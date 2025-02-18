@@ -122,7 +122,7 @@
   trs.forEach(tr => {
     tr.addEventListener('click', () => {
       const tokenValue = tr.getAttribute("data-token-value");
-      executeExtensionCommand("explorviz-vscode-extension.updateWebViewForJoinedDebugRoom", tokenValue);
+      executeExtensionCommand("explorviz-vscode-extension.updateWebViewForJoinedDebugSessionLandscape", tokenValue);
     });
    });
  }

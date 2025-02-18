@@ -113,18 +113,17 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
       </br>
 
-      ${renderStartVisualizationForDebugSessionButton()}
+      ${renderStartVisualizationForCurrentDebugSessionButton()}
 
       </br></br>
 
       ${renderSaveBreakpointButton()}
-
-      </br></br>
+      ` +
+      /*</br></br>
 
       ${renderOpenVizButton()}
 
       </br></br>
-
       ${renderConnectToVizButton()}
       </br>     
       </br>
@@ -137,9 +136,9 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       ${currentMode ?? "None"}
       </br>
       </br>
-
       ${renderCurrentIDERoom()}
-
+      */
+      `
 			<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
 			</html>`;
@@ -178,9 +177,9 @@ function renderDisconnectFromBackendButton() {
 }
  
 
-function renderStartVisualizationForDebugSessionButton() {
+function renderStartVisualizationForCurrentDebugSessionButton() {
   if(isInDebugSession) {
-    return "<button id='explorviz-visualize-debug-session-button'>Start Visualization For Debug Session</button>";
+    return "<button id='explorviz-visualize-debug-session-button'>Start Visualization For Current Debug Session</button>";
   }
   return "";
 }
@@ -210,7 +209,7 @@ function renderLoadDebugSessionLandscapesButton() {
     <table>
       <thead>
         <tr>
-          <th>Debug Room</th>
+          <th>Alias</th>
           <th>Project Name</th>
           <th>Commit Id</th>
           <th>No. of Breakpoints</th>
