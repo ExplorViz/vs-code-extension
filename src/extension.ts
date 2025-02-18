@@ -242,6 +242,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandCreateLandscapeForDebugSession();
   registerCancelConnectionSetup();
   registerCommandUpdateWebViewForJoinedDebugSessionLandscape();
+  registerCommandSaveBreakpoint();
 
   // #endregion
 
@@ -1002,6 +1003,18 @@ function registerCommandUpdateWebViewForJoinedDebugSessionLandscape() {
     });
   
     extensionContext!.subscriptions.push(updateWebViewForJoinedDebugSessionLandscape);
+}
+
+function registerCommandSaveBreakpoint() {
+  const saveBreakPoint = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.saveBreakpoint",
+    () => {
+      const timestamp = Date.now();
+      // Todo: how to handle if the user has made some "steps into" after reaching the breakpoint?
+      // => we don't call it save breakpoint but save current state! TODO: follow this approach and name change the feature for that
+    });
+  
+    extensionContext!.subscriptions.push(saveBreakPoint);
 }
 
 function registerCommandCreateLandscapeForDebugSession() {
