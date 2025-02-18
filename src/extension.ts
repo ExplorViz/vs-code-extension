@@ -86,6 +86,8 @@ export let connectedToVis: boolean = false;
 export let currentRoom: String | undefined;
 
 export let isInDebugSession: boolean = false;
+export let isInspectITClientAttached: boolean = false;
+
 export let currentDebugRooms: DebugRoomList | undefined = undefined;
 export let currentDebugRoom: DebugRoom | undefined = undefined;
 export let isDebugSessionStopped: boolean = false;
@@ -239,7 +241,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandDisconnectFromBackend();
   registerCommandCreateLandscapeForDebugSession();
   registerCancelConnectionSetup();
-  registerCommandUpdateWebViewForJoinedDebugRoom();
+  registerCommandUpdateWebViewForJoinedDebugSessionLandscape();
 
   // #endregion
 
@@ -922,8 +924,13 @@ function registerCommandStartVisualizationForDebugSession() {
   const startVisualizationForDebugSession = vscode.commands.registerCommand(
     "explorviz-vscode-extension.startVisualizationForDebugSession",
     async () => {
-      console.log('startVizsualizationForDebugSession');
       try {
+
+        if(!currentDebugRoom) {
+          vscode.window.showInformationMessage("Please join or create a landscape for this debug session");
+          return;
+        }
+
         const workspaceUri = vscode.debug.activeDebugSession?.workspaceFolder?.uri;
         if (!workspaceUri) {
           vscode.window.showErrorMessage("No debuggee workspace URI found!");
@@ -940,49 +947,18 @@ function registerCommandStartVisualizationForDebugSession() {
           return;
         }
 
+        if(currentDebugRoom.commitId !== currentCommit || 
+          currentDebugRoom.projectName !== vscode.debug.activeDebugSession?.workspaceFolder?.name) {
+            vscode.window.showInformationMessage("Please join a landscape that was created for your debug session");
+          }
+
         if (!socket || socket.disconnected) {
           vscode.window.showErrorMessage(
             `You must first connect to the backend!`
           );
           return;
         }
-
-        // TODO: send currentCommit and workspaceUri
-        socket.emit(
-          'check-frontend-connection', 
-          frontendHttp, 
-          async (payload: boolean | undefined) => {
-            const isConnected = payload;
-            if(!isConnected) {
-              vscode.window.showErrorMessage("Please go to the settings in the frontend of ExplorViz to connect it to our extension!");
-              return;
-            }
-
-            const debuggedAppPID = await  getDebuggedApplicationPID();
-            if(!debuggedAppPID) {
-              vscode.window.showErrorMessage("Unable to find the debuggee PID");
-              return;
-            }
-
-            const debugSessionName = await askForDebugRoomName();
-            if(!debugSessionName) {
-              vscode.window.showErrorMessage("No name for debug session provided!");
-              return;
-            }
-      
-            if(!(await didModifyBundledYmlFile(debugSessionName))) {
-              return;
-            }
-
-            vscode.window.showInformationMessage(`A room (${debugSessionName}) for this debug session has been successfully created!`);
-
-            //currentDebugRoomName = debugSessionName;
-            sessionViewProvider.refreshHTML();
-
-            // attach inspectIT Ocelot to debugged application
-            terminal.sendText(`java -jar ${extensionContext!.extensionPath}/ocelot/inspectit-ocelot-agent-2.6.5.jar ${debuggedAppPID} '{ "inspectit": { "config": { "file-based": {"path": "${extensionContext!.extensionPath}/ocelot" }}}}'`);
-      
-        });
+        attachInspectITClient();
       } catch (error) {
         vscode.window.showErrorMessage(
           `Some unexpected error happened: ${error}`
@@ -1017,19 +993,19 @@ function registerCommandDisconnectFromBackend() {
     extensionContext!.subscriptions.push(disconnectFromBackend);
 }
 
-function registerCommandUpdateWebViewForJoinedDebugRoom() {
-  const debugging = vscode.commands.registerCommand(
-    "explorviz-vscode-extension.updateWebViewForJoinedDebugRoom",
+function registerCommandUpdateWebViewForJoinedDebugSessionLandscape() {
+  const updateWebViewForJoinedDebugSessionLandscape = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.updateWebViewForJoinedDebugSessionLandscape",
     async (tokenValue: string) => {
       currentDebugRoom = currentDebugRooms?.find(room => room.value === tokenValue);
       sessionViewProvider.refreshHTML();
     });
   
-    extensionContext!.subscriptions.push(debugging);
+    extensionContext!.subscriptions.push(updateWebViewForJoinedDebugSessionLandscape);
 }
 
 function registerCommandCreateLandscapeForDebugSession() {
-  const createDebugRoom = vscode.commands.registerCommand(
+  const createLandscapeForDebugSession = vscode.commands.registerCommand(
     "explorviz-vscode-extension.createLandscapeForDebugSession",
     async () => {
       console.log("Create Debug Room");
@@ -1103,7 +1079,7 @@ function registerCommandCreateLandscapeForDebugSession() {
       });
     }
   );
-  extensionContext!.subscriptions.push(createDebugRoom);
+  extensionContext!.subscriptions.push(createLandscapeForDebugSession);
 }
 
 function registerCancelConnectionSetup() {
@@ -1185,6 +1161,14 @@ vscode.debug.onDidStartDebugSession( (session) => {
   sessionViewProvider.refreshHTML();
 });
 
+vscode.debug.onDidTerminateDebugSession( (session) => {
+  isInDebugSession = false;
+  // TODO: take multiple debug sessions from different workspaces into account
+  // (use a Map data structure for this with the workspace folder name as key)
+  isInspectITClientAttached = false;
+  sessionViewProvider.refreshHTML();
+});
+
 
 // handle stopped events to update extension UI for a button called: Save breakpoint
 vscode.debug.registerDebugAdapterTrackerFactory('java', {
@@ -1263,66 +1247,44 @@ async function askForWorkspaceFolder() {
   }
 }
 
- // modify yml file such that ocelot agent collects spans for the right landscape
-async function didModifyBundledYmlFile(debugSessionName: string): Promise<boolean> {
+async function attachInspectITClient() {
+
+  const debuggedAppPID = await  getDebuggedApplicationPID();
+    if(!debuggedAppPID) {
+      vscode.window.showErrorMessage("Unable to find the debuggee PID");
+      return;
+    }
+
   // Get the file path for the bundled YAML file
   const filePath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot", "inspectit.yml");
-  let ret = false;
   try {
     // Read the YAML file from the extension's directory
     const data = fs.readFileSync(filePath.fsPath, 'utf8');
     // Parse the YAML data into a JavaScript object
     let yamlData: InspectITConfig = load(data) as InspectITConfig;
 
-    const activeSession = vscode.debug.activeDebugSession;
-    if (!activeSession) {
-      vscode.window.showErrorMessage("Debug session has been closed!");
-      return false;
-    }
-    const workspaceFolder = activeSession.workspaceFolder;
-    if(!workspaceFolder) {
-      vscode.window.showErrorMessage("No workspace folder of this debug session found!");
-      return false;
-    }
-    
-    const alias = debugSessionName;
-    ret = await new Promise((resolve, reject) => {
-      socket.emit('create-landscape', alias, (tokenData: {value: string; secret: string;} | undefined) => {
+    console.log("current debug room:",currentDebugRoom);
 
-        console.log('Received tokenData: ', tokenData);
-        
-  
-        if(!tokenData?.value || !tokenData?.secret) {
-          vscode.window.showErrorMessage("Failed to create a landscape for this debug session");
-          resolve(false);
-          return;
-        }
-      
-        yamlData.inspectit.tags.extra["explorviz.token.id"] = tokenData.value;
-        yamlData.inspectit.tags.extra["explorviz.token.secret"] = tokenData.secret;
-        yamlData.inspectit.tags.extra["service.name"] = workspaceFolder.name;
-        yamlData.inspectit.tags.extra["landscape_token"] = tokenData.value;
-        yamlData.inspectit.tags.extra["token_secret"] = tokenData.secret;
-        yamlData.inspectit.tags.extra["application_name"] = workspaceFolder.name;
-  
-        //console.log("yamlData: ", yamlData);
-  
-        const newYamlText = dump(yamlData);
-      
-        // Now write the modified YAML back to the same file
-        fs.writeFileSync(filePath.fsPath, newYamlText, 'utf8');
+    // modify yml file such that ocelot agent collects spans for the right landscape
+    yamlData.inspectit.tags.extra["explorviz.token.id"] = currentDebugRoom!.value;
+    yamlData.inspectit.tags.extra["explorviz.token.secret"] = currentDebugRoom!.secret;
+    yamlData.inspectit.tags.extra["service.name"] = currentDebugRoom!.projectName;
+    yamlData.inspectit.tags.extra["landscape_token"] = currentDebugRoom!.value;
+    yamlData.inspectit.tags.extra["token_secret"] = currentDebugRoom!.secret;
+    yamlData.inspectit.tags.extra["application_name"] = currentDebugRoom!.projectName;
+    const newYamlText = dump(yamlData);  
+    // Now write the modified YAML back to the same file
+    fs.writeFileSync(filePath.fsPath, newYamlText, 'utf8');
 
-        // this may lead in an invocation for an update (see the updates-debug-room-list event) of the debug room list for all extension clients
-        // which are connected to our backend (and therefore our ExplorViz frontend)
-        socket.emit("retrieve-current-debug-room-list");
-        resolve(true);
-      });
-    });
+
+    // attach inspectIT Ocelot to debugged application
+    terminal.sendText(`java -jar ${extensionContext!.extensionPath}/ocelot/inspectit-ocelot-agent-2.6.5.jar ${debuggedAppPID} '{ "inspectit": { "config": { "file-based": {"path": "${extensionContext!.extensionPath}/ocelot" }}}}'`);
+    isInspectITClientAttached = true; // might not be true in case the above terminal command couldn't get executed (TODO: strict verification needed)
+    vscode.window.showInformationMessage("InspectIT Ocelot client attached!");
   } catch (error) {
+    vscode.window.showErrorMessage("Error during attachment of inspectIT Ocelot client");
     console.log("Error: ", error);
   }
-
-  return ret;
 }
 
 function checkForDebugSession() {
@@ -1359,7 +1321,8 @@ function onClickDebugRoom() {
 // TODOS:
 
 // - Color rooms that contain the commit id of your current active workspace in a separate color
-// TODO: column for workspace folder name (project name)
+// TODO: accumulate spans from one breakpoint to the next breakpoint (replace timeline with breakpoint line)
+//       => we need to adapt the span service TimestampLoader for an additional query statement to fetch the spans between newest and oldest timestamp
 // - Implement save breakpoint feature
 // - implement debug session replay and notify user when different variable values appear for the variables that got saved in a saved breakpoint
 // - fix a buggy behaviour after you start a debug session before explorviz extension got activated (by clicking its icon in the activity bar)
