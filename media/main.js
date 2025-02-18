@@ -48,6 +48,13 @@
     });
   }
 
+  const saveBreakpointButton = document.querySelector('#explorviz-save-breakpoint-button');
+  if (saveBreakpointButton) {
+    saveBreakpointButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.saveBreakpoint");
+    });
+  }
+
   const connectToVizButton = document.querySelector(
     "#explorviz-join-room-button"
   );
