@@ -48,9 +48,16 @@
     });
   }
 
-  const saveBreakpointButton = document.querySelector('#explorviz-save-breakpoint-button');
-  if (saveBreakpointButton) {
-    saveBreakpointButton.addEventListener("click", () => {
+  const deactivateButton = document.querySelector('#explorviz-deactivate-button');
+  if (deactivateButton) {
+    deactivateButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.stopVisualizationForDebugSession");
+    });
+  }
+
+  const saveCurrentStateButton = document.querySelector('#explorviz-save-current-state-button');
+  if (saveCurrentStateButton) {
+    saveCurrentStateButton.addEventListener("click", () => {
       executeExtensionCommand("explorviz-vscode-extension.saveBreakpoint");
     });
   }

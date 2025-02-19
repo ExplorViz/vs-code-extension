@@ -13,7 +13,8 @@ import {
   isConnectedToBackend,
   isLoading,
   backendHttp,
-  currentDebugRoom
+  currentDebugRoom,
+  isInspectITClientAttached
 } from "./extension";
 import { ModesEnum } from "./types";
 
@@ -113,7 +114,7 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
       </br>
 
-      ${renderStartVisualizationForCurrentDebugSessionButton()}
+      ${renderActivateDeactivateExplorVizButton()}
 
       </br></br>
 
@@ -177,16 +178,19 @@ function renderDisconnectFromBackendButton() {
 }
  
 
-function renderStartVisualizationForCurrentDebugSessionButton() {
-  if(isInDebugSession) {
-    return "<button id='explorviz-visualize-debug-session-button'>Start Visualization For Current Debug Session</button>";
+function renderActivateDeactivateExplorVizButton() {
+  if( isConnectedToBackend && isInDebugSession && !isInspectITClientAttached) {
+    return "<button id='explorviz-visualize-debug-session-button'>Activate ExplorViz For Current Debug Session</button>";
+  }
+  if(isConnectedToBackend && isInDebugSession && isInspectITClientAttached){
+    return "<p>ExplorViz is activated for the current debug session</p>";//"<button id='explorviz-deactivate-button'>Deactivate ExplorViz For Current Debug Session</button>";
   }
   return "";
 }
 
 function renderSaveBreakpointButton() {
-  if(isDebugSessionStopped) {
-    return "<button id='explorviz-save-breakpoint-button'>Save Breakpoint</button>";
+  if(isDebugSessionStopped && isInspectITClientAttached) {
+    return "<button id='explorviz-save-current-state-button'>Save Current State</button>";
   }
   return "";
 }
@@ -238,7 +242,12 @@ function renderLoadDebugSessionLandscapesButton() {
     </table>
   </div>
   `;
-  return temp;
+
+  if(isConnectedToBackend) {
+    return temp;
+  }else {
+    return "";
+  }
 }
 
 function renderConnectToVizButton() {
