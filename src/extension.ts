@@ -236,6 +236,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandWebview();
   registerCommandDisconnectFromRoom();
   registerCommandStartVisualizationForDebugSession();
+  registerCommandStopVisualizationForDebugSession();
   registerCommandLoadDebugSessionLandscapes();
   registerCommandConnectToBackend();
   registerCommandDisconnectFromBackend();
@@ -919,13 +920,18 @@ export function setShowPairProgrammingHTML(value: boolean) {
 // #region Debug Session Feature 
 
 /**
- * Command which is executed when the "Visualize Current Debug Session" button from the IDE is triggered
+ * Command which is executed when the "Activate ExplorViz For Current Debug Session" button from the IDE is triggered
  */
 function registerCommandStartVisualizationForDebugSession() {
   const startVisualizationForDebugSession = vscode.commands.registerCommand(
     "explorviz-vscode-extension.startVisualizationForDebugSession",
     async () => {
       try {
+
+        if(isInspectITClientAttached) {
+          vscode.window.showInformationMessage("ExplorViz already activated for this debug session!");
+          return;
+        }
 
         if(!currentDebugRoom) {
           vscode.window.showInformationMessage("Please join or create a landscape for this debug session");
@@ -959,7 +965,8 @@ function registerCommandStartVisualizationForDebugSession() {
           );
           return;
         }
-        attachInspectITClient();
+        await attachInspectITClient();
+        sessionViewProvider.refreshHTML();
       } catch (error) {
         vscode.window.showErrorMessage(
           `Some unexpected error happened: ${error}`
@@ -969,6 +976,22 @@ function registerCommandStartVisualizationForDebugSession() {
     }
   );
   extensionContext!.subscriptions.push(startVisualizationForDebugSession);
+}
+
+/**
+ * Command which is executed when the "Deactivate ExplorViz For Current Debug Session" button from the IDE is triggered
+ */
+function registerCommandStopVisualizationForDebugSession() {
+  const stopVisualizationForDebugSession = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.stopVisualizationForDebugSession",
+    () => {
+      vscode.window.showInformationMessage("TODO");
+
+      isInspectITClientAttached = false;
+      sessionViewProvider.refreshHTML();
+    }
+  );
+  extensionContext!.subscriptions.push(stopVisualizationForDebugSession);
 }
 
 function registerCommandConnectToBackend() {
@@ -1006,12 +1029,53 @@ function registerCommandUpdateWebViewForJoinedDebugSessionLandscape() {
 }
 
 function registerCommandSaveBreakpoint() {
+  // Things to consider regarding the replay feature (to be implemented): 
+  // - saving a breakpoint that was added during a breakpoint session (by the user or conditional breakpoints)
   const saveBreakPoint = vscode.commands.registerCommand(
     "explorviz-vscode-extension.saveBreakpoint",
     () => {
+
+      // we still need to check this because our save state function could
+      // be called from within the command panel
+      if(!isDebugSessionStopped) {
+        return;
+      }
+
+      if(!currentDebugRoom) {
+        vscode.window.showInformationMessage("Please join a debug room!");
+        return;
+      }
+
+      if(!isInspectITClientAttached) {
+        vscode.window.showInformationMessage("Please activate ExplorViz for the current debug session!");
+        return;
+      }
       const timestamp = Date.now();
+      console.log("save current state");
       // Todo: how to handle if the user has made some "steps into" after reaching the breakpoint?
-      // => we don't call it save breakpoint but save current state! TODO: follow this approach and name change the feature for that
+      // => we don't call it save breakpoint but save current state!
+
+      socket.emit(
+        'check-frontend-connection', 
+        frontendHttp, 
+        (payload: boolean | undefined) => {
+          const isConnected = payload;
+
+          if(!isConnected) {
+            vscode.window.showErrorMessage("Please go to the settings in the frontend of ExplorViz to connect it to our extension!");
+            return;
+          }
+
+          socket.emit('save-current-state', currentDebugRoom!.value, timestamp, (success: boolean) => {
+            if(success) {
+              vscode.window.showInformationMessage('Current state has been saved!');
+            }else {
+              vscode.window.showErrorMessage('Unable to save current state!');
+            }
+          });
+
+
+        });
     });
   
     extensionContext!.subscriptions.push(saveBreakPoint);
@@ -1189,6 +1253,14 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
     return {
       onWillReceiveMessage: m => {
        // console.log(`> ${JSON.stringify(m, undefined, 2)}`);
+       if(m?.command) {
+          switch(m.command) {
+            case "continue":
+              isDebugSessionStopped = false;
+              sessionViewProvider.refreshHTML();
+              break;
+          }
+       }
       },
       onDidSendMessage: m => {
        // console.log(`< ${JSON.stringify(m, undefined, 2)}`);
@@ -1209,6 +1281,7 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
                 m?.body?.reason === "instruction breakpoint"
               ) {
                 isDebugSessionStopped = true;
+                sessionViewProvider.refreshHTML();
                 // todo: save breakpoint feature => save state (selection of which variables to save needed)
               }
               break;
