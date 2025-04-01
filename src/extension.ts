@@ -5,6 +5,7 @@ import io, { Socket } from "socket.io-client";
 import * as fs from "fs";
 import os from "os";
 import { load, dump } from "js-yaml";
+import * as path from "path";
 
 import {
   FoundationOccurrences,
@@ -51,6 +52,8 @@ const username = process.env.VSCODE_EXP_USERNAME;
 const homedir = os.homedir();
 const pathToState = `${homedir}/explorviz-experiment-logging.csv`;
 
+let jdkBinPath: string | undefined = undefined;
+
 
 // import * as vsls from 'vsls';
 // import { getApi } from "vsls";
@@ -96,7 +99,6 @@ export let isLoading: boolean = false;
 
 
 let debuggedAppPID: number | undefined;
-const terminal = getTerminal();
 
 // used to check wether the selected debug room is from our workspace
 let git: API | undefined = undefined;
@@ -259,6 +261,8 @@ export async function activate(context: vscode.ExtensionContext) {
     console.log(error);
   }
 
+  console.log(process.env.PATH);
+  console.log(process.env.JAVA_HOME);
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
   );
@@ -1193,6 +1197,7 @@ function registerCommandLoadDebugSessionLandscapes() {
       }
 
       socket.emit("load-debug-room-list", (debugRoomList?: DebugRoomList) => {
+        console.log("debug room list", debugRoomList);
         currentDebugRooms = debugRoomList;
         if(!debugRoomList) {
           vscode.window.showInformationMessage("No debug room list received. Make sure that the frontend of ExplorViz is connected to the VSCode backend");
@@ -1306,8 +1311,25 @@ function saveBreakpoint() {
   //socket.emit("create-breakpoint", );
 } 
 
-function getTerminal(): vscode.Terminal {
-	return vscode.window.createTerminal('explorviz-terminal'); // TODO: reuse if already existing
+function getTerminal(path?: string): vscode.Terminal {
+  // Dynamically resolve the Java bin path using JAVA_HOME
+  const javaHome = process.env.JAVA_HOME;
+  if (!path && !javaHome) {
+      vscode.window.showErrorMessage("JAVA_HOME is not set. Please configure it in your system environment variables.");
+      throw new Error("JAVA_HOME is not set.");
+  }
+
+  const javaBinPath = javaHome ? `${javaHome}\\bin` : path; // Construct the path to the Java bin directory
+  const options = {
+    name: "Command Prompt with Java",
+    shellPath: "cmd.exe",
+    env: {
+        PATH: `${javaBinPath};${process.env.PATH}` // Prepend Java's bin directory to the PATH
+    }
+  };
+  console.log("options", options);
+  const terminal = vscode.window.createTerminal(options);
+  return terminal;
 }
 
 function askForDebugRoomName() {
@@ -1364,12 +1386,22 @@ async function attachInspectITClient() {
 
 
     // attach inspectIT Ocelot to debugged application
-    terminal.sendText(`java -jar ${extensionContext!.extensionPath}/ocelot/inspectit-ocelot-agent-2.6.5.jar ${debuggedAppPID} '{ "inspectit": { "config": { "file-based": {"path": "${extensionContext!.extensionPath}/ocelot" }}}}'`);
+    const terminal = getTerminal(jdkBinPath);
+    const ocelotPath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot");
+    const ocelotJarPath = vscode.Uri.joinPath(ocelotPath, "inspectit-ocelot-agent-2.6.5.jar");
+    terminal.sendText(`java -jar ${ocelotJarPath.fsPath} ${debuggedAppPID} "{ \"inspectit\": { \"config\": { \"file-based\": {\"path\": \"${ocelotPath.fsPath}\" }}}}"`);
     isInspectITClientAttached = true; // might not be true in case the above terminal command couldn't get executed (TODO: strict verification needed)
     vscode.window.showInformationMessage("InspectIT Ocelot client attached!");
-  } catch (error) {
+  } catch (error: any) {
+    if(error.message) {
+      switch(error.message) {
+        case "JAVA_HOME is not set.":
+          jdkBinPath = await askUserForJDKPath();
+          console.log("jdkBinPath", jdkBinPath);
+          break;
+      }
+    }
     vscode.window.showErrorMessage("Error during attachment of inspectIT Ocelot client");
-    console.log("Error: ", error);
   }
 }
 
@@ -1387,6 +1419,37 @@ function checkForDebugSession() {
     // Needed to adapt the "ExplorViz: Session Information"-webview to include debug session related UI
     isInDebugSession = true;
     sessionViewProvider.refreshHTML();
+  }
+}
+
+async function askUserForJDKPath(): Promise<string | undefined> {
+  const options: vscode.OpenDialogOptions = {
+      canSelectMany: false,
+      canSelectFolders: true, // Allow folder selection
+      canSelectFiles: false, // Disallow file selection
+      openLabel: "Select JDK Folder",
+      title: "Select the folder containing your JDK installation",
+  };
+
+  const selectedFolder = await vscode.window.showOpenDialog(options);
+
+  if (selectedFolder && selectedFolder.length > 0) {
+      const jdkPath = selectedFolder[0].fsPath;
+      const javaBinPath = path.join(jdkPath, "bin");
+
+      // Check if the selected folder contains the `bin` directory
+      if (!javaBinPath || !javaBinPath.endsWith("bin")) {
+          vscode.window.showErrorMessage(
+              "The selected folder does not appear to be a valid JDK installation. Please select the correct folder."
+          );
+          return undefined;
+      }
+
+      vscode.window.showInformationMessage(`JDK Path Selected: ${jdkPath}`);
+      return javaBinPath;
+  } else {
+      vscode.window.showWarningMessage("No folder was selected.");
+      return undefined;
   }
 }
 
