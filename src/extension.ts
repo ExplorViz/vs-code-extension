@@ -6,6 +6,7 @@ import * as fs from "fs";
 import os from "os";
 import { load, dump } from "js-yaml";
 import * as path from "path";
+import { exec } from "child_process";
 
 import {
   FoundationOccurrences,
@@ -261,8 +262,8 @@ export async function activate(context: vscode.ExtensionContext) {
     console.log(error);
   }
 
-  console.log(process.env.PATH);
-  console.log(process.env.JAVA_HOME);
+  console.log("path: ", process.env.PATH);
+  console.log("home: ", process.env.JAVA_HOME);
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
   );
@@ -1311,25 +1312,36 @@ function saveBreakpoint() {
   //socket.emit("create-breakpoint", );
 } 
 
-function getTerminal(path?: string): vscode.Terminal {
-  // Dynamically resolve the Java bin path using JAVA_HOME
-  const javaHome = process.env.JAVA_HOME;
-  if (!path && !javaHome) {
-      vscode.window.showErrorMessage("JAVA_HOME is not set. Please configure it in your system environment variables.");
-      throw new Error("JAVA_HOME is not set.");
-  }
 
-  const javaBinPath = javaHome ? `${javaHome}\\bin` : path; // Construct the path to the Java bin directory
-  const options = {
-    name: "Command Prompt with Java",
-    shellPath: "cmd.exe",
-    env: {
-        PATH: `${javaBinPath};${process.env.PATH}` // Prepend Java's bin directory to the PATH
-    }
-  };
-  console.log("options", options);
-  const terminal = vscode.window.createTerminal(options);
-  return terminal;
+function checkJavaInstalled() {
+  return new Promise<boolean>((resolve, reject) => {
+      exec('java --version', (error, stdout, stderr) => {
+          if (error) {
+              console.log(`Java not found: ${stderr}`);
+              reject(`Java not found: ${stderr}`);
+          } else {
+              console.log('Java is installed');
+              resolve(true);
+          }
+      });
+  });
+}
+
+function attachOcelotAgent() {
+  return new Promise<boolean>((resolve, reject) => {
+    const ocelotPath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot");
+    const ocelotJarPath = vscode.Uri.joinPath(ocelotPath, "inspectit-ocelot-agent-2.6.5.jar");
+    const commandString = `java -jar ${ocelotJarPath.fsPath} ${debuggedAppPID} "{ \"inspectit\": { \"config\": { \"file-based\": {\"path\": \"${ocelotPath.fsPath}\" }}}}"`;
+    exec(commandString, (error, stdout, stderr) => {
+        if (error) {
+            console.log(`Ocelot : ${stderr}`);
+            reject(`Ocelot : ${stderr}`);
+        } else {
+            console.log('Ocelot attached');
+            resolve(true);
+        }
+    });
+});
 }
 
 function askForDebugRoomName() {
@@ -1386,22 +1398,13 @@ async function attachInspectITClient() {
 
 
     // attach inspectIT Ocelot to debugged application
-    const terminal = getTerminal(jdkBinPath);
-    const ocelotPath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot");
-    const ocelotJarPath = vscode.Uri.joinPath(ocelotPath, "inspectit-ocelot-agent-2.6.5.jar");
-    terminal.sendText(`java -jar ${ocelotJarPath.fsPath} ${debuggedAppPID} "{ \"inspectit\": { \"config\": { \"file-based\": {\"path\": \"${ocelotPath.fsPath}\" }}}}"`);
+    await checkJavaInstalled();
+    await attachOcelotAgent();
+    
     isInspectITClientAttached = true; // might not be true in case the above terminal command couldn't get executed (TODO: strict verification needed)
     vscode.window.showInformationMessage("InspectIT Ocelot client attached!");
   } catch (error: any) {
-    if(error.message) {
-      switch(error.message) {
-        case "JAVA_HOME is not set.":
-          jdkBinPath = await askUserForJDKPath();
-          console.log("jdkBinPath", jdkBinPath);
-          break;
-      }
-    }
-    vscode.window.showErrorMessage("Error during attachment of inspectIT Ocelot client");
+    vscode.window.showErrorMessage("Error during attachment of inspectIT Ocelot client: " + error.message);
   }
 }
 
