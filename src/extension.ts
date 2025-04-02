@@ -262,8 +262,6 @@ export async function activate(context: vscode.ExtensionContext) {
     console.log(error);
   }
 
-  console.log("path: ", process.env.PATH);
-  console.log("home: ", process.env.JAVA_HOME);
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
   );
@@ -1258,7 +1256,7 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
   createDebugAdapterTracker(session: vscode.DebugSession) {
     return {
       onWillReceiveMessage: m => {
-       // console.log(`> ${JSON.stringify(m, undefined, 2)}`);
+       console.log(`> ${JSON.stringify(m, undefined, 2)}`);
        if(m?.command) {
           switch(m.command) {
             case "continue":
@@ -1269,7 +1267,7 @@ vscode.debug.registerDebugAdapterTrackerFactory('java', {
        }
       },
       onDidSendMessage: m => {
-       // console.log(`< ${JSON.stringify(m, undefined, 2)}`);
+       console.log(`< ${JSON.stringify(m, undefined, 2)}`);
 
         if(m?.event) {
           switch(m.event) {
@@ -1383,8 +1381,6 @@ async function attachInspectITClient() {
     // Parse the YAML data into a JavaScript object
     let yamlData: InspectITConfig = load(data) as InspectITConfig;
 
-    console.log("current debug room:",currentDebugRoom);
-
     // modify yml file such that ocelot agent collects spans for the right landscape
     yamlData.inspectit.tags.extra["explorviz.token.id"] = currentDebugRoom!.value;
     yamlData.inspectit.tags.extra["explorviz.token.secret"] = currentDebugRoom!.secret;
@@ -1400,8 +1396,8 @@ async function attachInspectITClient() {
     // attach inspectIT Ocelot to debugged application
     await checkJavaInstalled();
     await attachOcelotAgent();
-    
-    isInspectITClientAttached = true; // might not be true in case the above terminal command couldn't get executed (TODO: strict verification needed)
+
+    isInspectITClientAttached = true;
     vscode.window.showInformationMessage("InspectIT Ocelot client attached!");
   } catch (error: any) {
     vscode.window.showErrorMessage("Error during attachment of inspectIT Ocelot client: " + error.message);
