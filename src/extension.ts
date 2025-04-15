@@ -1050,7 +1050,7 @@ function registerCommandSaveBreakpoint() {
       }
 
       if(!isInspectITClientAttached) {
-        vscode.window.showInformationMessage("Please activate ExplorViz for the current debug session!");
+        vscode.window.showInformationMessage("Please initiate monitoring for this debug session!");
         return;
       }
       const timestamp = Date.now();

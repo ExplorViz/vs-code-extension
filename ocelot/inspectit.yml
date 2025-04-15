@@ -1,13 +1,13 @@
 inspectit:
   tags:
     extra:
-      explorviz.token.id: 89261439-0d98-4910-a5ed-44fde01eb976
-      explorviz.token.secret: B7sWn0kHa0yjzn7X
+      explorviz.token.id: 27bdf79c-c568-49a2-8c22-cea04e00324f
+      explorviz.token.secret: jhQWL0HsJhAK83RS
       service.name: spring-petclinic
       service.instance.id: '0'
       telemetry.sdk.language: java
-      landscape_token: 89261439-0d98-4910-a5ed-44fde01eb976
-      token_secret: B7sWn0kHa0yjzn7X
+      landscape_token: 27bdf79c-c568-49a2-8c22-cea04e00324f
+      token_secret: jhQWL0HsJhAK83RS
       application_name: spring-petclinic
       application_instance_id: 0
       application_language: java

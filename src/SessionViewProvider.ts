@@ -180,7 +180,7 @@ function renderDisconnectFromBackendButton() {
 
 function renderActivateDeactivateExplorVizButton() {
   if( isConnectedToBackend && isInDebugSession && !isInspectITClientAttached) {
-    return "<button id='explorviz-visualize-debug-session-button'>Activate ExplorViz For Current Debug Session</button>";
+    return "<button id='explorviz-visualize-debug-session-button'>Initiate Monitoring For This Debug Session</button>";
   }
   if(isConnectedToBackend && isInDebugSession && isInspectITClientAttached){
     return "<p>ExplorViz is activated for the current debug session</p>";//"<button id='explorviz-deactivate-button'>Deactivate ExplorViz For Current Debug Session</button>";
@@ -215,9 +215,10 @@ function renderLoadDebugSessionLandscapesButton() {
         <tr>
           <th>Alias</th>
           <th>Project Name</th>
-          <th>Commit Id</th>
-          <th>No. of Breakpoints</th>
-        </tr>
+          <th>Commit Id</th>`
+          +
+          //<th>No. of Breakpoints</th>
+        `</tr>
       </thead>
       <tbody>
     `;
@@ -225,7 +226,7 @@ function renderLoadDebugSessionLandscapesButton() {
 
   if(currentDebugRoom) {
     temp += `
-      <tr data-token-value="${currentDebugRoom.value}" class="current-room"><td>${currentDebugRoom.alias}</td><td>${currentDebugRoom.projectName}</td><td>${currentDebugRoom.commitId}</td><td>TODO</td></tr>
+      <tr data-token-value="${currentDebugRoom.value}" class="current-room"><td>${currentDebugRoom.alias}</td><td>${currentDebugRoom.projectName}</td><td>${currentDebugRoom.commitId}</td>` + /*<td>TODO</td>*/`</tr>
       `;
   }
 
@@ -234,7 +235,7 @@ function renderLoadDebugSessionLandscapesButton() {
       if(room.alias === currentDebugRoom?.alias){
         continue;
       }
-      temp += `<tr data-token-value="${room.value}"><td>${room.alias}</td><td>${room.projectName}</td><td>${room.commitId}</td><td>TODO</td></tr>`;
+      temp += `<tr data-token-value="${room.value}"><td>${room.alias}</td><td>${room.projectName}</td><td>${room.commitId}</td>` + /*<td>TODO</td>*/`</tr>`;
     }
   }
    temp += `
