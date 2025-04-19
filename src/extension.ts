@@ -941,26 +941,6 @@ function registerCommandStartVisualizationForDebugSession() {
           return;
         }
 
-        const workspaceUri = vscode.debug.activeDebugSession?.workspaceFolder?.uri;
-        if (!workspaceUri) {
-          vscode.window.showErrorMessage("No debuggee workspace URI found!");
-          return;
-        }
-        const repository = git?.getRepository(workspaceUri);
-        const currentCommit = repository?.state.HEAD?.commit;
-
-        // only create a debug session room for workspaces that are controlled by a VCS
-        // Why? So we can replay the debug session for the right code base 
-        // (=> feature to be implemented soon, ofc there are things like non-determinism to consider)
-        if(!currentCommit) {
-          vscode.window.showInformationMessage("No commit for this workspace found! Please make sure that your workspace uses a VCS");
-          return;
-        }
-
-        if(currentDebugRoom.commitId !== currentCommit || 
-          currentDebugRoom.projectName !== vscode.debug.activeDebugSession?.workspaceFolder?.name) {
-            vscode.window.showInformationMessage("Please join a landscape that was created for your debug session");
-          }
 
         if (!socket || socket.disconnected) {
           vscode.window.showErrorMessage(
@@ -1023,8 +1003,36 @@ function registerCommandDisconnectFromBackend() {
 function registerCommandUpdateWebViewForJoinedDebugSessionLandscape() {
   const updateWebViewForJoinedDebugSessionLandscape = vscode.commands.registerCommand(
     "explorviz-vscode-extension.updateWebViewForJoinedDebugSessionLandscape",
-    async (tokenValue: string) => {
-      currentDebugRoom = currentDebugRooms?.find(room => room.value === tokenValue);
+    async (obj: any) => {
+
+      console.log("obj", obj);
+
+      const workspaceFolder = await askForWorkspaceFolder();
+      if (!workspaceFolder) {
+        vscode.window.showErrorMessage("No workspace folder selected.");
+        return;
+      }
+      const workspaceUri = workspaceFolder.uri;
+      if (!workspaceUri) {
+        vscode.window.showErrorMessage("No debuggee workspace URI found!");
+        return;
+      }
+      const repository = git?.getRepository(workspaceUri);
+      const currentCommit = repository?.state.HEAD?.commit;
+
+      // only join a debug session room for workspaces that are controlled by a VCS so we
+      // can be sure that snapshots are added to the right landscapes
+      if(!currentCommit) {
+        vscode.window.showInformationMessage("No commit for this workspace found! Please make sure that your workspace uses a VCS");
+        return;
+      }
+
+      if(obj.commitId !== currentCommit) {
+        vscode.window.showWarningMessage("Please join a landscape that was created for your workspace project");
+        return;
+      }
+      currentDebugRoom = currentDebugRooms?.find(room => room.value === obj.tokenValue);
+
       sessionViewProvider.refreshHTML();
     });
   
@@ -1348,21 +1356,29 @@ function askForDebugRoomName() {
   });
 }
 
-async function askForWorkspaceFolder() {
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (workspaceFolders && workspaceFolders.length > 0) {
+async function askForWorkspaceFolder(): Promise<vscode.WorkspaceFolder | undefined> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+        vscode.window.showInformationMessage('No workspace folders are open.');
+        return undefined;
+    }
+
+    if (workspaceFolders.length === 1) {
+        // Automatically return the only workspace folder
+        return workspaceFolders[0];
+    }
+
+    // Prompt the user to pick a workspace folder if there are multiple
     const folder = await vscode.window.showWorkspaceFolderPick({
-        placeHolder: 'Select a workspace folder'
+        placeHolder: 'Select a workspace folder',
     });
 
-    if(!folder) {
-      vscode.window.showInformationMessage('No workspace folder selected.');
+    if (!folder) {
+        vscode.window.showInformationMessage('No workspace folder selected.');
     }
+
     return folder;
-  } else {
-    vscode.window.showInformationMessage('No workspace folders are open.');
-    return undefined;
-  }
 }
 
 async function attachInspectITClient() {

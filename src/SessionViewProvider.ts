@@ -8,7 +8,6 @@ import {
   currentRoom,
   isInDebugSession,
   isDebugSessionStopped,
-  currentDebugRoomName,
   currentDebugRooms,
   isConnectedToBackend,
   isLoading,
@@ -234,7 +233,7 @@ function renderLoadDebugSessionLandscapesButton() {
       if(room.alias === currentDebugRoom?.alias){
         continue;
       }
-      temp += `<tr data-token-value="${room.value}"><td>${room.alias}</td><td>${room.projectName}</td><td>${room.commitId}</td><td>TODO</td></tr>`;
+      temp += `<tr data-token-value="${room.value}" data-commit-id="${room.commitId}"><td>${room.alias}</td><td>${room.projectName}</td><td>${room.commitId}</td><td>TODO</td></tr>`;
     }
   }
    temp += `
