@@ -1483,7 +1483,7 @@ function onClickDebugRoom() {
 
 
 // TODOS:
-
+// Wenn Landscape gewechselt wird, dann muss Ocelot (wenn er denn gerade läuft) neu gestartet werden, damit das richtige landscape token verwendet wird
 // - Color rooms that contain the commit id of your current active workspace in a separate color
 // TODO: accumulate spans from one breakpoint to the next breakpoint (replace timeline with breakpoint line)
 //       => we need to adapt the span service TimestampLoader for an additional query statement to fetch the spans between newest and oldest timestamp
