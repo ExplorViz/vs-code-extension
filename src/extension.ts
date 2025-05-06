@@ -230,6 +230,61 @@ export async function activate(context: vscode.ExtensionContext) {
   // connection with backend
   connectWithBackendSocket();
 
+  // covers the case in which a debug session
+  // has already been started before the extension was activated
+  checkForDebugSession();
+  // handle stopped events to update extension UI for a button called: Save breakpoint
+  vscode.debug.registerDebugAdapterTrackerFactory('java', {
+    createDebugAdapterTracker(session: vscode.DebugSession) {
+      return {
+        onWillReceiveMessage: m => {
+        console.log(`> ${JSON.stringify(m, undefined, 2)}`);
+        if(m?.command) {
+            switch(m.command) {
+              case "continue":
+                isDebugSessionStopped = false;
+                sessionViewProvider.refreshHTML();
+                break;
+            }
+        }
+        },
+        onDidSendMessage: m => {
+        console.log(`< ${JSON.stringify(m, undefined, 2)}`);
+
+          if(m?.event) {
+            switch(m.event) {
+
+              case "processid":
+                if(m?.body?.processId) {
+                  debuggedAppPID = m.body.processId;
+                }
+                break;
+              case "stopped":
+                if(
+                  m?.body?.reason === "breakpoint" || 
+                  m?.body?.reason === "data breakpoint" || 
+                  m?.body?.reason === "function breakpoint" || 
+                  m?.body?.reason === "instruction breakpoint"
+                ) {
+                  isDebugSessionStopped = true;
+                  sessionViewProvider.refreshHTML();
+                  // todo: save breakpoint feature => save state (selection of which variables to save needed)
+                }
+                break;
+              case "step":
+                break;
+              case "entry":
+                break;
+              case "goto":
+                break;
+            }
+          }
+
+        }
+      };
+    }
+  });
+
   // #region Commands Registration (Shift + p for commands search)
 
   registerCommandOpenInExplorViz();
@@ -250,9 +305,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // #endregion
 
-  // covers the case in which a debug session
-  // has already been started before the extension was activated
-  checkForDebugSession();
 
   // https://github.com/microsoft/vscode/tree/main/extensions/git
   const gitExtension = vscode.extensions.getExtension<GitExtension>('vscode.git')?.exports;
@@ -1225,7 +1277,7 @@ function getDebuggedApplicationPID(): Promise<number|undefined> {
   return new Promise<number|undefined>((resolve) => {
     let counter = 0;
     const interval = setInterval(() => {
-      if((debuggedAppPID !== undefined) || counter === 1000) {
+      if((debuggedAppPID !== undefined) || counter === 50) {
         clearInterval(interval);
         resolve(debuggedAppPID);
       }
@@ -1258,58 +1310,6 @@ vscode.debug.onDidTerminateDebugSession( (session) => {
   sessionViewProvider.refreshHTML();
 });
 
-
-// handle stopped events to update extension UI for a button called: Save breakpoint
-vscode.debug.registerDebugAdapterTrackerFactory('java', {
-  createDebugAdapterTracker(session: vscode.DebugSession) {
-    return {
-      onWillReceiveMessage: m => {
-       console.log(`> ${JSON.stringify(m, undefined, 2)}`);
-       if(m?.command) {
-          switch(m.command) {
-            case "continue":
-              isDebugSessionStopped = false;
-              sessionViewProvider.refreshHTML();
-              break;
-          }
-       }
-      },
-      onDidSendMessage: m => {
-       console.log(`< ${JSON.stringify(m, undefined, 2)}`);
-
-        if(m?.event) {
-          switch(m.event) {
-
-            case "processid":
-              if(m?.body?.processId) {
-                debuggedAppPID = m.body.processId;
-              }
-              break;
-            case "stopped":
-              if(
-                m?.body?.reason === "breakpoint" || 
-                m?.body?.reason === "data breakpoint" || 
-                m?.body?.reason === "function breakpoint" || 
-                m?.body?.reason === "instruction breakpoint"
-              ) {
-                isDebugSessionStopped = true;
-                sessionViewProvider.refreshHTML();
-                // todo: save breakpoint feature => save state (selection of which variables to save needed)
-              }
-              break;
-            case "step":
-              break;
-            case "entry":
-              break;
-            case "goto":
-              break;
-          }
-        }
-
-      }
-    };
-  }
-});
 
 // should only be called when our program execution is stopped. TODO: what happens when we call it after we made a few next steps from a breakpoint?
 function saveBreakpoint() {
@@ -1385,7 +1385,7 @@ async function attachInspectITClient() {
 
   const debuggedAppPID = await  getDebuggedApplicationPID();
     if(!debuggedAppPID) {
-      vscode.window.showErrorMessage("Unable to find the debuggee PID");
+      vscode.window.showErrorMessage("Unable to find the debuggee PID. Please restart the debugger and try again! (Ctrl + Shift + F5)");
       return;
     }
 
@@ -1411,6 +1411,7 @@ async function attachInspectITClient() {
 
     // attach inspectIT Ocelot to debugged application
     await checkJavaInstalled();
+
     await attachOcelotAgent();
 
     isInspectITClientAttached = true;
@@ -1484,6 +1485,8 @@ function onClickDebugRoom() {
 
 // TODOS:
 
+// TODO: manchmal wird PID zum attachen nicht gefunden -> explorviz extension muss vor dem starten der debug session geöffnet worden sein
+// TODO: um es den user einfacher zu machen sollte es ein menü in der explorviz extension geben, in welcher der debugger ebenfalls gestartet werden kann
 // - Color rooms that contain the commit id of your current active workspace in a separate color
 // TODO: accumulate spans from one breakpoint to the next breakpoint (replace timeline with breakpoint line)
 //       => we need to adapt the span service TimestampLoader for an additional query statement to fetch the spans between newest and oldest timestamp
