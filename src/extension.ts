@@ -53,6 +53,8 @@ const username = process.env.VSCODE_EXP_USERNAME;
 const homedir = os.homedir();
 const pathToState = `${homedir}/explorviz-experiment-logging.csv`;
 
+const ackTimeoutMs = 4000;
+
 let jdkBinPath: string | undefined = undefined;
 
 
@@ -165,7 +167,7 @@ export async function activate(context: vscode.ExtensionContext) {
       // save delta for ide, since now iFrame is inFocus
       if (ideUsageTimerStart) {
         const latestUsageTime = ideUsageTimerEnd - ideUsageTimerStart;
-        const timeEvent = `${username},ide,${ideUsageTimerStart},${latestUsageTime}\r\n`;
+        const timeEvent = `${username},ide,${ideUsageTimerStart},${latestUsageTimer}\r\n`;
         fs.appendFileSync(pathToState, timeEvent);
       }
       return;
@@ -178,7 +180,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // save delta for iFrame, since now ide is inFocus
     if (iFrameUsageTimerStart) {
       const latestUsageTime = iFrameUsageTimerEnd - iFrameUsageTimerStart;
-      const timeEvent = `${username},viz,${iFrameUsageTimerStart},${latestUsageTime}\r\n`;
+      const timeEvent = `${username},viz,${iFrameUsageTimerStart},${latestUsageTimer}\r\n`;
       fs.appendFileSync(pathToState, timeEvent);
     }
 
@@ -823,7 +825,7 @@ async function connectToRoomWebsocket() {
 function setConnectedToVis(b: boolean) {
   connectedToVis = b;
   /* extensionContext != webviewContext
-    => The WebView does not get to be re-build.
+    => The WebView does not get to be re-built.
     => We also need to refresh the WebViewContext.
   */
   sessionViewProvider.refreshHTML();
@@ -1246,28 +1248,80 @@ function registerCancelConnectionSetup() {
 function registerCommandLoadDebugSessionLandscapes() {
   const loadDebugSessionLandscapes = vscode.commands.registerCommand(
     "explorviz-vscode-extension.loadDebugSessionLandscapes",
-    () => {
+    async () => {
 
-      if (!socket || socket.disconnected) {
+      console.log("Load Debug Session Landscapes");
+
+      if (!socket) {
+        console.log("socket is undefined");
         vscode.window.showErrorMessage(
-          `You must first connect to the backend!`
+          `Socket is not initialized. You must first connect to the backend!`
         );
         return;
       }
 
-      socket.emit("load-debug-room-list", (debugRoomList?: DebugRoomList) => {
-        console.log("debug room list", debugRoomList);
-        currentDebugRooms = debugRoomList;
-        if(!debugRoomList) {
-          vscode.window.showInformationMessage("No debug room list received. Make sure that the frontend of ExplorViz is connected to the VSCode backend");
-        }
-      
-        if(debugRoomList && debugRoomList.length === 0) {
-          vscode.window.showInformationMessage("No debug rooms available by now. Feel free to create one when being in a debug session");
-        }
+      if (!socket.connected) {
+        // still connected but not fully connected? show a warning but continue to attempt emit
+        vscode.window.showWarningMessage("Socket is not connected. Attempting to load room list anyway...");
+      }
 
-        sessionViewProvider.refreshHTML();
+      // Use an ack with timeout so we don't hang silently if server doesn't call the ack.
+      let ackCalled = false;
+
+      const isValidDebugRoom = (obj: any): obj is DebugRoom => {
+        return (
+          obj &&
+          typeof obj === "object" &&
+          typeof obj.alias === "string" &&
+          typeof obj.secret === "string" &&
+          typeof obj.value === "string" &&
+          typeof obj.projectName === "string" &&
+          typeof obj.commitId === "string"
+        );
+      };
+
+      const isValidDebugRoomList = (payload: unknown): payload is DebugRoomList => {
+        if (!Array.isArray(payload)) {
+          return false;
+        }
+        return payload.every((el) => isValidDebugRoom(el));
+      };
+
+      const ackPromise = new Promise<DebugRoomList | undefined>((resolve) => {
+        socket.emit("load-debug-room-list", (payload?: unknown) => {
+          ackCalled = true;
+          console.log("debug room list (ack)", payload);
+
+          if (isValidDebugRoomList(payload)) {
+            resolve(payload);
+          } else {
+            console.warn("load-debug-room-list: received payload does not match DebugRoomList format,", payload);
+            // Treat unexpected payloads as "no valid data"
+            resolve(undefined);
+          }
+        });
+
+        // Fallback timeout
+        setTimeout(() => {
+          if (!ackCalled) {
+            console.warn("No ack received for load-debug-room-list within", ackTimeoutMs, "ms");
+            resolve(undefined);
+          }
+        }, ackTimeoutMs);
       });
+
+      const debugRoomList = await ackPromise;
+
+      // If ack returned data, use it. Otherwise check if server will send 'updates-debug-room-list'.
+      if (debugRoomList !== undefined) {
+        // ackPromise liefert nur DebugRoomList (Array) oder undefined
+        currentDebugRooms = debugRoomList;
+        console.log("currentDebugRooms updated via updates-debug-room-list:", currentDebugRooms);
+        sessionViewProvider.refreshHTML();
+        return;
+      }
+
+      vscode.window.showErrorMessage("Did not receive debug room list from backend (no ack and no 'updates-debug-room-list' event). Check backend connection and server implementation.");
     });
     extensionContext!.subscriptions.push(loadDebugSessionLandscapes);
 }
