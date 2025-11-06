@@ -1159,68 +1159,107 @@ function registerCommandCreateLandscapeForDebugSession() {
         return;
       }
 
-      socket.emit(
-        'check-frontend-connection', 
-        frontendHttp, 
-        async (payload: boolean | undefined) => {
-          const isConnected = payload;
+      const workspaceFolder = await askForWorkspaceFolder();
+      if(!workspaceFolder) {
+        return;
+      }
 
-          if(!isConnected) {
-            vscode.window.showErrorMessage("Please go to the settings in the frontend of ExplorViz to connect it to our extension!");
-            return;
-          }
+      const workspaceUri = workspaceFolder?.uri;
+      if (!workspaceUri) {
+        vscode.window.showErrorMessage("No workspace URI found!");
+        return;
+      }
+      const repository = git?.getRepository(workspaceUri);
+      const currentCommit = repository?.state.HEAD?.commit;
+      
+      // only create a debug session room for workspaces that are controlled by a VCS
+      // Why? So we can replay the debug session for the right code base 
+      // (=> feature to be implemented soon, ofc there are things like non-determinism to consider)
+      if(!currentCommit) {
+        vscode.window.showInformationMessage("No commit for this workspace found! Please make sure that your workspace uses a VCS");
+        return;
+      }
 
-          const workspaceFolder = await askForWorkspaceFolder();
-          if(!workspaceFolder) {
-            return;
-          }
+      const debugSessionName = await askForDebugRoomName();
+      if(!debugSessionName) {
+        vscode.window.showErrorMessage("No name for debug session provided!");
+        return;
+      }
 
-          const workspaceUri = workspaceFolder?.uri;
-          if (!workspaceUri) {
-            vscode.window.showErrorMessage("No workspace URI found!");
-            return;
+      let ackCalled = false;
+      const ackPromise1 = new Promise<boolean | undefined>((resolve) => {
+        socket.emit('check-frontend-connection', frontendHttp, (payload?: unknown) => {
+          ackCalled = true;
+          if(typeof payload === 'boolean') {
+            resolve(payload);
+          } else {
+            resolve(undefined);
           }
-          const repository = git?.getRepository(workspaceUri);
-          const currentCommit = repository?.state.HEAD?.commit;
-
-          // only create a debug session room for workspaces that are controlled by a VCS
-          // Why? So we can replay the debug session for the right code base 
-          // (=> feature to be implemented soon, ofc there are things like non-determinism to consider)
-          if(!currentCommit) {
-            vscode.window.showInformationMessage("No commit for this workspace found! Please make sure that your workspace uses a VCS");
-            return;
-          }
-
-          const debugSessionName = await askForDebugRoomName();
-          if(!debugSessionName) {
-            vscode.window.showErrorMessage("No name for debug session provided!");
-            return;
-          }
-
-          const alias = debugSessionName;
-          const projectName = workspaceFolder.name;
-          const commitId = currentCommit;
-          socket.emit('create-landscape', alias, projectName, commitId, (tokenData: {value: string; secret: string;} | undefined) => {
-        
-          if(!tokenData?.value || !tokenData?.secret) {
-            vscode.window.showErrorMessage("Failed to create a landscape for this debug session");
-            return;
-          }
-          currentDebugRoom = {
-            value: tokenData.value,
-            secret: tokenData.secret,
-            alias: alias,
-            projectName: projectName,
-            commitId: commitId
-          };
-          vscode.commands.executeCommand('explorviz-vscode-extension.loadDebugSessionLandscapes');
-          vscode.window.showInformationMessage(`The debug room (${currentDebugRoom.alias}) has been successfully created!`);
         });
 
-
+        setTimeout(() => {
+          if (!ackCalled) {
+            resolve(undefined);
+          }
+        }, ackTimeoutMs);
       });
-    }
-  );
+
+      const isFrontendConnected = await ackPromise1;
+      
+      if(isFrontendConnected === undefined) {
+        vscode.window.showErrorMessage("Something went wrong while checking the connection to the frontend!");
+        return;
+      }
+
+      console.log("isFrontendConnected", isFrontendConnected);
+
+      ackCalled = false;
+
+      const alias = debugSessionName;
+      const projectName = workspaceFolder.name;
+      const commitId = currentCommit;
+
+      const ackPromise2 = new Promise<{value: string; secret: string;} | undefined>((resolve) => {
+        socket.emit('create-landscape', alias, projectName, commitId, (payload?: unknown) => {
+          ackCalled = true;
+
+          if(typeof payload === 'object' && payload !== null && 
+             'value' in payload && typeof payload.value === 'string' &&
+             'secret' in payload && typeof payload.secret === 'string') {
+            resolve(payload as {value: string, secret: string});
+          } else {
+            resolve(undefined);
+          }
+        });
+
+        setTimeout(() => {
+            if (!ackCalled) {
+              resolve(undefined);
+            }
+        }, ackTimeoutMs);
+      });
+
+      const tokenData = await ackPromise2;
+
+      if(tokenData === undefined) {
+        vscode.window.showErrorMessage("Unexpected error while creating debug room!");
+        return;
+      }
+
+      console.log("tokenData", tokenData);
+
+
+      currentDebugRoom = {
+        value: tokenData.value,
+        secret: tokenData.secret,
+        alias: alias,
+        projectName: projectName,
+        commitId: commitId
+      };
+      console.log("currentDebugRoom", currentDebugRoom);
+      vscode.commands.executeCommand('explorviz-vscode-extension.loadDebugSessionLandscapes');
+      vscode.window.showInformationMessage(`The debug room (${currentDebugRoom.alias}) has been successfully created!`);
+    });
   extensionContext!.subscriptions.push(createLandscapeForDebugSession);
 }
 
@@ -1252,17 +1291,11 @@ function registerCommandLoadDebugSessionLandscapes() {
 
       console.log("Load Debug Session Landscapes");
 
-      if (!socket) {
-        console.log("socket is undefined");
+      if (!socket || socket.disconnected) {
         vscode.window.showErrorMessage(
-          `Socket is not initialized. You must first connect to the backend!`
+          `You must first connect to the backend!`
         );
         return;
-      }
-
-      if (!socket.connected) {
-        // still connected but not fully connected? show a warning but continue to attempt emit
-        vscode.window.showWarningMessage("Socket is not connected. Attempting to load room list anyway...");
       }
 
       // Use an ack with timeout so we don't hang silently if server doesn't call the ack.
@@ -1321,7 +1354,7 @@ function registerCommandLoadDebugSessionLandscapes() {
         return;
       }
 
-      vscode.window.showErrorMessage("Did not receive debug room list from backend (no ack and no 'updates-debug-room-list' event). Check backend connection and server implementation.");
+      vscode.window.showErrorMessage("Did not receive debug room list from backend (no ack). Make sure the frontend is connected to the vs code backend.");
     });
     extensionContext!.subscriptions.push(loadDebugSessionLandscapes);
 }
