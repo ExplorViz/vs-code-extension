@@ -63,7 +63,7 @@
         "explorviz.backendUrl": {
           "type": "string",
           "scope": "application",
-          "default": "http://localhost:3001",
+          "default": "http://localhost:3000",
           "description": "Specify URL for ExplorViz's VS Code backend."
         },
         "explorviz.frontendUrl": {
