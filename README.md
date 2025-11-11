@@ -116,19 +116,7 @@ http://localhost:8081/subjects/token-events-value/versions/
 
 ---
 
-### 8. Start des **VS Code Backends**
-```bash
-cd ~
-git clone https://git.se.informatik.uni-kiel.de/ExplorViz/code/vs-code-backend.git
-cd vs-code-backend
-git checkout visualize-debug-session
-npm install
-npm run start
-```
-
----
-
-### 9. Start einer weiteren **MongoDB** Instanz für das VS Code Backend
+### 8. Start einer weiteren **MongoDB** Instanz für das VS Code Backend
 ```bash
 docker run -d --name mongodb -p 27017:27017 mongo
 ```
@@ -138,6 +126,18 @@ Erstelle anschließend in der MongoDB:
 - **Collection:** `snapshots`
 
 💡 Tipp: Verwende z. B. **MongoDB Compass**, um dies bequem anzulegen.
+
+---
+
+### 9. Start des **VS Code Backends**
+```bash
+cd ~
+git clone https://git.se.informatik.uni-kiel.de/ExplorViz/code/vs-code-backend.git
+cd vs-code-backend
+git checkout visualize-debug-session
+npm install
+npm run start
+```
 
 ---
 
