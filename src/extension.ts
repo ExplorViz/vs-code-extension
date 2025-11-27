@@ -1098,7 +1098,7 @@ function registerCommandSaveBreakpoint() {
   // - saving a breakpoint that was added during a breakpoint session (by the user or conditional breakpoints)
   const saveBreakPoint = vscode.commands.registerCommand(
     "explorviz-vscode-extension.saveBreakpoint",
-    () => {
+    async () => {
 
       // we still need to check this because our save state function could
       // be called from within the command panel
@@ -1116,34 +1116,35 @@ function registerCommandSaveBreakpoint() {
         return;
       }
       const timestamp = Date.now();
-      console.log("save current state");
-      // Todo: how to handle if the user has made some "steps into" after reaching the breakpoint?
-      // => we don't call it save breakpoint but save current state!
+      
+      const ackPromise1 = emitEvent<boolean, [string]>(
+        'check-frontend-connection',
+        (b): b is boolean => typeof b === 'boolean',
+        frontendHttp
+      );
 
-      socket.emit(
-        'check-frontend-connection', 
-        frontendHttp, 
-        (payload: boolean | undefined) => {
-          const isConnected = payload;
+      const isFrontendConnected = await ackPromise1;
 
-          if(!isConnected) {
-            vscode.window.showErrorMessage("Please go to the settings in the frontend of ExplorViz to connect it to our extension!");
-            return;
-          }
+      if(isFrontendConnected === undefined || isFrontendConnected === false) {
+        vscode.window.showErrorMessage("Something went wrong while checking the connection to the frontend!");
+        return;
+      }
 
-          socket.emit('save-current-state', currentDebugRoom!.value, timestamp, (success: boolean) => {
-            if(success) {
-              vscode.window.showInformationMessage('Current state has been saved!');
-            }else {
-              vscode.window.showErrorMessage('Unable to save current state!');
-            }
-          });
+      const ackPromise2 = await emitEvent<boolean, [string, number]>(
+        "save-current-state",
+        (payload): payload is boolean => typeof payload === "boolean",
+        ...[currentDebugRoom!.value, timestamp]
+      );
+      const saveSuccess = await ackPromise2;
 
-
-        });
-    });
-  
-    extensionContext!.subscriptions.push(saveBreakPoint);
+      if (saveSuccess) {
+        vscode.window.showInformationMessage("Current state has been saved!");
+      } else {
+        vscode.window.showErrorMessage("Unable to save current state!");
+      }
+    }
+  );
+  extensionContext!.subscriptions.push(saveBreakPoint);
 }
 
 function registerCommandCreateLandscapeForDebugSession() {
@@ -1186,58 +1187,30 @@ function registerCommandCreateLandscapeForDebugSession() {
         return;
       }
 
-      let ackCalled = false;
-      const ackPromise1 = new Promise<boolean | undefined>((resolve) => {
-        socket.emit('check-frontend-connection', frontendHttp, (payload?: unknown) => {
-          ackCalled = true;
-          if(typeof payload === 'boolean') {
-            resolve(payload);
-          } else {
-            resolve(undefined);
-          }
-        });
-
-        setTimeout(() => {
-          if (!ackCalled) {
-            resolve(undefined);
-          }
-        }, ackTimeoutMs);
-      });
-
+      const ackPromise1 = emitEvent<boolean, [string]>(
+        'check-frontend-connection',
+        (b): b is boolean => typeof b === 'boolean',
+        frontendHttp
+      );
       const isFrontendConnected = await ackPromise1;
       
-      if(isFrontendConnected === undefined) {
+      if(isFrontendConnected === undefined || isFrontendConnected === false) {
         vscode.window.showErrorMessage("Something went wrong while checking the connection to the frontend!");
         return;
       }
-
-      console.log("isFrontendConnected", isFrontendConnected);
-
-      ackCalled = false;
 
       const alias = debugSessionName;
       const projectName = workspaceFolder.name;
       const commitId = currentCommit;
 
-      const ackPromise2 = new Promise<{value: string; secret: string;} | undefined>((resolve) => {
-        socket.emit('create-landscape', alias, projectName, commitId, (payload?: unknown) => {
-          ackCalled = true;
-
-          if(typeof payload === 'object' && payload !== null && 
-             'value' in payload && typeof payload.value === 'string' &&
-             'secret' in payload && typeof payload.secret === 'string') {
-            resolve(payload as {value: string, secret: string});
-          } else {
-            resolve(undefined);
-          }
-        });
-
-        setTimeout(() => {
-            if (!ackCalled) {
-              resolve(undefined);
-            }
-        }, ackTimeoutMs);
-      });
+      const ackPromise2 = emitEvent<{value: string; secret: string;}, [string, string, string]>(
+        'create-landscape',
+        (p): p is {value: string; secret: string;} => 
+          typeof p === 'object' && p !== null &&
+          'value' in p && typeof p.value === 'string' &&
+          'secret' in p && typeof p.secret === 'string',
+        ...[alias, projectName, commitId]
+      );
 
       const tokenData = await ackPromise2;
 
@@ -1246,9 +1219,6 @@ function registerCommandCreateLandscapeForDebugSession() {
         return;
       }
 
-      console.log("tokenData", tokenData);
-
-
       currentDebugRoom = {
         value: tokenData.value,
         secret: tokenData.secret,
@@ -1256,10 +1226,10 @@ function registerCommandCreateLandscapeForDebugSession() {
         projectName: projectName,
         commitId: commitId
       };
-      console.log("currentDebugRoom", currentDebugRoom);
       vscode.commands.executeCommand('explorviz-vscode-extension.loadDebugSessionLandscapes');
       vscode.window.showInformationMessage(`The debug room (${currentDebugRoom.alias}) has been successfully created!`);
-    });
+    }
+  );
   extensionContext!.subscriptions.push(createLandscapeForDebugSession);
 }
 
@@ -1280,8 +1250,9 @@ function registerCancelConnectionSetup() {
         // Therefore, we need to refresh
         sessionViewProvider.refreshHTML();
       }
-    });
-    extensionContext!.subscriptions.push(cancelConnectionSetup);
+    }
+  );
+  extensionContext!.subscriptions.push(cancelConnectionSetup);
 }
 
 function registerCommandLoadDebugSessionLandscapes() {
@@ -1289,17 +1260,12 @@ function registerCommandLoadDebugSessionLandscapes() {
     "explorviz-vscode-extension.loadDebugSessionLandscapes",
     async () => {
 
-      console.log("Load Debug Session Landscapes");
-
       if (!socket || socket.disconnected) {
         vscode.window.showErrorMessage(
           `You must first connect to the backend!`
         );
         return;
       }
-
-      // Use an ack with timeout so we don't hang silently if server doesn't call the ack.
-      let ackCalled = false;
 
       const isValidDebugRoom = (obj: any): obj is DebugRoom => {
         return (
@@ -1320,40 +1286,18 @@ function registerCommandLoadDebugSessionLandscapes() {
         return payload.every((el) => isValidDebugRoom(el));
       };
 
-      const ackPromise = new Promise<DebugRoomList | undefined>((resolve) => {
-        socket.emit("load-debug-room-list", (payload?: unknown) => {
-          ackCalled = true;
-          console.log("debug room list (ack)", payload);
-
-          if (isValidDebugRoomList(payload)) {
-            resolve(payload);
-          } else {
-            console.warn("load-debug-room-list: received payload does not match DebugRoomList format,", payload);
-            // Treat unexpected payloads as "no valid data"
-            resolve(undefined);
-          }
-        });
-
-        // Fallback timeout
-        setTimeout(() => {
-          if (!ackCalled) {
-            console.warn("No ack received for load-debug-room-list within", ackTimeoutMs, "ms");
-            resolve(undefined);
-          }
-        }, ackTimeoutMs);
-      });
+      const ackPromise = emitEvent<DebugRoomList>(
+        "load-debug-room-list",
+        isValidDebugRoomList
+      );
 
       const debugRoomList = await ackPromise;
 
-      // If ack returned data, use it. Otherwise check if server will send 'updates-debug-room-list'.
       if (debugRoomList !== undefined) {
-        // ackPromise liefert nur DebugRoomList (Array) oder undefined
         currentDebugRooms = debugRoomList;
-        console.log("currentDebugRooms updated via updates-debug-room-list:", currentDebugRooms);
         sessionViewProvider.refreshHTML();
         return;
       }
-
       vscode.window.showErrorMessage("Did not receive debug room list from backend (no ack). Make sure the frontend is connected to the vs code backend.");
     });
     extensionContext!.subscriptions.push(loadDebugSessionLandscapes);
@@ -1525,7 +1469,7 @@ function checkForDebugSession() {
   }
 }
 
-async function askUserForJDKPath(): Promise<string | undefined> {
+/*async function askUserForJDKPath(): Promise<string | undefined> {
   const options: vscode.OpenDialogOptions = {
       canSelectMany: false,
       canSelectFolders: true, // Allow folder selection
@@ -1554,12 +1498,56 @@ async function askUserForJDKPath(): Promise<string | undefined> {
       vscode.window.showWarningMessage("No folder was selected.");
       return undefined;
   }
-}
+}*/
 
-function onClickDebugRoom() {
-  //vscode.window.showInformationMessage(`Please open the workspace ${} under its commit ${}`)
-}
 
+/**
+ * Emit an event via socket and wait for an ack with a timeout.
+ * If a type guard is provided, the ack payload is validated with it.
+ * Otherwise the raw payload is returned as T (or undefined on timeout/invalid).
+ */
+function emitEvent<T, A extends any[] = []>(
+  eventName: string,
+  validator?: (p: unknown) => p is T,
+  ...payload: [...A]
+): Promise<T | undefined> {
+  return new Promise<T | undefined>((resolve) => {
+    if (!socket || socket.disconnected) {
+      resolve(undefined);
+      return;
+    }
+
+    let ackCalled = false;
+
+    // emit with payload and ack callback
+    socket.emit(eventName, ...payload, (ackPayload?: unknown) => {
+      ackCalled = true;
+
+      if (validator) {
+        // use provided type guard
+        if (validator(ackPayload)) {
+          resolve(ackPayload);
+        } else {
+          resolve(undefined);
+        }
+      } else {
+        // no validator: return ack payload as-is (or undefined)
+        if (typeof ackPayload === "undefined") {
+          resolve(undefined);
+        } else {
+          resolve(ackPayload as T);
+        }
+      }
+    });
+
+    // fallback timeout
+    setTimeout(() => {
+      if (!ackCalled) {
+        resolve(undefined);
+      }
+    }, ackTimeoutMs);
+  });
+}
 
 
 // #endregion
