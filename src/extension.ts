@@ -129,7 +129,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const envFrontendUrl = process.env.FRONTEND_URL;
 
-  if (envBackendUrl) {
+  if (envFrontendUrl) {
     frontendHttp = envFrontendUrl;
     console.debug(
       `ATTENTION: Setting 'frontendHttp' has no effect, since it is overridden by environment variable 'FRONTEND_URL' with value: ${envFrontendUrl}`
@@ -1115,7 +1115,7 @@ function registerCommandSaveBreakpoint() {
         vscode.window.showInformationMessage("Please initiate monitoring for this debug session!");
         return;
       }
-      const timestamp = Date.now();
+      const timestampInNano = BigInt(Date.now()) * 1_000_000n;
       
       const ackPromise1 = emitEvent<boolean, [string]>(
         'check-frontend-connection',
@@ -1133,7 +1133,7 @@ function registerCommandSaveBreakpoint() {
       const ackPromise2 = await emitEvent<boolean, [string, number]>(
         "save-current-state",
         (payload): payload is boolean => typeof payload === "boolean",
-        ...[currentDebugRoom!.value, timestamp]
+        ...[currentDebugRoom!.value, Number(timestampInNano)]
       );
       const saveSuccess = await ackPromise2;
 
