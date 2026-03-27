@@ -26,6 +26,8 @@ import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
 import { IFrameViewContainer } from "./IFrameViewContainer";
 import { API, GitExtension, Repository } from "./api/git";
+import { startTracing, stopTracing, handleStoppedEvent } from "./debug/DebugTraceManager";
+import { setExporterTokenSecret } from "./debug/otlpExporter";
 
 export type DebugRoom = { alias: string; secret: string; value: string; projectName: string; commitId: string; };
 export type DebugRoomList = DebugRoom[];
@@ -114,6 +116,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   extensionContext = context;
 
+  try {
+    const startupOut = vscode.window.createOutputChannel('ExplorViz Debug');
+    startupOut.appendLine('ExplorViz: extension activated');
+  } catch (e) {
+    console.warn('ExplorViz: failed to write startup debug output', e);
+  }
+
   backendHttp = settings.get("backendUrl");
   frontendHttp = settings.get("frontendUrl");
   currentMode = ModesEnum[settings.get("defaultMode") as keyof typeof ModesEnum];
@@ -167,7 +176,7 @@ export async function activate(context: vscode.ExtensionContext) {
       // save delta for ide, since now iFrame is inFocus
       if (ideUsageTimerStart) {
         const latestUsageTime = ideUsageTimerEnd - ideUsageTimerStart;
-        const timeEvent = `${username},ide,${ideUsageTimerStart},${latestUsageTimer}\r\n`;
+        const timeEvent = `${username},ide,${ideUsageTimerStart},${latestUsageTime}\r\n`;
         fs.appendFileSync(pathToState, timeEvent);
       }
       return;
@@ -180,7 +189,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // save delta for iFrame, since now ide is inFocus
     if (iFrameUsageTimerStart) {
       const latestUsageTime = iFrameUsageTimerEnd - iFrameUsageTimerStart;
-      const timeEvent = `${username},viz,${iFrameUsageTimerStart},${latestUsageTimer}\r\n`;
+      const timeEvent = `${username},viz,${iFrameUsageTimerStart},${latestUsageTime}\r\n`;
       fs.appendFileSync(pathToState, timeEvent);
     }
 
@@ -271,6 +280,12 @@ export async function activate(context: vscode.ExtensionContext) {
                   isDebugSessionStopped = true;
                   sessionViewProvider.refreshHTML();
                   // todo: save breakpoint feature => save state (selection of which variables to save needed)
+                  try {
+                    // forward stopped event to DebugTraceManager for span capture
+                    handleStoppedEvent(session, m.body);
+                  } catch (e) {
+                    console.warn('Failed to handle stopped event for tracing', e);
+                  }
                 }
                 break;
               case "step":
@@ -294,6 +309,8 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandCreatePairProgramming();
   registerCommandJoinPairProgramming();
   registerCommandWebview();
+  registerCommandStartDebugTracing();
+  registerCommandStopDebugTracing();
   registerCommandDisconnectFromRoom();
   registerCommandStartVisualizationForDebugSession();
   registerCommandStopVisualizationForDebugSession();
@@ -588,6 +605,35 @@ function registerCommandCreatePairProgramming() {
   extensionContext!.subscriptions.push(createPairProgramming);
 }
 
+function registerCommandStartDebugTracing() {
+  const cmd = vscode.commands.registerCommand(
+    'explorviz.startDebugTracing',
+    async () => {
+      try {
+        await startTracing({ limit: 1000 });
+      } catch (err) {
+        vscode.window.showErrorMessage('Failed to start debug tracing: ' + err);
+      }
+    }
+  );
+  extensionContext!.subscriptions.push(cmd);
+}
+
+function registerCommandStopDebugTracing() {
+  const cmd = vscode.commands.registerCommand(
+    'explorviz.stopDebugTracing',
+    async () => {
+      try {
+        stopTracing();
+      } catch (err) {
+        vscode.window.showErrorMessage('Failed to stop debug tracing: ' + err);
+      }
+    }
+  );
+  extensionContext!.subscriptions.push(cmd);
+}
+
+
 function applyLatestTextSelection() {
   const editor = vscode.window.activeTextEditor;
 
@@ -629,12 +675,16 @@ export function connectWithBackendSocket() {
     socket.on("connect", () => {
       isConnectedToBackend = socket.connected;
       isLoading = false;
+      // If we already have a selected debug room, propagate its token/secret to the exporter
+      try { if (currentDebugRoom) setExporterTokenSecret(currentDebugRoom.value, currentDebugRoom.secret); } catch (e) {}
       sessionViewProvider.refreshHTML();
     });
     socket.on("disconnect", () => {
       console.debug("disconnect");
       isConnectedToBackend = socket.connected;
       isLoading = false;
+      // clear exporter tokens on disconnect
+      try { setExporterTokenSecret(undefined, undefined); } catch (e) {}
       sessionViewProvider.refreshHTML();
     });
     socket.on("connect_error", (error) => {
@@ -1002,7 +1052,7 @@ function registerCommandStartVisualizationForDebugSession() {
           );
           return;
         }
-        await attachInspectITClient();
+        // await attachInspectITClient();
         sessionViewProvider.refreshHTML();
       } catch (error) {
         vscode.window.showErrorMessage(
@@ -1086,6 +1136,7 @@ function registerCommandUpdateWebViewForJoinedDebugSessionLandscape() {
         return;
       }
       currentDebugRoom = currentDebugRooms?.find(room => room.value === obj.tokenValue);
+      try { if (currentDebugRoom) setExporterTokenSecret(currentDebugRoom.value, currentDebugRoom.secret); } catch (e) {}
 
       sessionViewProvider.refreshHTML();
     });
@@ -1256,6 +1307,7 @@ function registerCommandCreateLandscapeForDebugSession() {
         projectName: projectName,
         commitId: commitId
       };
+      try { setExporterTokenSecret(currentDebugRoom.value, currentDebugRoom.secret); } catch (e) {}
       console.log("currentDebugRoom", currentDebugRoom);
       vscode.commands.executeCommand('explorviz-vscode-extension.loadDebugSessionLandscapes');
       vscode.window.showInformationMessage(`The debug room (${currentDebugRoom.alias}) has been successfully created!`);
@@ -1420,22 +1472,22 @@ function checkJavaInstalled() {
   });
 }
 
-function attachOcelotAgent() {
-  return new Promise<boolean>((resolve, reject) => {
-    const ocelotPath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot");
-    const ocelotJarPath = vscode.Uri.joinPath(ocelotPath, "inspectit-ocelot-agent-2.6.5.jar");
-    const commandString = `java -jar ${ocelotJarPath.fsPath} ${debuggedAppPID} "{ \"inspectit\": { \"config\": { \"file-based\": {\"path\": \"${ocelotPath.fsPath}\" }}}}"`;
-    exec(commandString, (error, stdout, stderr) => {
-        if (error) {
-            console.log(`Ocelot : ${stderr}`);
-            reject(`Ocelot : ${stderr}`);
-        } else {
-            console.log('Ocelot attached');
-            resolve(true);
-        }
-    });
-});
-}
+// function attachOcelotAgent() {
+//   return new Promise<boolean>((resolve, reject) => {
+//     const ocelotPath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot");
+//     const ocelotJarPath = vscode.Uri.joinPath(ocelotPath, "inspectit-ocelot-agent-2.6.5.jar");
+//     const commandString = `java -jar ${ocelotJarPath.fsPath} ${debuggedAppPID} "{ \"inspectit\": { \"config\": { \"file-based\": {\"path\": \"${ocelotPath.fsPath}\" }}}}"`;
+//     exec(commandString, (error, stdout, stderr) => {
+//         if (error) {
+//             console.log(`Ocelot : ${stderr}`);
+//             reject(`Ocelot : ${stderr}`);
+//         } else {
+//             console.log('Ocelot attached');
+//             resolve(true);
+//         }
+//     });
+// });
+// }
 
 function askForDebugRoomName() {
   return vscode.window.showInputBox({
@@ -1468,45 +1520,45 @@ async function askForWorkspaceFolder(): Promise<vscode.WorkspaceFolder | undefin
     return folder;
 }
 
-async function attachInspectITClient() {
+// async function attachInspectITClient() {
 
-  const debuggedAppPID = await  getDebuggedApplicationPID();
-    if(!debuggedAppPID) {
-      vscode.window.showErrorMessage("Unable to find the debuggee PID. Please restart the debugger and try again! (Ctrl + Shift + F5)");
-      return;
-    }
+//   const debuggedAppPID = await  getDebuggedApplicationPID();
+//     if(!debuggedAppPID) {
+//       vscode.window.showErrorMessage("Unable to find the debuggee PID. Please restart the debugger and try again! (Ctrl + Shift + F5)");
+//       return;
+//     }
 
-  // Get the file path for the bundled YAML file
-  const filePath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot", "inspectit.yml");
-  try {
-    // Read the YAML file from the extension's directory
-    const data = fs.readFileSync(filePath.fsPath, 'utf8');
-    // Parse the YAML data into a JavaScript object
-    let yamlData: InspectITConfig = load(data) as InspectITConfig;
+//   // Get the file path for the bundled YAML file
+//   // const filePath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot", "inspectit.yml");
+//   try {
+//     // Read the YAML file from the extension's directory
+//     const data = fs.readFileSync(filePath.fsPath, 'utf8');
+//     // Parse the YAML data into a JavaScript object
+//     let yamlData: InspectITConfig = load(data) as InspectITConfig;
 
-    // modify yml file such that ocelot agent collects spans for the right landscape
-    yamlData.inspectit.tags.extra["explorviz.token.id"] = currentDebugRoom!.value;
-    yamlData.inspectit.tags.extra["explorviz.token.secret"] = currentDebugRoom!.secret;
-    yamlData.inspectit.tags.extra["service.name"] = currentDebugRoom!.projectName;
-    yamlData.inspectit.tags.extra["landscape_token"] = currentDebugRoom!.value;
-    yamlData.inspectit.tags.extra["token_secret"] = currentDebugRoom!.secret;
-    yamlData.inspectit.tags.extra["application_name"] = currentDebugRoom!.projectName;
-    const newYamlText = dump(yamlData);  
-    // Now write the modified YAML back to the same file
-    fs.writeFileSync(filePath.fsPath, newYamlText, 'utf8');
+//     // modify yml file such that ocelot agent collects spans for the right landscape
+//     yamlData.inspectit.tags.extra["explorviz.token.id"] = currentDebugRoom!.value;
+//     yamlData.inspectit.tags.extra["explorviz.token.secret"] = currentDebugRoom!.secret;
+//     yamlData.inspectit.tags.extra["service.name"] = currentDebugRoom!.projectName;
+//     yamlData.inspectit.tags.extra["landscape_token"] = currentDebugRoom!.value;
+//     yamlData.inspectit.tags.extra["token_secret"] = currentDebugRoom!.secret;
+//     yamlData.inspectit.tags.extra["application_name"] = currentDebugRoom!.projectName;
+//     const newYamlText = dump(yamlData);  
+//     // Now write the modified YAML back to the same file
+//     fs.writeFileSync(filePath.fsPath, newYamlText, 'utf8');
 
 
-    // attach inspectIT Ocelot to debugged application
-    await checkJavaInstalled();
+//     // attach inspectIT Ocelot to debugged application
+//     await checkJavaInstalled();
 
-    await attachOcelotAgent();
+//     await attachOcelotAgent();
 
-    isInspectITClientAttached = true;
-    vscode.window.showInformationMessage("InspectIT Ocelot client attached!");
-  } catch (error: any) {
-    vscode.window.showErrorMessage("Error during attachment of inspectIT Ocelot client: " + error.message);
-  }
-}
+//     isInspectITClientAttached = true;
+//     vscode.window.showInformationMessage("InspectIT Ocelot client attached!");
+//   } catch (error: any) {
+//     vscode.window.showErrorMessage("Error during attachment of inspectIT Ocelot client: " + error.message);
+//   }
+// }
 
 function checkForDebugSession() {
   if(vscode.debug.activeDebugSession) {

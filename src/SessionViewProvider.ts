@@ -98,9 +98,12 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       <p>Start a collaboratively usable Software Visualization session to comprehend your software using the 3D city metaphor.</p>
 
       </br>
+      ${renderStartDebuggingButton()}
       ${renderConnectToBackendButton()}
       ${renderLoadingAnimation()}
       ${renderCancelConnectionSetupButton()}
+      ${renderStartTracingButton()}
+      ${renderStopTracingButton()}
       ${renderDisconnectFromBackendButton()}
 
       </br>
@@ -145,6 +148,13 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
+function renderStartDebuggingButton() {
+  if (!isInDebugSession) {
+    return "<button id='explorviz-start-debugging-button'>Start Debugging</button>";
+  }
+  return "";
+}
+
 function renderConnectToBackendButton() {
   if(!isConnectedToBackend && !isLoading) {
     return "<button id='explorviz-connect-to-backend-button'>Connect To Backend</button>";
@@ -169,6 +179,20 @@ function renderCancelConnectionSetupButton() {
   return "";
 }
 
+function renderStartTracingButton() {
+  if (isConnectedToBackend) {
+    return "<button id='explorviz-start-tracing-button'>Start Tracing</button>";
+  }
+  return "";
+}
+
+function renderStopTracingButton() {
+  if (isConnectedToBackend) {
+    return "<button id='explorviz-stop-tracing-button'>Stop Tracing</button>";
+  }
+  return "";
+}
+
 function renderDisconnectFromBackendButton() {
   if(isConnectedToBackend) {
     return "<button id='explorviz-disconnect-from-backend-button'>Disconnect From Backend</button>";
@@ -178,10 +202,10 @@ function renderDisconnectFromBackendButton() {
  
 
 function renderActivateDeactivateExplorVizButton() {
-  if( isConnectedToBackend && isInDebugSession && !isInspectITClientAttached) {
+  if( isConnectedToBackend && isInDebugSession) {
     return "<button id='explorviz-visualize-debug-session-button'>Initiate Monitoring For This Debug Session</button>";
   }
-  if(isConnectedToBackend && isInDebugSession && isInspectITClientAttached){
+  if(isConnectedToBackend && isInDebugSession ){
     return "<p>ExplorViz is activated for the current debug session</p>";//"<button id='explorviz-deactivate-button'>Deactivate ExplorViz For Current Debug Session</button>";
   }
   return "";

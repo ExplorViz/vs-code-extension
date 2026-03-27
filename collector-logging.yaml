@@ -1,0 +1,43 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      
+processors:
+  attributes/add_default_landscape_token:
+    actions:
+      - key: landscape_token
+        value: "mytokenvalue"
+        action: insert
+      - key: token_secret
+        value: "mytokensecret"
+        action: insert
+
+exporters:
+  kafka:
+    protocol_version: 2.0.0
+    brokers:
+      - kafka:9092
+    topic: otlp_spans
+  debug:
+    verbosity: detailed
+  logging:
+    loglevel: info
+
+extensions:
+  zpages:
+    endpoint: :55679
+
+service:
+  extensions:
+    - zpages
+  pipelines:
+    traces:
+      receivers:
+        - otlp
+      processors:
+        - attributes/add_default_landscape_token
+      exporters:
+        - kafka
+        - debug
+        - logging

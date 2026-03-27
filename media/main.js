@@ -6,6 +6,13 @@
   // @ts-ignore
   const vscode = acquireVsCodeApi();
 
+  const startDebuggingButton = document.querySelector('#explorviz-start-debugging-button');
+  if (startDebuggingButton) {
+    startDebuggingButton.addEventListener("click", () => {
+      executeExtensionCommand("workbench.action.debug.start");
+    });
+  }
+
   const connectToBackendButton = document.querySelector('#explorviz-connect-to-backend-button');
   if (connectToBackendButton) {
     connectToBackendButton.addEventListener("click", () => {
@@ -17,6 +24,20 @@
   if (disconnectFromBackendButton) {
     disconnectFromBackendButton.addEventListener("click", () => {
       executeExtensionCommand("explorviz-vscode-extension.disconnectFromBackend");
+    });
+  }
+
+  const startTracingButton = document.querySelector('#explorviz-start-tracing-button');
+  if (startTracingButton) {
+    startTracingButton.addEventListener("click", () => {
+      executeExtensionCommand('explorviz.startDebugTracing');
+    });
+  }
+
+  const stopTracingButton = document.querySelector('#explorviz-stop-tracing-button');
+  if (stopTracingButton) {
+    stopTracingButton.addEventListener("click", () => {
+      executeExtensionCommand('explorviz.stopDebugTracing');
     });
   }
 
@@ -121,6 +142,7 @@
     }
   });
 
+  // @ts-ignore
   function executeExtensionCommand(stringCommand, optional) {
     vscode.postMessage({
       type: "executeExplorVizCommand",
