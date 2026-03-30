@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as path from "path";
 import {
   pairProgrammingSessionName,
   showPairProgrammingHTML,
@@ -13,7 +14,8 @@ import {
   isLoading,
   backendHttp,
   currentDebugRoom,
-  isInspectITClientAttached
+  isInspectITClientAttached,
+  debugVariableWatchlist
 } from "./extension";
 import { ModesEnum } from "./types";
 
@@ -117,6 +119,10 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
       </br></br>
 
+      ${renderCurrentMarkedVariablesTable()}
+      
+      </br>
+
       ${renderSaveBreakpointButton()}
       ` +
       /*</br></br>
@@ -188,7 +194,7 @@ function renderActivateDeactivateExplorVizButton() {
 }
 
 function renderSaveBreakpointButton() {
-  if(isDebugSessionStopped && isInspectITClientAttached) {
+  if(isDebugSessionStopped && isInspectITClientAttached && isConnectedToBackend && isInDebugSession) {
     return "<button id='explorviz-save-current-state-button'>Save Current State</button>";
   }
   return "";
@@ -314,6 +320,43 @@ function renderJoinPPButton() {
     return "";
   }
 }
+
+
+function renderCurrentMarkedVariablesTable() {
+
+  if(!isDebugSessionStopped || !isInspectITClientAttached || debugVariableWatchlist.size === 0) {
+    return "";
+  }
+
+  let temp = `<div id="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Marked Variable Name</th>
+          <th>Definition File</th>
+          <th>Definition Line</th>
+        </tr>
+      </thead>
+      <tbody>
+    `;
+
+
+  for (const [variableName, defInfos] of debugVariableWatchlist) {
+    for(const defInfo of defInfos.values()){
+      const defInfoSplit = path.normalize(defInfo).split(path.sep);
+      temp += `<tr><td>${variableName}</td><td>${defInfoSplit[0]}</td><td>${Number(defInfoSplit[1])!+1}</td></tr>`;
+    }
+  }
+   temp += `
+      </tbody>
+    </table>
+    <button id='explorviz-remove-all-variables-from-debug-watch-button'>Remove All Variables From Debug Watch</button>
+  </div>
+  `;
+
+  return temp;
+}
+
 
 function getNonce() {
   let text = "";

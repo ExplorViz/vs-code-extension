@@ -1,0 +1,66 @@
+inspectit:
+  tags:
+    extra:
+      explorviz.token.id: 473f206f-3a19-4668-9405-b206426cb519
+      explorviz.token.secret: idq9ffBFeEBPI1tt
+      service.name: Test2
+      service.instance.id: '0'
+      telemetry.sdk.language: java
+      landscape_token: 473f206f-3a19-4668-9405-b206426cb519
+      token_secret: idq9ffBFeEBPI1tt
+      application_name: Test2
+      application_instance_id: 0
+      application_language: java
+  tracing:
+    add-common-tags: ALWAYS
+  metrics:
+    enabled: false
+  instrumentation:
+    scopes:
+      s_allClasses:
+        type:
+          name: de\.explorviz.*
+          matcher-mode: MATCHES
+    rules:
+      r_all_methods_no_input_return:
+        scopes:
+          s_allClasses: true
+        tracing:
+          start-span: true
+          attributes:
+            code.function: method_name
+            code.namespace: class_fqn
+            java.fqn: method_fqn_attr
+        entry:
+          method_name:
+            action: a_get_method_name
+          class_fqn:
+            action: a_get_class_fqn
+          method_fqn_attr:
+            action: a_get_method_fqn
+    actions:
+      a_get_method_name:
+        input:
+          _methodName: String
+        value: _methodName
+      a_get_class_fqn:
+        input:
+          _class: Class
+        value: _class.getName()
+      a_get_method_fqn:
+        input:
+          _methodName: String
+          _class: Class
+        value: >-
+          new
+          StringBuilder(_class.getName()).append('.').append(_methodName).toString()
+  logging:
+    debug: false
+    trace: false
+  exporters:
+    tracing:
+      service-name: Ocelot Otel Exporter
+      otlp:
+        enabled: ENABLED
+        endpoint: http://localhost:55678
+        protocol: grpc

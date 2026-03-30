@@ -1,14 +1,14 @@
 inspectit:
   tags:
     extra:
-      explorviz.token.id: 0c7a9891-3337-45f8-9807-ecb7a5ad5412
-      explorviz.token.secret: JBqVsonI5N9YzDEM
-      service.name: spring-petclinic-main
+      explorviz.token.id: d48c4b18-77d8-4e92-b777-6af9362b1923
+      explorviz.token.secret: 0uB3dQvjWIU1U3uo
+      service.name: Test2
       service.instance.id: '0'
       telemetry.sdk.language: java
-      landscape_token: 0c7a9891-3337-45f8-9807-ecb7a5ad5412
-      token_secret: JBqVsonI5N9YzDEM
-      application_name: spring-petclinic-main
+      landscape_token: d48c4b18-77d8-4e92-b777-6af9362b1923
+      token_secret: 0uB3dQvjWIU1U3uo
+      application_name: Test2
       application_instance_id: 0
       application_language: java
   tracing:
@@ -19,8 +19,8 @@ inspectit:
     scopes:
       s_allClasses:
         type:
-          name: org.springframework.samples
-          matcher-mode: STARTS_WITH_IGNORE_CASE
+          name: de.ecosystembalance.*
+          matcher-mode: MATCHES
     rules:
       r_all_methods_no_input_return:
         scopes:
@@ -55,12 +55,12 @@ inspectit:
           new
           StringBuilder(_class.getName()).append('.').append(_methodName).toString()
   logging:
-    debug: true
+    debug: false
     trace: false
   exporters:
     tracing:
       service-name: Ocelot Otel Exporter
       otlp:
-        enabled: true
+        enabled: ENABLED
         endpoint: http://localhost:55678
         protocol: grpc

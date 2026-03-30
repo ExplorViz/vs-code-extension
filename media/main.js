@@ -62,6 +62,13 @@
     });
   }
 
+  const deleteVariablesFromDebugWatchButton = document.querySelector('#explorviz-remove-all-variables-from-debug-watch-button');
+  if (deleteVariablesFromDebugWatchButton) {
+    deleteVariablesFromDebugWatchButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.removeAllVariablesFromDebugWatch");
+    });
+  }
+
   const connectToVizButton = document.querySelector(
     "#explorviz-join-room-button"
   );
