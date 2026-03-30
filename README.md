@@ -1,7 +1,7 @@
 
 # 🧭 Anleitung: Setup zur Visualisierung eines Snapshots aus der VS Code Extension in ExplorViz
 
-Im Folgenden wird erklärt, welche Services in welcher Reihenfolge gestartet werden müssen, um ein von der **VS Code Extension** erzeugten **Snapshot** in **ExplorViz** visualisierbar zu machen.
+Im Folgenden wird erklärt, welche Services in welcher Reihenfolge gestartet werden müssen, um einen von der **VS Code Extension** erzeugten **Snapshot** in **ExplorViz** visualisierbar zu machen.
 
 ---
 
@@ -75,7 +75,7 @@ git checkout visualize-debug-session
 cd ~
 git clone https://git.se.informatik.uni-kiel.de/ExplorViz/code/frontend.git
 cd frontend
-git checkout r3f-vs-code-extension
+git checkout r3f-visualize-debug-state
 npm install
 npm run dev
 ```
@@ -134,33 +134,64 @@ Erstelle anschließend in der MongoDB:
 cd ~
 git clone https://git.se.informatik.uni-kiel.de/ExplorViz/code/vs-code-backend.git
 cd vs-code-backend
-git checkout visualize-debug-session
+git checkout visualize-debug-state
 npm install
 npm run start
 ```
 
 ---
 
-### 10. Start der **VS Code Extension**
+### 10. Start des **Code Service**
+```bash
+cd ~
+git clone https://git.se.informatik.uni-kiel.de/ExplorViz/code/code-service.git
+cd code-service
+./gradlew quarkusDev
+```
+
+---
+
+### 11. Start der **VS Code Extension**
 ```bash
 cd ~
 git clone https://git.se.informatik.uni-kiel.de/ExplorViz/code/vs-code-extension.git
 cd vs-code-extension
-git checkout visualize-debug-session-refactoring
+git checkout visualize-debug-state
+npm install
 code .
 ```
+
+---
+
+### 12. Erstellen der Landscapestruktur
+**Entweder:**
+```bash
+cd ~
+git clone https://git.se.informatik.uni-kiel.de/ExplorViz/code/code-service.git
+cd code-service
+./gradlew quarkusDev
+```
+Nutze die Anleitung in der README.md des Code-Agents, um für das gewünschte versionierte Java-Programm eine Landscapestruktur zu erstellen.
+
+**Alternativ (aber wesentlich aufwendiger):**
+Aktiviere die Funktionalität, den InspectIT Ocelot Agent an die Debug-Session anzuhängen. Führe folgende Schritte in der VS Code Extension aus:
+Entkommentiere den auskommentierten Code in der Funktion `attachInspectITClient()` in `src/extension.ts`. 
+Passe dann `ocelot/inspectit.yml` an, um das gewünschte versionierte Java-Programm zu tracken.
+Debugge das Programm durch "Step Into"- und "Step Out"-Befehle (es sollen viele Funktionsaufrufe geschehen).
+Die Landscapestruktur sollte nun basierend auf den gesammelten Traces erstellt worden sein. 
+Kommentiere den entkommentierten Code wieder aus.
+
 
 > Nun kannst du die Extension im **Debug Panel → "Run Extension"** starten.  
 > Öffne im laufenden Extension-Fenster ein versioniertes Java-Projekt (also clonen und im Workspace öffnen, z. B. *spring-petclinic*, siehe https://github.com/spring-projects/spring-petclinic) und führe es im **Debugger** aus.  
 
 Dadurch kannst du mit der ExplorViz VS Code Extension interagieren.
 
+
 ---
 
 ### 📚 Weitere Informationen
 
-Für zusätzliche Details siehe: 
-- Guide (https://git.se.informatik.uni-kiel.de/ExplorViz/guide-for-survey) 
-- 🧾 Poster: *(https://git.se.informatik.uni-kiel.de/paper/2025-vissoft-explorviz-debugging/-/blob/main/poster.pdf?ref_type=heads)*  
-- 📄 Paper: *(https://git.se.informatik.uni-kiel.de/paper/2025-vissoft-explorviz-debugging/-/blob/main/poster-manuscript/VISSOFT_2025_Debugging_Poster.pdf?ref_type=heads)*  
+Für zusätzliche Details zum Debugging siehe: 
+- Guide (https://git.se.informatik.uni-kiel.de/ExplorViz/guide-for-survey)
 
