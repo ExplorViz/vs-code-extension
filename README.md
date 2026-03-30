@@ -187,11 +187,16 @@ Aktiviere die Funktionalität, den InspectIT Ocelot Agent an die Debug-Session a
 
 Dadurch kannst du mit der ExplorViz VS Code Extension interagieren.
 
-
 ---
 
 ### 📚 Weitere Informationen
 
 Für zusätzliche Details zum Debugging siehe: 
 - Guide (https://git.se.informatik.uni-kiel.de/ExplorViz/guide-for-survey)
+
+---
+### Bekannte Probleme:
+- Das Debuggen mit dem InspectIT-Client kann zu Anomalien im Editor von VS Code führen (z.B. falsche Anzeigen). Jede Aktion zum Ausführen (wie 'Step Into') wird aber an den Debugger übertragen.
+- Das Laden der Snapshots in der Zeitleiste ist nicht immer zuverlässig. Falls sie nicht laden: Einmal mit dem Frontend zum VS Code Backend reconnecten.
+- Werte von Variablen von Klassen, die eine `toString`-Funktion besitzen, werden nicht korrekt gesammelt. Das liegt an einer Doppelreferenzierung im Debugger.
 
