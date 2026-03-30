@@ -174,12 +174,12 @@ cd code-service
 Nutze die Anleitung in der README.md des Code-Agents, um für das gewünschte versionierte Java-Programm eine Landscapestruktur zu erstellen.
 
 **Alternativ (aber wesentlich aufwendiger):**
-Aktiviere die Funktionalität, den InspectIT Ocelot Agent an die Debug-Session anzuhängen. Führe folgende Schritte in der VS Code Extension aus:
-Entkommentiere den auskommentierten Code in der Funktion `attachInspectITClient()` in `src/extension.ts`. 
-Passe dann `ocelot/inspectit.yml` an, um das gewünschte versionierte Java-Programm zu tracken.
-Debugge das Programm durch "Step Into"- und "Step Out"-Befehle (es sollen viele Funktionsaufrufe geschehen).
-Die Landscapestruktur sollte nun basierend auf den gesammelten Traces erstellt worden sein. 
-Kommentiere den entkommentierten Code wieder aus.
+Aktiviere die Funktionalität, den InspectIT Ocelot Agent an die Debug-Session anzuhängen. Führe dafür folgende Schritte in der VS Code Extension aus:
+- Entkommentiere den auskommentierten Code in der Funktion `attachInspectITClient()` in `src/extension.ts`. 
+- Passe dann `ocelot/inspectit.yml` an, um das gewünschte versionierte Java-Programm zu tracken.
+- Debugge das Programm durch "Step Into"- und "Step Out"-Befehle (es sollen viele Funktionsaufrufe geschehen).
+- Die Landscapestruktur sollte nun basierend auf den gesammelten Traces erstellt worden sein. 
+- Kommentiere den entkommentierten Code wieder aus.
 
 
 > Nun kannst du die Extension im **Debug Panel → "Run Extension"** starten.  
