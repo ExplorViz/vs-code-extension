@@ -19,6 +19,9 @@ import {
   TextSelection,
   ModesEnum,
   InspectITConfig,
+  StateValue,
+  VariableEntry,
+  ClassEntry
 } from "./types";
 import { ExplorVizApiCodeLens } from "./ExplorVizApiCodeLens";
 import { buildClassMethodArr } from "./buildClassMethod";
@@ -26,6 +29,7 @@ import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
 import { IFrameViewContainer } from "./IFrameViewContainer";
 import { API, GitExtension, Repository } from "./api/git";
+import { debug } from "console";
 
 export type DebugRoom = { alias: string; secret: string; value: string; projectName: string; commitId: string; };
 export type DebugRoomList = DebugRoom[];
@@ -57,9 +61,28 @@ const ackTimeoutMs = 4000;
 
 let jdkBinPath: string | undefined = undefined;
 
+//Represents a variable as code inside a document
+interface VariableSymbol{
+  line: number;
+  beginChar: number;
+  endChar: number;
+  name: string;
+  documentUri: vscode.Uri;
+}
 
-// import * as vsls from 'vsls';
-// import { getApi } from "vsls";
+// map for storing all variables found in the current editor
+const variableTokens: Map<number, VariableSymbol[]> = new Map(); // line of the variable code -> VariableSymbol[] 
+
+
+// code lenses for showing the explorvizbutton in editor
+let debugCodelenses : vscode.CodeLens[] = [];
+// emitter for notifying codeLensProvider about in the code lenses
+const debugCodeLensEmitter = new vscode.EventEmitter<void>();
+
+
+// Map for storing the variables with their values, that are searched during debugging 
+export const debugVariableWatchlist : Map<string, Set<string>> = new Map(); // variableName -> Set("DefinitionFileName/DefinitionLine")
+const debugVariableStateValues : Map<string, Map<string, StateValue[]>> = new Map(); // variableName -> (className -> [{objRreference, value, type}])
 
 export let decorationType: vscode.TextEditorDecorationType;
 
@@ -97,6 +120,8 @@ export let isInspectITClientAttached: boolean = false;
 export let currentDebugRooms: DebugRoomList | undefined = undefined;
 export let currentDebugRoom: DebugRoom | undefined = undefined;
 export let isDebugSessionStopped: boolean = false;
+let stoppedDebugSession: vscode.DebugSession | undefined = undefined;
+let stoppedDebugThreadId: number | undefined = undefined;
 
 export let isLoading: boolean = false; 
 
@@ -110,6 +135,7 @@ let git: API | undefined = undefined;
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
+
   const settings = vscode.workspace.getConfiguration("explorviz");
 
   extensionContext = context;
@@ -167,9 +193,11 @@ export async function activate(context: vscode.ExtensionContext) {
       // save delta for ide, since now iFrame is inFocus
       if (ideUsageTimerStart) {
         const latestUsageTime = ideUsageTimerEnd - ideUsageTimerStart;
-        const timeEvent = `${username},ide,${ideUsageTimerStart},${latestUsageTimer}\r\n`;
+        const timeEvent = `${username},ide,${ideUsageTimerStart},${latestUsageTime}\r\n`;
         fs.appendFileSync(pathToState, timeEvent);
       }
+
+
       return;
     }
 
@@ -180,48 +208,82 @@ export async function activate(context: vscode.ExtensionContext) {
     // save delta for iFrame, since now ide is inFocus
     if (iFrameUsageTimerStart) {
       const latestUsageTime = iFrameUsageTimerEnd - iFrameUsageTimerStart;
-      const timeEvent = `${username},viz,${iFrameUsageTimerStart},${latestUsageTimer}\r\n`;
+      const timeEvent = `${username},viz,${iFrameUsageTimerStart},${latestUsageTime}\r\n`;
       fs.appendFileSync(pathToState, timeEvent);
     }
 
     refreshEditorHighlights();
     applyLatestTextSelection();
+    
+    // find and store all variables in file 
+    getVariablesfromCurrentEditor(e);
   });
 
-  vscode.window.onDidChangeTextEditorSelection(
+   vscode.window.onDidChangeTextEditorSelection(
     (e: vscode.TextEditorSelectionChangeEvent) => {
-      if (!pairProgrammingSessionName) {
-        return;
-      }
-
       const startLine = e.textEditor.selection.start.line;
       const startChar = e.textEditor.selection.start.character;
-      const endLine = e.textEditor.selection.end.line;
-      const endChar = e.textEditor.selection.end.character;
-      const documentUri = e.textEditor.document.uri.toString();
 
-      if (e.textEditor.selection.isEmpty) {
-        // DEBUG
-        //e.textEditor.setDecorations(collabTextSelectionDecorationType, []);
-        emitTextSelection(null);
-      } else {
-        // DEBUG
-        //e.textEditor.setDecorations(collabTextSelectionDecorationType, [
-        //  new vscode.Range(startLine, startChar, endLine, endChar),
-        //]);
-        const textSelectionPayload: TextSelection = {
-          documentUri: documentUri,
-          startLine: startLine,
-          startCharPos: startChar,
-          endLine: endLine,
-          endCharPos: endChar,
-        };
-        emitTextSelection(textSelectionPayload);
+      debugCodelenses = [];
+      if (isDebugSessionStopped){
+        
+        
+        // if we are at breakpoint and cursor is at a variable, show the explorvizbutton for adding variable to debug watch
+        if (e.textEditor.selection.isEmpty && variableTokens.has(startLine)){
+          const varsInLine = variableTokens.get(startLine)!;
+          for(const [index, variable] of varsInLine.entries()){
+            if(startChar >= variable.beginChar && startChar <= variable.endChar){
+              // update the codeLenses to show the Explorvizbutton for marking variables
+              debugCodelenses = [
+                new vscode.CodeLens(
+                    new vscode.Range(startLine, startChar, startLine, startChar),
+                    {
+                        title: '🌍',
+                        command: 'explorviz-vscode-extension.addVariableToDebugWatch',
+                        arguments: [variable.line, index]
+                    }
+                )
+              ];
+              break;
+        }}}
+
       }
-    }
-  );
+      // notify codelens Provider about the change
+      debugCodeLensEmitter.fire();
+    
+      
+      if (pairProgrammingSessionName) {
+        //startLine = e.textEditor.selection.start.line;
+        //startChar = e.textEditor.selection.start.character;
+        const endLine = e.textEditor.selection.end.line;
+        const endChar = e.textEditor.selection.end.character;
+        const documentUri = e.textEditor.document.uri.toString();
+
+        if (e.textEditor.selection.isEmpty) {
+          // DEBUG
+          //e.textEditor.setDecorations(collabTextSelectionDecorationType, []);
+          emitTextSelection(null);
+        } else {
+          // DEBUG
+          //e.textEditor.setDecorations(collabTextSelectionDecorationType, [
+          //  new vscode.Range(startLine, startChar, endLine, endChar),
+          //]);
+          const textSelectionPayload: TextSelection = {
+            documentUri: documentUri,
+            startLine: startLine,
+            startCharPos: startChar,
+            endLine: endLine,
+            endCharPos: endChar,
+          };
+          emitTextSelection(textSelectionPayload);
+        }
+      }
+      
+    });
 
 
+
+  // Seitenleiste einrichten
   sessionViewProvider = new SessionViewProvider(context.extensionUri);
   disposableSessionViewProvider = vscode.window.registerWebviewViewProvider(
     SessionViewProvider.viewType,
@@ -240,18 +302,32 @@ export async function activate(context: vscode.ExtensionContext) {
     createDebugAdapterTracker(session: vscode.DebugSession) {
       return {
         onWillReceiveMessage: m => {
-        console.log(`> ${JSON.stringify(m, undefined, 2)}`);
+        //console.log(`> ${JSON.stringify(m, undefined, 2)}`);
         if(m?.command) {
             switch(m.command) {
               case "continue":
                 isDebugSessionStopped = false;
                 sessionViewProvider.refreshHTML();
+                stoppedDebugSession = undefined;
+                stoppedDebugThreadId = undefined;
+                break;
+              case "terminate":
+                isDebugSessionStopped = false;
+                sessionViewProvider.refreshHTML();
+                stoppedDebugSession = undefined;
+                stoppedDebugThreadId = undefined;
+                break;
+              case "disconnect":
+                isDebugSessionStopped = false;
+                sessionViewProvider.refreshHTML();
+                stoppedDebugSession = undefined;
+                stoppedDebugThreadId = undefined;
                 break;
             }
         }
         },
         onDidSendMessage: m => {
-        console.log(`< ${JSON.stringify(m, undefined, 2)}`);
+        //console.log(`< ${JSON.stringify(m, undefined, 2)}`);
 
           if(m?.event) {
             switch(m.event) {
@@ -269,8 +345,11 @@ export async function activate(context: vscode.ExtensionContext) {
                   m?.body?.reason === "instruction breakpoint"
                 ) {
                   isDebugSessionStopped = true;
+                  stoppedDebugSession = session;
+                  stoppedDebugThreadId = m?.body?.threadId;
+
                   sessionViewProvider.refreshHTML();
-                  // todo: save breakpoint feature => save state (selection of which variables to save needed)
+                  
                 }
                 break;
               case "step":
@@ -304,6 +383,10 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCancelConnectionSetup();
   registerCommandUpdateWebViewForJoinedDebugSessionLandscape();
   registerCommandSaveBreakpoint();
+  registerCommandAddVariableToDebugWatch();
+  registerCommandRemoveAllVariablesFromDebugWatch();
+
+  registerDebugCodeLensProvider();
 
   // #endregion
 
@@ -315,6 +398,10 @@ export async function activate(context: vscode.ExtensionContext) {
   } catch (error) {
     console.log(error);
   }
+
+  // in case editor is already open when extension is activated
+  // find variables in file
+  getVariablesfromCurrentEditor(vscode.window.activeTextEditor);
 
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
@@ -345,6 +432,7 @@ function emitTextSelection(selectionPayload: TextSelection) {
   socket.emit("broadcast-text-selection", selectionPayload);
 }
 
+// nimmmt liste von Pfaden, ersetzt gleiche teile durch "..." und gibt gekürzte liste zurück
 function cutSameStrings(arr: string[]): string[] {
   let trimmedArr: string[] = [];
   let arrFixed = arr.map((e) => e.replaceAll("/", "\\"));
@@ -1100,51 +1188,149 @@ function registerCommandSaveBreakpoint() {
     "explorviz-vscode-extension.saveBreakpoint",
     async () => {
 
-      // we still need to check this because our save state function could
-      // be called from within the command panel
-      if(!isDebugSessionStopped) {
-        return;
-      }
-
+      // checking if setup is correct
       if(!currentDebugRoom) {
         vscode.window.showInformationMessage("Please join a debug room!");
         return;
       }
-
       if(!isInspectITClientAttached) {
         vscode.window.showInformationMessage("Please initiate monitoring for this debug session!");
         return;
       }
-      const timestampInNano = BigInt(Date.now()) * 1_000_000n;
-      
-      const ackPromise1 = emitEvent<boolean, [string]>(
+      if(!isDebugSessionStopped || stoppedDebugSession === undefined|| stoppedDebugThreadId === undefined) {
+        vscode.window.showInformationMessage(`Variable savement failed! Debug Session is not stopped!`);
+        return;
+      }
+      const isFrontendConnected = await emitEvent<boolean, [string]>(
         'check-frontend-connection',
         (b): b is boolean => typeof b === 'boolean',
-        frontendHttp
+        frontendHttp!
       );
-
-      const isFrontendConnected = await ackPromise1;
-
       if(isFrontendConnected === undefined || isFrontendConnected === false) {
         vscode.window.showErrorMessage("Something went wrong while checking the connection to the frontend!");
         return;
       }
 
-      const ackPromise2 = await emitEvent<boolean, [string, number]>(
+      // store timestamp and current variable values
+      console.log("Saving current state");
+      const timestampInNano = BigInt(Date.now()) * 1_000_000n;
+      await searchVariablesinCurrentStackFrame(stoppedDebugSession, stoppedDebugThreadId);
+      
+      // convert the stored variable state map into a object List that can be send over a socket 
+      const emittedValues :VariableEntry[] = [];
+      debugVariableStateValues.forEach(
+        (classEntries, varName) =>{
+          if(!classEntries || classEntries.size === 0) {
+            // this variable was not found in any class
+            return;
+          }
+          const variableEntry: VariableEntry = {
+            varname: varName,
+            classes: []
+          };
+          classEntries.forEach(
+            (stateValues, className) => {
+              const classEntry: ClassEntry = {
+                className: className,
+                values: stateValues
+              };
+              variableEntry.classes.push(classEntry);
+            });
+          emittedValues.push(variableEntry);
+      });
+      if(emittedValues.length === 0) {
+        vscode.window.showInformationMessage("No variables found in the current stack frame to save!");
+        return;
+      }
+      // send the variable state over a socket to the extension backend
+      console.log("Emitting current state over socket: ", emittedValues);
+      const saveSuccess = await emitEvent<boolean, [string, number, VariableEntry[]]>(
         "save-current-state",
         (payload): payload is boolean => typeof payload === "boolean",
-        ...[currentDebugRoom!.value, Number(timestampInNano)]
+        ...[currentDebugRoom!.value, Number(timestampInNano), emittedValues]
       );
-      const saveSuccess = await ackPromise2;
-
       if (saveSuccess) {
         vscode.window.showInformationMessage("Current state has been saved!");
+        console.log("Current state has been saved successfully!");
       } else {
         vscode.window.showErrorMessage("Unable to save current state!");
+        console.error("Unable to save current state!");
       }
     }
   );
   extensionContext!.subscriptions.push(saveBreakPoint);
+}
+
+function registerCommandAddVariableToDebugWatch() {
+
+  const debugWatchCommand = vscode.commands.registerCommand('explorviz-vscode-extension.addVariableToDebugWatch', async (line : number, index : number) => {
+    // line is the line of the token that was marked index is only importend if multiple variables are on the same line
+    let variableToken = variableTokens.get(line)?.[index]!;
+    
+    // get the definition-token of the variable
+    let definitions : {range:vscode.Range, uri:vscode.Uri}[] = await vscode.commands.executeCommand('vscode.executeDefinitionProvider', variableToken?.documentUri, new vscode.Position(line, variableToken.beginChar));
+
+    // to uniquely identify the variable, we use the document path + line number of its definition
+    let variableTokenPath = path.join(path.basename(variableToken.documentUri.fsPath), definitions[0].range.start.line.toString()); 
+    
+    
+    if(debugVariableWatchlist.has(variableToken?.name)){
+      const variableDefinitions = debugVariableWatchlist.get(variableToken?.name)!;
+      // if the variable is already in watchlist, remove it
+      if(variableDefinitions.has(variableTokenPath)){
+        variableDefinitions.delete(variableTokenPath);
+        if(variableDefinitions.size === 0){
+          debugVariableWatchlist.delete(variableToken?.name);
+          debugVariableStateValues.delete(variableToken?.name);
+        }
+        vscode.window.showInformationMessage(`Variable ${variableToken?.name} is unmarked!`);
+        console.log(`Variable ${variableToken?.name} is unmarked!`);
+      }// if variable with same name is in watchlist, add new definition path
+      else{
+        debugVariableWatchlist.get(variableToken?.name)!.add(variableTokenPath);
+        vscode.window.showInformationMessage(`Variable ${variableToken?.name} is marked!`);
+        console.log(`Variable ${variableToken?.name} is marked!`);
+      }
+    }// variable not in watchlist, add it
+    else{
+      debugVariableWatchlist.set(variableToken?.name, new Set([variableTokenPath]));
+      debugVariableStateValues.set(variableToken?.name, new Map());
+      vscode.window.showInformationMessage(`Variable ${variableToken?.name} is marked!`);
+      console.log(`Variable ${variableToken?.name} is marked!`);
+    }
+    console.log("Current debugVariableWatchlist: ", debugVariableWatchlist);
+
+    sessionViewProvider.refreshHTML();
+    
+  });
+  // Command for adding variable to debug watch
+  extensionContext!.subscriptions.push(debugWatchCommand);
+}
+
+function registerCommandRemoveAllVariablesFromDebugWatch() {
+  const removeAllVariablesFromDebugWatchCommand = vscode.commands.registerCommand('explorviz-vscode-extension.removeAllVariablesFromDebugWatch', () => {
+    debugVariableWatchlist.clear();
+    debugVariableStateValues.clear();
+    vscode.window.showInformationMessage(`All variables are unmarked!`);
+    console.log(`All variables are unmarked!`);
+    sessionViewProvider.refreshHTML();
+  });
+  extensionContext!.subscriptions.push(removeAllVariablesFromDebugWatchCommand);
+}
+
+function registerDebugCodeLensProvider(){
+  // CodeLens Provider for showing "add to debug watch button" (the globe icon)
+  // listens for changes from the emitter
+  let debugCodeLensProvider: vscode.CodeLensProvider = {
+    provideCodeLenses(document) {
+      return debugCodelenses;
+  },
+    onDidChangeCodeLenses: debugCodeLensEmitter.event
+  };
+
+  extensionContext!.subscriptions.push(
+    vscode.languages.registerCodeLensProvider({ scheme: 'file', language: 'java' }, debugCodeLensProvider)
+  );
 }
 
 function registerCommandCreateLandscapeForDebugSession() {
@@ -1190,7 +1376,7 @@ function registerCommandCreateLandscapeForDebugSession() {
       const ackPromise1 = emitEvent<boolean, [string]>(
         'check-frontend-connection',
         (b): b is boolean => typeof b === 'boolean',
-        frontendHttp
+        frontendHttp!
       );
       const isFrontendConnected = await ackPromise1;
       
@@ -1367,7 +1553,7 @@ function checkJavaInstalled() {
 function attachOcelotAgent() {
   return new Promise<boolean>((resolve, reject) => {
     const ocelotPath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot");
-    const ocelotJarPath = vscode.Uri.joinPath(ocelotPath, "inspectit-ocelot-agent-2.6.5.jar");
+    const ocelotJarPath = vscode.Uri.joinPath(ocelotPath, "inspectit-ocelot-agent-2.7.1.jar");
     const commandString = `java -jar ${ocelotJarPath.fsPath} ${debuggedAppPID} "{ \"inspectit\": { \"config\": { \"file-based\": {\"path\": \"${ocelotPath.fsPath}\" }}}}"`;
     exec(commandString, (error, stdout, stderr) => {
         if (error) {
@@ -1413,12 +1599,14 @@ async function askForWorkspaceFolder(): Promise<vscode.WorkspaceFolder | undefin
 }
 
 async function attachInspectITClient() {
+  // the feature is currently disabled (commented out) beacause the InspectIt Ocelot agent clashes with the Debugging in VS Code
 
-  const debuggedAppPID = await  getDebuggedApplicationPID();
-    if(!debuggedAppPID) {
-      vscode.window.showErrorMessage("Unable to find the debuggee PID. Please restart the debugger and try again! (Ctrl + Shift + F5)");
-      return;
-    }
+  //
+  // const debuggedAppPID = await  getDebuggedApplicationPID();
+  //   if(!debuggedAppPID) {
+  //     vscode.window.showErrorMessage("Unable to find the debuggee PID. Please restart the debugger and try again! (Ctrl + Shift + F5)");
+  //     return;
+  //   }
 
   // Get the file path for the bundled YAML file
   const filePath = vscode.Uri.joinPath(extensionContext!.extensionUri, "ocelot", "inspectit.yml");
@@ -1441,9 +1629,9 @@ async function attachInspectITClient() {
 
 
     // attach inspectIT Ocelot to debugged application
-    await checkJavaInstalled();
+    // await checkJavaInstalled();
 
-    await attachOcelotAgent();
+    // await attachOcelotAgent();
 
     isInspectITClientAttached = true;
     vscode.window.showInformationMessage("InspectIT Ocelot client attached!");
@@ -1547,6 +1735,235 @@ function emitEvent<T, A extends any[] = []>(
       }
     }, ackTimeoutMs);
   });
+}
+
+
+// ########### BEGIN Variable State Management and Search #############
+
+// searches at the current active stack-frame of the given thread for the variables in debugSearchedVariables
+// writes the found variable values in the debugSearchedVariables map
+// assumes the current active stack-frame is on top of the stack-trace
+async function searchVariablesinCurrentStackFrame(session : vscode.DebugSession, threadId: number){
+
+  debugVariableStateValues.forEach( (variableStates, _) => {
+    variableStates.clear();
+  });
+  console.log("Cleared debugVariableStateValues: ", debugVariableStateValues);
+  // get all steck-frames for the given thread
+  const stackTrace = await session.customRequest('stackTrace', {'threadId' : threadId});
+
+  console.log("Searching Variables: ", debugVariableStateValues, " in Stackframe: ", stackTrace.stackFrames[0]);
+  // search variables for the active stack-frame (top of the stack-trace)
+  await searchVariablesInStackFrame(session, {stackFrameName: stackTrace.stackFrames[0].name,  stackFrameId: stackTrace.stackFrames[0].id});
+  
+  console.log("Found Variables: ", debugVariableStateValues);
+}
+
+enum VariableScopeIdentifier{
+  local = -1, // variables scope belongs to the function where the debugger has stopped
+  param = -2, // variables scope belongs to the parameters of the function where the debugger has stopped
+  static = -3,
+  global = -4, // variables scope belongs to the global context
+  this = -5 // variables scope belongs to the current instance of the class with the function the debugger has stopped in
+}
+
+// searches all scopes of the given stack-frame for the variables in debugSearchedVariables
+// writes the found variable values in the debugSearchedVariables map
+async function searchVariablesInStackFrame(session: vscode.DebugSession, stackFrameInfo: {stackFrameName: string, stackFrameId: number}){
+  // get all scopes for the given stack-frame
+  const scopesResponse = await session.customRequest('scopes', {'frameId' : stackFrameInfo.stackFrameId});
+
+  console.log("Scopes in StackFrame: ", scopesResponse.scopes);
+
+  const searchedScopes = ["local", "param", "static", "global", "this"];
+  // search for variables in all scopes
+  for(const scope of scopesResponse.scopes){
+    // we want to later assign the variable value to the fitting class, so we need to understand the scopes
+    // the following is a heuristic approach and might not work for every debugger implementation
+    const lowScopeName = scope.name.toLowerCase();
+    let heurScopeName = searchedScopes.find(s => lowScopeName.includes(s));
+    switch(heurScopeName){
+      case "local":
+        // our scope name is the stackframe name
+        await searchVariablesByVariableReference(session, {scopeName: stackFrameInfo.stackFrameName, variableReference: scope.variablesReference, scopeId: VariableScopeIdentifier.local});
+        break;
+      case "param":
+        await searchVariablesByVariableReference(session, {scopeName: stackFrameInfo.stackFrameName, variableReference: scope.variablesReference, scopeId: VariableScopeIdentifier.param});
+        break;
+      case "static":
+        break;
+      case "global":
+        break;
+      case "this":
+        // we extract the class name from the stackframe name (assuming format ClassName.methodName)
+        await searchVariablesByVariableReference(session, {scopeName: stackFrameInfo.stackFrameName.split(".")[0], variableReference: scope.variablesReference , scopeId: VariableScopeIdentifier.this});
+        break;
+      default:
+        console.log("Skipping Scope: ", scope);
+        continue;
+    }
+  }
+
+  // when multiple variables with the same name exist, ask the user which one to save
+  for(const [varName, varInfo] of debugVariableStateValues){
+    if(varInfo.size > 1){
+      console.log("Variable ", varName, " found in multiple scopes: ", Array.from(varInfo.keys()));
+      const items: vscode.QuickPickItem[] = Array.from(varInfo.keys()).map(scopeName => ({
+        label: scopeName
+      }));
+
+      const selected = await vscode.window.showQuickPick(items, {
+          canPickMany: true,
+          title: 'Variable "' + varName + '" was found in multiple contexts. Which one should be saved?',
+          placeHolder: 'Choose contexts...'
+      });
+
+      if (!selected) {
+          return;
+      }
+
+      varInfo.forEach((_, scopeName) => {
+          // if the scopeName is not selected, delete it from the varInfo
+          if(!selected.find(item => item.label === scopeName)){
+              varInfo.delete(scopeName);
+          }
+      });
+    }
+  }
+}
+
+
+// searches the given scope for the variables in debugSearchedVariables
+// writes the found variable values in the debugSearchedVariables map
+async function searchVariablesByVariableReference(session: vscode.DebugSession, scopeInfo: {scopeName: string, variableReference: number, scopeId: number}, visited = new Set<number>()){
+  /* scopeInfo.variableReference and .scopeId are not the same thing!! variableReference is used by the Debugger to to fetch variable States it can change  
+  within one Debug session and is not unique. ScopeID is a unique identifier for Scopes that we either genarate or is given by a InstanceId in case of ClassInstances
+  */
+  // get all variables for the given variable reference (scope)
+  let variablesResponse : any = [];
+  try{
+    console.log("Searching for variables in scope ", scopeInfo.scopeName, " with variableReference ", scopeInfo.variableReference , "and scopeId ", scopeInfo.scopeId);
+    variablesResponse = await session.customRequest('variables', {'variablesReference' : scopeInfo.variableReference});
+    console.log("Variables in Scope ", scopeInfo.variableReference, ": ", variablesResponse.variables);
+  }
+  catch(error){
+    console.error("Error while fetching variables for scope ", scopeInfo.scopeName, " with variableReference ", scopeInfo.variableReference, "and scopeId ", scopeInfo.scopeId, ": ", error);
+    return;
+  }
+
+  for(const variable of variablesResponse.variables){
+    // check if the variable is one of the searched variables
+    if (debugVariableStateValues.has(variable.name)) {
+      if(!debugVariableStateValues.get(variable.name)!.has(scopeInfo.scopeName)){
+        debugVariableStateValues.get(variable.name)!.set(scopeInfo.scopeName, []);
+      }
+      // add the found value to the variable info in debugSearchedVariables
+      debugVariableStateValues.get(variable.name)!.get(scopeInfo.scopeName)!.push({value : variable.value, type : variable.type, objReference: scopeInfo.scopeId});
+      console.log("Found searched Variable ", variable.name, " with value ", variable.value, "and type ", variable.type);
+    }
+    // if the variable is a structured variable, search in its children as well (avoid cycles with visited set)
+    if(variable.variablesReference > 0){
+      const splittedValue = variable.value.split("@"); // the value of a Strctured variable looks like value = WelcomController@50 were 50 is the unique identifier for this welcomecontroller object
+      const scopeIDContainer = splittedValue.length === 2 ? splittedValue[1] : undefined; 
+      if(!scopeIDContainer) {continue;}
+      let scopeID = Number(scopeIDContainer.match(/\d+/)[0]);
+      console.log("Variable ", variable.name, " is a structured variable with unique identifier: ", scopeID);
+      if(scopeID !== undefined && !visited.has(scopeID)){
+        visited.add(scopeID);
+        console.log("Searching in StructuredVariable ", variable.name);
+        await searchVariablesByVariableReference(session, {scopeName: variable.type, variableReference: variable.variablesReference, scopeId: scopeID}, visited);
+      }
+    }
+    //console.log("Visited now looks like: ", visited);
+  }
+}
+
+// ########### END Variable State Management and Search #############
+
+// searches the semantic tokens of the current editor for variable usages
+// fills the variableTokens map accordingly 
+async function getVariablesfromCurrentEditor(editor: vscode.TextEditor | undefined) {
+  if (!editor || editor.document.languageId !== "java") {return;}
+  // new editor = new tokens, oldd ones arent needed
+  variableTokens.clear();
+
+  const timeOutMs = 10000; // 10 seconds
+  const startTime = Date.now();
+
+  // retry getting tokens until JavaLS is started or timeout is reached
+  while (true){
+    try{
+      await getTokensFromEditor(editor);
+      return;
+    } catch (error) {
+      console.log("Waiting for JavaLS to start...");
+      if(Date.now() - startTime < timeOutMs) {
+        await new Promise(r => setTimeout(r, 1000));
+      } else {
+        console.log("JavaLS seems to not start. Is it installed?");
+        return;
+      }
+    }
+  }
+}
+
+// fills the variableTokens map with variable usages found in the semantic tokens of the given editor
+async function getTokensFromEditor(editor: vscode.TextEditor) {
+  console.log("Getting semantic tokens for document:", editor.document.uri.fsPath);
+    
+  const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+      "vscode.provideDocumentSemanticTokens",
+      editor.document.uri
+  );
+
+  // the legend is used to decode the semantic token response
+  const legend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
+    "vscode.provideDocumentSemanticTokensLegend",
+    editor.document.uri
+  );
+
+  const data = tokens.data;
+
+  // we only want variables and similar tokens
+  const variableIndex = legend.tokenTypes.indexOf("variable");
+  const propertyIndex = legend.tokenTypes.indexOf("property");
+  const parameterIndex = legend.tokenTypes.indexOf("parameter");
+
+  let line = 0;
+  let char = 0;
+
+  // go through every token in the file and add its info to variableTokens if it is a variable
+  for (let i = 0; i < data.length; i += 5) {
+    const deltaLine = data[i];
+    const deltaChar = data[i + 1];
+    const tokenTypeIndex = data[i + 3];
+
+    line += deltaLine;
+    char = deltaLine === 0 ? char + deltaChar : deltaChar;
+
+    // if the token is one we search for, decode its information and save it in the variableTokens map
+    if(tokenTypeIndex === variableIndex || tokenTypeIndex === propertyIndex || tokenTypeIndex === parameterIndex) {
+      const length = data[i + 2];
+      const tokenModifierBits = data[i + 4];
+      const range = new vscode.Range(line, char, line, char + length);
+
+      const text = editor.document.getText(range);
+
+      //console.log("Found Variable usage: ", {text, modifiers, line, char, length});
+
+      const tokenArr = variableTokens.get(line) ?? [];
+      tokenArr.push({
+        line: line,
+        beginChar: char,
+        endChar: char + length,
+        name: text,
+        documentUri: editor.document.uri
+      });
+      variableTokens.set(line, tokenArr);
+
+    }
+  }
+  //console.log("Semantic Variable Tokens for document: ", editor.document.uri.fsPath , "are: ", variableTokens);
 }
 
 

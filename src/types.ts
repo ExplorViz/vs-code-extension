@@ -101,4 +101,24 @@ export type InspectITConfig = {
       }
     }
   }
-}
+};
+
+
+// represents a value in of a variable at runtim
+export type StateValue = {
+  objReference: number; // unique identifier for the scope containing the variable (most often an object)
+  value: string;
+  type: string;
+};
+
+// represents a class with the values of the variables contained in defferent instances
+export type ClassEntry = {
+  className: string;
+  values: StateValue[];
+};
+
+// represents a vaiable by its name and the classes its contained in
+export type VariableEntry = {
+  varname: string;
+  classes: ClassEntry[];
+};
