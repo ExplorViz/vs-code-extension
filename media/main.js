@@ -6,6 +6,20 @@
   // @ts-ignore
   const vscode = acquireVsCodeApi();
 
+  const startDebuggingWithExplorVizButton = document.querySelector('#explorviz-start-debugging-with-explorviz-button');
+  if (startDebuggingWithExplorVizButton) {
+    startDebuggingWithExplorVizButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.startDebuggingWithExplorViz");
+    });
+  }
+
+  const stopDebuggingWithExplorVizButton = document.querySelector('#explorviz-stop-debugging-with-explorviz-button');
+  if (stopDebuggingWithExplorVizButton) {
+    stopDebuggingWithExplorVizButton.addEventListener("click", () => {
+      executeExtensionCommand("explorviz-vscode-extension.stopDebuggingWithExplorViz");
+    });
+  }
+
   const connectToBackendButton = document.querySelector('#explorviz-connect-to-backend-button');
   if (connectToBackendButton) {
     connectToBackendButton.addEventListener("click", () => {

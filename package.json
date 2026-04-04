@@ -18,6 +18,14 @@
   "contributes": {
     "commands": [
       {
+        "command": "explorviz-vscode-extension.startDebuggingWithExplorViz",
+        "title": "ExplorViz: Start Debugging With ExplorViz"
+      },
+      {
+        "command": "explorviz-vscode-extension.stopDebuggingWithExplorViz",
+        "title": "ExplorViz: Stop Debugging With ExplorViz"
+      },
+      {
         "command": "explorviz-vscode-extension.webview",
         "title": "ExplorViz: Open Webview"
       },
@@ -63,7 +71,7 @@
         "explorviz.backendUrl": {
           "type": "string",
           "scope": "application",
-          "default": "http://localhost:3001",
+          "default": "http://localhost:3000",
           "description": "Specify URL for ExplorViz's VS Code backend."
         },
         "explorviz.frontendUrl": {
@@ -128,6 +136,8 @@
     "eslint": "^8.41.0",
     "glob": "^10.2.6",
     "mocha": "^10.2.0",
+    "tree-sitter-cli": "^0.26.8",
+    "tree-sitter-java": "^0.23.5",
     "ts-loader": "^9.4.2",
     "typescript": "^5.0.4",
     "webpack": "^5.83.1",
@@ -141,9 +151,10 @@
     "js-yaml": "^4.1.0",
     "request-promise-native": "^1.0.9",
     "socket.io-client": "^4.6.1",
-    "vsls": "^1.0.4753"
+    "vsls": "^1.0.4753",
+    "web-tree-sitter": "^0.26.8"
   },
   "extensionDependencies": [
-	"vscode.git"
+    "vscode.git"
   ]
 }

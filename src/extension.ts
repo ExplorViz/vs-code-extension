@@ -26,6 +26,7 @@ import { goToLocationsByMeshId } from "./goToLocationByMeshId";
 import { SessionViewProvider } from "./SessionViewProvider";
 import { IFrameViewContainer } from "./IFrameViewContainer";
 import { API, GitExtension, Repository } from "./api/git";
+import { clearManagedBreakpoints, placeBreakpointsToAllMethods } from "./debug/trace-manager";
 
 export type DebugRoom = { alias: string; secret: string; value: string; projectName: string; commitId: string; };
 export type DebugRoomList = DebugRoom[];
@@ -35,6 +36,7 @@ export let showPairProgrammingHTML: boolean = false;
 export let socket: Socket;
 export let currentMode: ModesEnum | undefined;
 export let isConnectedToBackend: boolean = false;
+export let isExplorVizDebugSessionActive: boolean = false;
 
 export let backendHttp: string | undefined;
 export let frontendHttp: string | undefined;
@@ -287,6 +289,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // #region Commands Registration (Shift + p for commands search)
 
+  registerCommandStartDebuggingWithExplorViz();
+  registerCommandStopDebuggingWithExplorViz();
   registerCommandOpenInExplorViz();
   registerCommandConnectToRoom();
   registerCommandCreatePairProgramming();
@@ -974,6 +978,49 @@ export function setShowPairProgrammingHTML(value: boolean) {
 
 // #region Debug Session Feature 
 
+function registerCommandStartDebuggingWithExplorViz() {
+  const startDebuggingWithExplorViz = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.startDebuggingWithExplorViz",
+    async () => {
+      try {
+        if (!isExplorVizDebugSessionActive) {
+          isExplorVizDebugSessionActive = true;
+          placeBreakpointsToAllMethods(extensionContext);
+          sessionViewProvider.refreshHTML();
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Some unexpected error happened: ${error}`
+        );
+        return;
+      }
+    }
+  );
+  extensionContext!.subscriptions.push(startDebuggingWithExplorViz);
+}
+
+function registerCommandStopDebuggingWithExplorViz() {
+  const stopDebuggingWithExplorViz = vscode.commands.registerCommand(
+    "explorviz-vscode-extension.stopDebuggingWithExplorViz",
+    async () => {
+      try {
+        if (isExplorVizDebugSessionActive) {
+          isExplorVizDebugSessionActive = false;
+          clearManagedBreakpoints();
+          sessionViewProvider.refreshHTML();
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(
+          `Some unexpected error happened: ${error}`
+        );
+        return;
+      }
+    }
+  );
+  extensionContext!.subscriptions.push(stopDebuggingWithExplorViz);
+}
+
+
 /**
  * Command which is executed when the "Activate ExplorViz For Current Debug Session" button from the IDE is triggered
  */
@@ -1484,6 +1531,7 @@ function onClickDebugRoom() {
 
 
 // TODOS:
+// improve performance when switching back from another extension
 // Wenn Landscape gewechselt wird, dann muss Ocelot (wenn er denn gerade läuft) neu gestartet werden, damit das richtige landscape token verwendet wird
 // TODO: manchmal wird PID zum attachen nicht gefunden -> explorviz extension muss vor dem starten der debug session geöffnet worden sein
 // TODO: um es den user einfacher zu machen sollte es ein menü in der explorviz extension geben, in welcher der debugger ebenfalls gestartet werden kann

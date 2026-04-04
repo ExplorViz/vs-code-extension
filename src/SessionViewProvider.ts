@@ -13,7 +13,8 @@ import {
   isLoading,
   backendHttp,
   currentDebugRoom,
-  isInspectITClientAttached
+  isInspectITClientAttached,
+  isExplorVizDebugSessionActive
 } from "./extension";
 import { ModesEnum } from "./types";
 
@@ -95,13 +96,15 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 			</head>
 			<body>
 
-      <p>Start a collaboratively usable Software Visualization session to comprehend your software using the 3D city metaphor.</p>
+      <p>Join or create a software landscape to contribute snapshots from your debugging session</p>
 
       </br>
       ${renderConnectToBackendButton()}
       ${renderLoadingAnimation()}
       ${renderCancelConnectionSetupButton()}
       ${renderDisconnectFromBackendButton()}
+      ${renderStartDebuggingWithExplorVizButton()}
+      ${renderStopDebuggingWithExplorVizButton()}
 
       </br>
 
@@ -145,6 +148,20 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
+function renderStartDebuggingWithExplorVizButton() {
+  if(!isExplorVizDebugSessionActive) {
+    return "<button id='explorviz-start-debugging-with-explorviz-button'>Start Debugging With ExplorViz</button>";
+  }
+  return "";
+}
+
+function renderStopDebuggingWithExplorVizButton() {
+  if(isExplorVizDebugSessionActive) {
+    return "<button id='explorviz-stop-debugging-with-explorviz-button'>Stop Debugging With ExplorViz</button>";
+  }
+  return "";
+}
+
 function renderConnectToBackendButton() {
   if(!isConnectedToBackend && !isLoading) {
     return "<button id='explorviz-connect-to-backend-button'>Connect To Backend</button>";
@@ -182,14 +199,14 @@ function renderActivateDeactivateExplorVizButton() {
     return "<button id='explorviz-visualize-debug-session-button'>Initiate Monitoring For This Debug Session</button>";
   }
   if(isConnectedToBackend && isInDebugSession && isInspectITClientAttached){
-    return "<p>ExplorViz is activated for the current debug session</p>";//"<button id='explorviz-deactivate-button'>Deactivate ExplorViz For Current Debug Session</button>";
+    return "<p>Monitoring has been initiated for the current debug session</p>";//"<button id='explorviz-deactivate-button'>Deactivate ExplorViz For Current Debug Session</button>";
   }
   return "";
 }
 
 function renderSaveBreakpointButton() {
   if(isDebugSessionStopped && isInspectITClientAttached) {
-    return "<button id='explorviz-save-current-state-button'>Save Current State</button>";
+    return "<button id='explorviz-save-current-state-button'>Take a snapshot</button>";
   }
   return "";
 }
