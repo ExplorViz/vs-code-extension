@@ -52,10 +52,13 @@ export interface VariableSymbol {
 
 // represents a value of a variable at runtime
 export interface StateValue  {
-  objReference: number; // unique identifier for the scope containing the variable (most often an object)
+  objReference?: number; // unique identifier for the scope containing the variable (most often an object)
   value: string;
   type: string;
+    matchConfidence?: MatchConfidence; // how confident we are that this runtime value corresponds to the watched variable
 };
+
+export type MatchConfidence = "declaration-location" | "owner-type" | "known-subtype" | "name-only";
 
 // represents a class with the values of the variables contained in different instances
 export interface ClassEntry {

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { ExtensionState } from "../state/extensionState";
 import { MatchConfidence, StateValue, WatchedVariable } from "./types";
+import { DebugProtocol } from "@vscode/debugprotocol";
 
 type ScopeKind = "local" | "param" | "this" | "static" | "global" | "object";
 
@@ -19,16 +20,20 @@ interface ResolvedDeclarationLocation {
   column: number;
 }
 
-export async function searchVariablesInCurrentStackFrame(
+export async function searchVariablesInCurrentStackFrames(
   state: ExtensionState,
   session: vscode.DebugSession,
   threadId: number
 ): Promise<void> {
   clearCurrentSnapshotValues(state);
 
-  const stackTrace = await session.customRequest("stackTrace", {
-    threadId,
-  });
+  const stackTrace = await dapRequest<DebugProtocol.StackTraceResponse["body"]>(
+    session,
+    "stackTrace",
+    {
+        threadId,
+    } satisfies DebugProtocol.StackTraceArguments
+    );
 
   const stackFrames = stackTrace?.stackFrames ?? [];
 
@@ -64,9 +69,14 @@ async function searchVariablesInStackFrame(
   session: vscode.DebugSession,
   frameId: number
 ): Promise<void> {
-  const scopesResponse = await session.customRequest("scopes", {
-    frameId,
-  });
+  
+  const scopesResponse = await dapRequest<DebugProtocol.ScopesResponse["body"]>(
+    session,
+    "scopes",
+    {
+      frameId,
+    } satisfies DebugProtocol.ScopesArguments
+  );
 
   const scopes = scopesResponse?.scopes ?? [];
 
@@ -129,16 +139,13 @@ async function searchVariablesByReference(
 
   visitedReferences.add(variablesReference);
 
-  let variablesResponse: any;
-
-  try {
-    variablesResponse = await session.customRequest("variables", {
+  const variablesResponse = await dapRequest<DebugProtocol.VariablesResponse["body"]>(
+    session,
+    "variables",
+    {
       variablesReference,
-    });
-  } catch (error) {
-    console.error("Could not fetch variables:", error);
-    return;
-  }
+    } satisfies DebugProtocol.VariablesArguments
+  );
 
   const variables = variablesResponse?.variables ?? [];
 
@@ -174,7 +181,7 @@ async function searchVariablesByReference(
 async function collectIfWatchedVariable(
   state: ExtensionState,
   session: vscode.DebugSession,
-  runtimeVariable: any,
+  runtimeVariable: DebugProtocol.Variable,
   context: RuntimeContext
 ): Promise<void> {
   for (const [
@@ -196,7 +203,7 @@ async function collectIfWatchedVariable(
       state.variables.debugVariableStateValues.get(watchedVariableId) ?? [];
 
     const stateValue: StateValue = {
-      value: String(runtimeVariable.value ?? ""),
+      value: String(runtimeVariable.value),
       type: String(runtimeVariable.type ?? ""),
       objReference: context.objectId,
       matchConfidence,
@@ -220,7 +227,7 @@ async function collectIfWatchedVariable(
 
 async function getMatchConfidence(
   session: vscode.DebugSession,
-  runtimeVariable: any,
+  runtimeVariable: DebugProtocol.Variable,
   watchedVariable: WatchedVariable,
   context: RuntimeContext
 ): Promise<MatchConfidence | undefined> {
@@ -293,27 +300,29 @@ async function tryResolveDeclarationLocation(
   }
 
   try {
-    const locationsResponse = await session.customRequest("locations", {
-      locationReference,
-    });
+    const locationsResponse = await dapRequest<DebugProtocol.LocationsResponse["body"]>(
+      session,
+      "locations",
+      {
+        locationReference,
+      } satisfies DebugProtocol.LocationsArguments
+    );
 
-    const body: LocationsResponse | undefined = locationsResponse?.body ?? locationsResponse;
 
-    if (!body?.source || typeof body.line !== "number") {
+    if (!locationsResponse) {
       return undefined;
     }
 
-    const source = body.source;
+    const source = locationsResponse.source;
 
     return {
       uri: source.path ? vscode.Uri.file(source.path) : undefined,
       sourceName: source.name,
       sourceReference: source.sourceReference,
 
-      // VS Code arbeitet intern 0-basiert.
-      // Falls dein Debug Adapter bereits 0-basiert liefert, hier -1 entfernen.
-      line: body.line - 1,
-      column: typeof body.column === "number" ? body.column - 1 : 0,
+      // VS Code works internally 0-based.
+      line: locationsResponse.line - 1,
+      column: typeof locationsResponse.column === "number" ? locationsResponse.column - 1 : 0,
     };
   } catch (error) {
     console.warn(
@@ -386,4 +395,12 @@ function extractObjectIdFromVariableValue(value: unknown): number | undefined {
   const objectId = Number(match[0]);
 
   return Number.isFinite(objectId) ? objectId : undefined;
+}
+
+async function dapRequest<TResponse>(
+  session: vscode.DebugSession,
+  command: string,
+  args?: unknown
+): Promise<TResponse> {
+  return session.customRequest(command, args) as Promise<TResponse>;
 }
