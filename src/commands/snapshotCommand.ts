@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 import { BackendClient } from "../backend/backendClient";
 import { ExtensionConfig } from "../config/extensionConfig";
-import { ClassEntry, VariableEntry } from "../debug/types";
-import { searchVariablesInCurrentStackFrame } from "../debug/variableStateSearch";
+import { ClassEntry, StateValue, VariableEntry } from "../debug/types";
+import { searchVariablesInCurrentStackFrames } from "../debug/variableStateSearch";
 import { ExtensionState } from "../state/extensionState";
 
 export function registerSnapshotCommand(
@@ -61,7 +61,7 @@ function registerCommandSaveCurrentStateForMarkedVariables(
 
       const timestampInNano = BigInt(Date.now()) * 1_000_000n;
 
-      await searchVariablesInCurrentStackFrame(
+      await searchVariablesInCurrentStackFrames(
         state,
         state.debug.stoppedDebugSession,
         state.debug.stoppedDebugThreadId
@@ -71,7 +71,7 @@ function registerCommandSaveCurrentStateForMarkedVariables(
 
       if (emittedValues.length === 0) {
         vscode.window.showInformationMessage(
-          "No variables found in the current stack frame to save!"
+          "No variables found in the current stack frames to save!"
         );
         return;
       }
@@ -109,7 +109,7 @@ function buildVariableEntries(state: ExtensionState): VariableEntry[] {
     watchedVariableId,
     stateValues,
   ] of state.variables.debugVariableStateValues) {
-    if (!stateValues || stateValues.length === 0) {
+    if (stateValues.length === 0) {
       continue;
     }
 
@@ -120,31 +120,15 @@ function buildVariableEntries(state: ExtensionState): VariableEntry[] {
       continue;
     }
 
-    const valuesByClassName = new Map<string, StateValue[]>();
-
-    for (const stateValue of stateValues) {
-      const className =
-        stateValue.ownerType ||
-        stateValue.scopeName ||
-        stateValue.frameName ||
-        "unknown";
-
-      const values = valuesByClassName.get(className) ?? [];
-      values.push(stateValue);
-      valuesByClassName.set(className, values);
-    }
-
     const variableEntry: VariableEntry = {
       name: watchedVariable.name,
-      classes: [],
+      classes: [
+        {
+          className: watchedVariable.containingTypeName ?? "unknown",
+          values: stateValues,
+        },
+      ],
     };
-
-    for (const [className, values] of valuesByClassName) {
-      variableEntry.classes.push({
-        className,
-        values,
-      });
-    }
 
     emittedValues.push(variableEntry);
   }
