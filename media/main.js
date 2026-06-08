@@ -58,7 +58,7 @@
   const saveCurrentStateButton = document.querySelector('#explorviz-save-current-state-button');
   if (saveCurrentStateButton) {
     saveCurrentStateButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.saveBreakpoint");
+      executeExtensionCommand("explorviz-vscode-extension.saveCurrentStateForMarkedVariables");
     });
   }
 
