@@ -7,6 +7,7 @@ import { registerBackendCommands } from "./backendCommands";
 import { registerDebugRoomCommands } from "./debugRoomCommands";
 import { registerVariableCommands } from "./variableCommands";
 import { BackendClient } from "../backend/backendClient";
+import { registerSnapshotCommand } from "./snapshotCommand";
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -28,4 +29,5 @@ export function registerCommands(
   );
 
   registerVariableCommands(context, state, sessionViewProvider);
+  registerSnapshotCommand(context, config, state, backendClient);
 }

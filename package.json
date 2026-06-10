@@ -51,9 +51,9 @@
         "title": "ExplorViz: Load The Current Available Debug Session Rooms"
       },
       {
-        "command": "explorviz-vscode-extension.startVisualizationForDebugSession",
-        "title": "ExplorViz: Start Visualization For The Current Debug Session",
-        "enablement": "explorviz.showStartVisualizationForDebugSessionCommand"
+        "command": "explorviz-vscode-extension.saveCurrentStateForMarkedVariables",
+        "title": "ExplorViz: Save Current State For Marked Variables",
+        "enablement": "explorviz.showSaveCurrentStateForMarkedVariablesCommand"
       }
     ],
     "configuration": {

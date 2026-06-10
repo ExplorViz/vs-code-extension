@@ -93,7 +93,7 @@ function registerCommandAddVariableToDebugWatch(
 
       if (state.variables.debugVariableWatchlist.has(variableDefinitionId)) {
         state.variables.debugVariableWatchlist.delete(variableDefinitionId);
-        state.variables.debugVariableStateValues.delete(variableDefinitionId);
+        state.variables.variableSnapshotEntryByWatchedVariableId.delete(variableDefinitionId);
 
         vscode.window.showInformationMessage(
           `Variable ${variableToken.name} is unmarked!`
@@ -106,15 +106,19 @@ function registerCommandAddVariableToDebugWatch(
           watchedVariable
         );
 
-        state.variables.debugVariableStateValues.set(
+        /*state.variables.variableSnapshotEntryByWatchedVariableId.set(
           variableDefinitionId,
           [] // no instances added yet, will be filled during snapshotting
-        );
+        );*/
 
         vscode.window.showInformationMessage(
           `Variable ${variableToken.name} is marked!`
         );
 
+        // We have no stable, language-agnostic way to determine the static type of this variable token here.
+        // Therefore, we only store the variable identity based on its source definition.
+        // During snapshotting, we use the runtime values reported by the debug adapter.
+        // If the same variable name is found in multiple runtime contexts/types, we ask the user which one(s) should be saved.
         console.log(`Variable ${variableToken.name} is marked!`);
       }
 
@@ -140,7 +144,7 @@ function registerCommandRemoveAllVariablesFromDebugWatch(
       "explorviz-vscode-extension.removeAllVariablesFromDebugWatch",
       () => {
         state.variables.debugVariableWatchlist.clear();
-        state.variables.debugVariableStateValues.clear();
+        state.variables.variableSnapshotEntryByWatchedVariableId.clear();
 
         vscode.window.showInformationMessage("All variables are unmarked!");
         sessionViewProvider.refreshHTML();

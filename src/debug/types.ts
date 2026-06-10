@@ -14,7 +14,7 @@ export type DebugRoomList = DebugRoom[];
 export type LineOfCode = number;
 export type ColumnOfCode = number; 
 export type VariableName = string;
-export type ClassName = string;
+export type OwnerType = string;
 export type DocumentUriString = string;
 export type WatchedVariableId = string;
 
@@ -32,13 +32,13 @@ export interface WatchedVariable {
   definitionLine: LineOfCode;
   definitionChar: ColumnOfCode;
 
-  containingTypeName?: ClassName; // (directly) contains this watched variable
+  containingTypeName?: OwnerType; // (directly) contains this watched variable. Non stable, heuristically approach since containingType can be a inherited class at runtime
 
   /**
    * Optional best-effort subtype cache.
    * This is not guaranteed to be complete.
    */
-  knownSubtypeNames?: ClassName[];
+  knownSubtypeNames?: OwnerType[];
 }
 
 //Represents a variable as code inside a document
@@ -51,23 +51,29 @@ export interface VariableSymbol {
 }
 
 // represents a value of a variable at runtime
-export interface StateValue  {
-  objReference?: number; // unique identifier for the scope containing the variable (most often an object)
+export interface RuntimeVariableValue  {
   value: string;
   type: string;
-    matchConfidence?: MatchConfidence; // how confident we are that this runtime value corresponds to the watched variable
+  matchConfidence?: MatchConfidence; // how confident we are that this runtime value corresponds to the watched variable
+  runtimePath?: string;
 };
 
 export type MatchConfidence = "declaration-location" | "owner-type" | "known-subtype" | "name-only";
 
 // represents a class with the values of the variables contained in different instances
-export interface ClassEntry {
-  className: ClassName;
-  values: StateValue[];
+export interface RuntimeOwnerGroup {
+  ownerType: OwnerType;
+  values: RuntimeVariableValue[];
 };
 
 // represents a vaiable by its name and the classes its contained in
-export interface VariableEntry {
+export interface VariableSnapshotEntry  {
+  id: WatchedVariableId;
   name: VariableName;
-  classes: ClassEntry[];
+  definitionUri: vscode.Uri;
+  /**
+   * Runtime owner group in which this watched variable name was found
+   * and for which the user has confirmed that it should be included in the snapshot (in case of multiple matches)
+   */
+  ownerGroup: RuntimeOwnerGroup;
 };
