@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { ExtensionState } from "../state/extensionState";
 import { SessionViewProvider } from "../SessionViewProvider";
 import { getVariablesFromCurrentEditor } from "./variableTokenScanner";
+import { DebugProtocol } from "@vscode/debugprotocol";
 
 export function registerDebugSessionListeners(
   context: vscode.ExtensionContext,
@@ -11,8 +12,8 @@ export function registerDebugSessionListeners(
   context.subscriptions.push(
     vscode.debug.onDidStartDebugSession(() => {
       console.debug("Started debug session");
-
       state.debug.isInDebugSession = true;
+      vscode.commands.executeCommand("setContext", "explorviz.showSaveCurrentStateForMarkedVariablesCommand", true);
       sessionViewProvider.refreshHTML();
     })
   );
@@ -33,6 +34,14 @@ export function registerDebugSessionListeners(
       createDebugAdapterTracker(session: vscode.DebugSession) {
         return {
           onWillReceiveMessage: (m) => {
+
+            if (m?.type === "request" && m?.command === "initialize") {
+              state.debug.capabilities = {
+                supportsVariableType: (m.arguments as DebugProtocol.InitializeRequestArguments)?.supportsVariableType ?? false,
+              };
+              return;
+            }
+
             if (!m?.command) {
               return;
             }
@@ -50,6 +59,7 @@ export function registerDebugSessionListeners(
           },
 
           onDidSendMessage: (m) => {
+
             if (!m?.event) {
               return;
             }

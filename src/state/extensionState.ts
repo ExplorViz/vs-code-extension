@@ -1,15 +1,17 @@
 import * as vscode from "vscode";
 import {
-  ClassName,
+  OwnerType,
   DebugRoom,
   DebugRoomList,
   DocumentUriString,
   LineOfCode,
-  StateValue,
+  RuntimeVariableValue,
   VariableName,
   VariableSymbol,
   WatchedVariable,
   WatchedVariableId,
+  RuntimeOwnerGroup,
+  VariableSnapshotEntry,
 } from "../debug/types";
 
 export interface BackendState {
@@ -17,12 +19,16 @@ export interface BackendState {
   isLoading: boolean;
 }
 
+export interface DebugAdapterCapabilities {
+  supportsVariableType: boolean;
+}
 export interface DebugState {
   isInDebugSession: boolean;
   isDebugSessionStopped: boolean;
   stoppedDebugSession?: vscode.DebugSession;
   stoppedDebugThreadId?: number;
   debuggedAppPID?: number;
+  capabilities: DebugAdapterCapabilities;
 }
 
 export interface RoomState {
@@ -45,10 +51,10 @@ export interface VariableState {
 /**
  * Maps each watched source variable to all runtime values found for it.
  *
- * A watched field can have multiple StateValues because multiple instances
+ * A watched field can have multiple values because multiple instances
  * of the containing class may exist at runtime.
  */
-  debugVariableStateValues: Map<WatchedVariableId, StateValue[]>;
+  variableSnapshotEntryByWatchedVariableId: Map<WatchedVariableId, VariableSnapshotEntry>;
 }
 
 export interface ExtensionState {
@@ -69,6 +75,9 @@ export function createExtensionState(): ExtensionState {
     debug: {
       isInDebugSession: false,
       isDebugSessionStopped: false,
+      capabilities: {
+        supportsVariableType: false,
+      },
     },
 
     rooms: {},
@@ -81,7 +90,7 @@ export function createExtensionState(): ExtensionState {
     variables: {
       variableTokensByUri: new Map(),
       debugVariableWatchlist: new Map(),
-      debugVariableStateValues: new Map(),
+      variableSnapshotEntryByWatchedVariableId: new Map(),
     },
   };
 }

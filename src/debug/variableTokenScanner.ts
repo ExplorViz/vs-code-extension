@@ -7,10 +7,12 @@ export async function getVariablesFromCurrentEditor(
   editor: vscode.TextEditor | undefined
 ): Promise<void> {
     if (!state.debug.isDebugSessionStopped) {
+        console.log("Debug session is not stopped. Skipping variable token retrieval.");
         return;
     }
 
     if (!editor || editor.document.languageId !== "java") {
+        console.log("Editor is not a Java document. Skipping variable token retrieval.");
         return;
     }
 

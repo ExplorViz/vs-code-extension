@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { BackendClient } from "../backend/backendClient";
 import { ExtensionConfig } from "../config/extensionConfig";
-import { ClassEntry, StateValue, VariableEntry } from "../debug/types";
+import { RuntimeOwnerGroup, RuntimeVariableValue, VariableSnapshotEntry  } from "../debug/types";
 import { searchVariablesInCurrentStackFrames } from "../debug/variableStateSearch";
 import { ExtensionState } from "../state/extensionState";
 
@@ -67,7 +67,7 @@ function registerCommandSaveCurrentStateForMarkedVariables(
         state.debug.stoppedDebugThreadId
       );
 
-      const emittedValues: VariableEntry[] = buildVariableEntries(state);
+      const emittedValues: VariableSnapshotEntry[] = buildVariableEntries(state);
 
       if (emittedValues.length === 0) {
         vscode.window.showInformationMessage(
@@ -80,7 +80,7 @@ function registerCommandSaveCurrentStateForMarkedVariables(
 
       const saveSuccess = await backendClient.emit<
         boolean,
-        [string, number, VariableEntry[]]
+        [string, number, VariableSnapshotEntry[]]
       >(
         "save-current-state",
         (payload): payload is boolean => typeof payload === "boolean",
@@ -102,16 +102,14 @@ function registerCommandSaveCurrentStateForMarkedVariables(
   context.subscriptions.push(saveCurrentStateForMarkedVariables);
 }
 
-function buildVariableEntries(state: ExtensionState): VariableEntry[] {
-  const emittedValues: VariableEntry[] = [];
+function buildVariableEntries(state: ExtensionState): VariableSnapshotEntry[] {
+  const emittedValues: VariableSnapshotEntry[] = [];
 
   for (const [
     watchedVariableId,
-    stateValues,
-  ] of state.variables.debugVariableStateValues) {
-    if (stateValues.length === 0) {
-      continue;
-    }
+    snapshotEntry,
+  ] of state.variables.variableSnapshotEntryByWatchedVariableId) {
+    const ownerGroup = snapshotEntry.ownerGroup;
 
     const watchedVariable =
       state.variables.debugVariableWatchlist.get(watchedVariableId);
@@ -120,14 +118,11 @@ function buildVariableEntries(state: ExtensionState): VariableEntry[] {
       continue;
     }
 
-    const variableEntry: VariableEntry = {
+    const variableEntry: VariableSnapshotEntry  = {
+      id: watchedVariableId,
       name: watchedVariable.name,
-      classes: [
-        {
-          className: watchedVariable.containingTypeName ?? "unknown",
-          values: stateValues,
-        },
-      ],
+      definitionUri: watchedVariable.definitionUri,
+      ownerGroup,
     };
 
     emittedValues.push(variableEntry);
