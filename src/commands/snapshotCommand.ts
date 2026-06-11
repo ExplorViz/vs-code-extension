@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { BackendClient } from "../backend/backendClient";
 import { ExtensionConfig } from "../config/extensionConfig";
-import { RuntimeOwnerGroup, RuntimeVariableValue, VariableSnapshotEntry  } from "../debug/types";
+import { DebugSnapshotDataDto, RuntimeOwnerGroup, RuntimeVariableValue, VariableSnapshotEntry, VariableSnapshotEntryDto  } from "../debug/types";
 import { searchVariablesInCurrentStackFrames } from "../debug/variableStateSearch";
 import { ExtensionState } from "../state/extensionState";
 
@@ -68,6 +68,25 @@ function registerCommandSaveCurrentStateForMarkedVariables(
       );
 
       const emittedValues: VariableSnapshotEntry[] = buildVariableEntries(state);
+      
+      const variables: VariableSnapshotEntryDto[] = emittedValues.map(
+        (snapshotEntry) => ({
+          ...snapshotEntry,
+          definitionUri: snapshotEntry.definitionUri.toString(),
+        })
+      );
+
+      const debugRunId = state.debug.debugRunId ?? crypto.randomUUID();
+      state.debug.debugRunId = debugRunId;
+
+      const debugSnapshotData: DebugSnapshotDataDto = {
+        landscapeToken: state.rooms.currentDebugRoom.value,
+        debugRunId,
+        repositoryName: state.rooms.currentDebugRoom.projectName,
+        commitHash: state.rooms.currentDebugRoom.commitId,
+        epochNano: Number(timestampInNano),
+        variables,
+      };
 
       if (emittedValues.length === 0) {
         vscode.window.showInformationMessage(
@@ -80,13 +99,11 @@ function registerCommandSaveCurrentStateForMarkedVariables(
 
       const saveSuccess = await backendClient.emit<
         boolean,
-        [string, number, VariableSnapshotEntry[]]
+        [DebugSnapshotDataDto]
       >(
         "save-current-state",
         (payload): payload is boolean => typeof payload === "boolean",
-        state.rooms.currentDebugRoom.value,
-        Number(timestampInNano),
-        emittedValues
+        debugSnapshotData
       );
 
       if (saveSuccess) {

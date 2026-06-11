@@ -52,6 +52,12 @@ export interface VariableSymbol {
 
 // represents a value of a variable at runtime
 export interface RuntimeVariableValue  {
+  /**
+   * Runtime-local identity of the owner object of this value.
+   * Extracted from debugger strings like "DebugClass@41".
+   * Only intended to be compared within the same debug session.
+   */
+  objectReference?: string;
   value: string;
   type: string;
   matchConfidence?: MatchConfidence; // how confident we are that this runtime value corresponds to the watched variable
@@ -77,3 +83,16 @@ export interface VariableSnapshotEntry  {
    */
   ownerGroup: RuntimeOwnerGroup;
 };
+
+export type VariableSnapshotEntryDto = Omit<VariableSnapshotEntry, "definitionUri"> & {
+  definitionUri: string;
+};
+
+export interface DebugSnapshotDataDto {
+  landscapeToken: string;
+  debugRunId: string;
+  repositoryName: string;
+  commitHash: string;
+  epochNano: number;
+  variables: VariableSnapshotEntryDto[];
+}

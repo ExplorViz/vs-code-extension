@@ -23,6 +23,7 @@ export interface DebugAdapterCapabilities {
   supportsVariableType: boolean;
 }
 export interface DebugState {
+  debugRunId?: string;
   isInDebugSession: boolean;
   isDebugSessionStopped: boolean;
   stoppedDebugSession?: vscode.DebugSession;

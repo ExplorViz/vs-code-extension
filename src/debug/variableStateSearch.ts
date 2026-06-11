@@ -20,6 +20,7 @@ type RuntimePathSegment = {
 
 interface RuntimeContext {
   scopeKind: ScopeKind;
+  ownerObjectReference?: string;
   ownerName?: string;
   ownerType?: string;
   path: RuntimePathSegment[];
@@ -34,6 +35,7 @@ interface RuntimeVariableMatch {
   value: string;
   type?: string;
 
+  ownerObjectReference?: string;
   ownerName?: string;
   ownerType?: string;
   path: RuntimePathSegment[];
@@ -51,13 +53,13 @@ interface SnapshotSelectionContext {
   consumedOwnerTypesByVariableName: Map<VariableName, Set<string>>;
 }
 
-interface ResolvedDeclarationLocation {
+/*interface ResolvedDeclarationLocation {
   uri?: vscode.Uri;
   sourceName?: string;
   sourceReference?: number;
   line: number;
   column: number;
-}
+}*/
 
 export async function searchVariablesInCurrentStackFrames(
   state: ExtensionState,
@@ -228,6 +230,7 @@ async function searchVariablesByReference(
 
     const childContext: RuntimeContext = {
       scopeKind: "object",
+      ownerObjectReference: extractRuntimeObjectReference(runtimeVariable.value),
       ownerName: runtimeName,
       ownerType: runtimeType,
       path: appendRuntimePathSegment(context.path, {
@@ -281,6 +284,7 @@ async function collectIfWatchedVariable(
       value: runtimeName,
       type: runtimeType,
 
+      ownerObjectReference: context.ownerObjectReference,
       ownerName: context.ownerName,
       ownerType: context.ownerType,
       path: appendRuntimePathSegment(context.path, {
@@ -441,6 +445,7 @@ function createRuntimeOwnerGroup(
   return {
     ownerType: firstMatch.ownerType ?? "unknown",
     values: matches.map((match) => ({
+      objectReference: match.ownerObjectReference,
       value: match.value,
       type: match.type ?? "unknown",
       matchConfidence: match.matchConfidence,
@@ -937,4 +942,16 @@ async function dapRequest<TResponse>(
   args?: unknown
 ): Promise<TResponse> {
   return session.customRequest(command, args) as Promise<TResponse>;
+}
+
+function extractRuntimeObjectReference(value: string): string | undefined {
+  const match = value.match(
+    /^([A-Za-z_$][\w$]*(?:\$[A-Za-z_$][\w$]*)?(?:\.[A-Za-z_$][\w$]*)*)@(\d+)/
+  );
+
+  if (!match) {
+    return undefined;
+  }
+
+  return `${match[1]}@${match[2]}`;
 }

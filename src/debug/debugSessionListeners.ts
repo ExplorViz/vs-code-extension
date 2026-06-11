@@ -13,6 +13,7 @@ export function registerDebugSessionListeners(
     vscode.debug.onDidStartDebugSession(() => {
       console.debug("Started debug session");
       state.debug.isInDebugSession = true;
+      state.debug.debugRunId = crypto.randomUUID();
       vscode.commands.executeCommand("setContext", "explorviz.showSaveCurrentStateForMarkedVariablesCommand", true);
       sessionViewProvider.refreshHTML();
     })
@@ -21,6 +22,7 @@ export function registerDebugSessionListeners(
   context.subscriptions.push(
     vscode.debug.onDidTerminateDebugSession(() => {
       state.debug.isInDebugSession = false;
+      state.debug.debugRunId = undefined;
       state.debug.isDebugSessionStopped = false;
       state.debug.stoppedDebugSession = undefined;
       state.debug.stoppedDebugThreadId = undefined;
