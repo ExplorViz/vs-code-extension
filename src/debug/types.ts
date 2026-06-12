@@ -77,6 +77,10 @@ export interface VariableSnapshotEntry  {
   id: WatchedVariableId;
   name: VariableName;
   definitionUri: vscode.Uri;
+  sourcePath: string;
+  fileName: string;
+  packageName: string;
+  className: string;
   /**
    * Runtime owner group in which this watched variable name was found
    * and for which the user has confirmed that it should be included in the snapshot (in case of multiple matches)

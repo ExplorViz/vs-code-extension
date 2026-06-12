@@ -24,3 +24,45 @@ export async function askForWorkspaceFolder(): Promise<
 
   return folder;
 }
+
+export async function buildSourceInfo(uri: vscode.Uri): Promise<{
+  definitionUri: string;
+  sourcePath: string;
+  fileName: string;
+  packageName: string;
+  className: string;
+}> {
+  const document = await vscode.workspace.openTextDocument(uri);
+
+  const fsPath = uri.fsPath;
+  const sourcePath = toSourcePath(fsPath);
+  const fileName = sourcePath.substring(sourcePath.lastIndexOf("/") + 1);
+  const packageName = extractJavaPackageName(document.getText());
+  const className = fileName.endsWith(".java")
+    ? fileName.substring(0, fileName.length - ".java".length)
+    : fileName;
+
+  return {
+    definitionUri: uri.toString(),
+    sourcePath,
+    fileName,
+    packageName,
+    className,
+  };
+}
+
+function toSourcePath(absolutePath: string): string {
+  const normalized = absolutePath.replaceAll("\\", "/");
+
+  const srcIndex = normalized.indexOf("/src/");
+  if (srcIndex >= 0) {
+    return normalized.substring(srcIndex + 1);
+  }
+
+  return normalized;
+}
+
+function extractJavaPackageName(documentText: string): string {
+  const match = documentText.match(/^\s*package\s+([a-zA-Z_][\w.]*)\s*;/m);
+  return match?.[1] ?? "";
+}
