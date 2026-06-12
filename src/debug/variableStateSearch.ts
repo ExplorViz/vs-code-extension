@@ -281,7 +281,7 @@ async function collectIfWatchedVariable(
 
       runtimeVariable,
 
-      value: runtimeName,
+      value: runtimeVariable.value,
       type: runtimeType,
 
       ownerObjectReference: context.ownerObjectReference,

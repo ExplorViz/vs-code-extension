@@ -4,6 +4,7 @@ import { ExtensionConfig } from "../config/extensionConfig";
 import { DebugSnapshotDataDto, RuntimeOwnerGroup, RuntimeVariableValue, VariableSnapshotEntry, VariableSnapshotEntryDto  } from "../debug/types";
 import { searchVariablesInCurrentStackFrames } from "../debug/variableStateSearch";
 import { ExtensionState } from "../state/extensionState";
+import { buildSourceInfo } from "../workspace/workspaceHelper";
 
 export function registerSnapshotCommand(
   context: vscode.ExtensionContext,
@@ -57,8 +58,6 @@ function registerCommandSaveCurrentStateForMarkedVariables(
         return;
       }
 
-      console.log("Saving current state");
-
       const timestampInNano = BigInt(Date.now()) * 1_000_000n;
 
       await searchVariablesInCurrentStackFrames(
@@ -67,7 +66,7 @@ function registerCommandSaveCurrentStateForMarkedVariables(
         state.debug.stoppedDebugThreadId
       );
 
-      const emittedValues: VariableSnapshotEntry[] = buildVariableEntries(state);
+      const emittedValues: VariableSnapshotEntry[] = await buildVariableEntries(state);
       
       const variables: VariableSnapshotEntryDto[] = emittedValues.map(
         (snapshotEntry) => ({
@@ -95,7 +94,7 @@ function registerCommandSaveCurrentStateForMarkedVariables(
         return;
       }
 
-      console.log("Emitting current state over socket:", emittedValues);
+      console.log("Emitting current snapshot data over socket:", debugSnapshotData);
 
       const saveSuccess = await backendClient.emit<
         boolean,
@@ -119,7 +118,7 @@ function registerCommandSaveCurrentStateForMarkedVariables(
   context.subscriptions.push(saveCurrentStateForMarkedVariables);
 }
 
-function buildVariableEntries(state: ExtensionState): VariableSnapshotEntry[] {
+async function buildVariableEntries(state: ExtensionState):  Promise<VariableSnapshotEntry[]> {
   const emittedValues: VariableSnapshotEntry[] = [];
 
   for (const [
@@ -135,10 +134,16 @@ function buildVariableEntries(state: ExtensionState): VariableSnapshotEntry[] {
       continue;
     }
 
+    const sourceInfo = await buildSourceInfo(watchedVariable.definitionUri);
+
     const variableEntry: VariableSnapshotEntry  = {
       id: watchedVariableId,
       name: watchedVariable.name,
       definitionUri: watchedVariable.definitionUri,
+      sourcePath: sourceInfo.sourcePath,
+      fileName: sourceInfo.fileName,
+      packageName: sourceInfo.packageName,
+      className: sourceInfo.className,
       ownerGroup,
     };
 
