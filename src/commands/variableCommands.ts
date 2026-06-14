@@ -88,7 +88,7 @@ function registerCommandAddVariableToDebugWatch(
         definitionLine: definitionTarget.range.start.line,
         definitionChar: definitionTarget.range.start.character,
 
-        containingTypeName: containingTypeName
+        ownerType: containingTypeName
       };
 
       if (state.variables.debugVariableWatchlist.has(variableDefinitionId)) {
