@@ -32,7 +32,7 @@ export interface WatchedVariable {
   definitionLine: LineOfCode;
   definitionChar: ColumnOfCode;
 
-  containingTypeName?: OwnerType; // (directly) contains this watched variable. Non stable, heuristically approach since containingType can be a inherited class at runtime
+  ownerType?: OwnerType; // (directly) contains this watched variable. Non stable, heuristically approach since containingType can be a inherited class at runtime
 
   /**
    * Optional best-effort subtype cache.
@@ -64,7 +64,7 @@ export interface RuntimeVariableValue  {
   runtimePath?: string;
 };
 
-export type MatchConfidence = "declaration-location" | "owner-type" | "known-subtype" | "name-only";
+export type MatchConfidence = "declaration-location" | "exact-owner-type" | "owner-subtype" | "imprecise-owner-type" | "name-only";
 
 // represents a class with the values of the variables contained in different instances
 export interface RuntimeOwnerGroup {

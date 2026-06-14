@@ -9,7 +9,10 @@ import {
   RuntimeVariableValue,
   VariableName,
   WatchedVariable,
+  WatchedVariableId,
 } from "./types";
+import { dapRequest } from "./dapRequest";
+import { maybeSuggestSettingsForAmbiguousRuntimeTypes } from "../settings/recommendedWorkspaceSettings";
 
 type ScopeKind = "local" | "param" | "this" | "static" | "global" | "object";
 
@@ -68,7 +71,7 @@ export async function searchVariablesInCurrentStackFrames(
 ): Promise<void> {
   clearCurrentSnapshotValues(state);
 
-  const runtimeVariableMatchesByWatchedVariableId = new Map<string, RuntimeVariableMatch[]>();
+  const runtimeVariableMatchesByWatchedVariableId = new Map<WatchedVariableId, RuntimeVariableMatch[]>();
 
   const selectionContext: SnapshotSelectionContext = {
     consumedOwnerTypesByVariableName: new Map(),
@@ -105,7 +108,7 @@ export async function searchVariablesInCurrentStackFrames(
   );
 
   console.log(
-    "Search completed. Collected variables:",
+    "Search completed. Captured snapshots:",
     state.variables.variableSnapshotEntryByWatchedVariableId
   );
 }
@@ -118,7 +121,7 @@ async function searchVariablesInStackFrame(
   state: ExtensionState,
   session: vscode.DebugSession,
   stackFrame: DebugProtocol.StackFrame,
-  matchesByWatchedVariableId: Map<string, RuntimeVariableMatch[]>
+  runtimeVariableMatchesByWatchedVariableId: Map<WatchedVariableId, RuntimeVariableMatch[]>
 ): Promise<void> {
   const scopesResponse = await dapRequest<DebugProtocol.ScopesResponse["body"]>(
     session,
@@ -141,7 +144,6 @@ async function searchVariablesInStackFrame(
     const rootContext: RuntimeContext = {
       scopeKind,
       ownerName: scope.name,
-      ownerType: undefined,
       path: [
         {
           name: `${stackFrame.name}.${scope.name}`,
@@ -150,13 +152,13 @@ async function searchVariablesInStackFrame(
       ],
     };
 
-    await searchVariablesByReference(
+    await searchVariablesByScope(
       state,
       session,
       scope.variablesReference,
       rootContext,
       new Set<number>(),
-      matchesByWatchedVariableId
+      runtimeVariableMatchesByWatchedVariableId
     );
   }
 }
@@ -187,13 +189,13 @@ function classifyScope(scopeName: unknown): ScopeKind | undefined {
   return undefined;
 }
 
-async function searchVariablesByReference(
+async function searchVariablesByScope(
   state: ExtensionState,
   session: vscode.DebugSession,
   variablesReference: number,
   context: RuntimeContext,
   visitedReferences: Set<number>,
-  matchesByWatchedVariableId: Map<string, RuntimeVariableMatch[]>
+  runtimeVariableMatchesByWatchedVariableId: Map<WatchedVariableId, RuntimeVariableMatch[]>
 ): Promise<void> {
   if (variablesReference <= 0 || visitedReferences.has(variablesReference)) {
     return;
@@ -218,7 +220,7 @@ async function searchVariablesByReference(
       session,
       runtimeVariable,
       context,
-      matchesByWatchedVariableId
+      runtimeVariableMatchesByWatchedVariableId
     );
 
     if (runtimeVariable.variablesReference <= 0) {
@@ -228,7 +230,7 @@ async function searchVariablesByReference(
     const runtimeName = getRuntimeVariableDisplayName(runtimeVariable);
     const runtimeType = getRuntimeVariableType(runtimeVariable);
 
-    const childContext: RuntimeContext = {
+    const objectContext: RuntimeContext = {
       scopeKind: "object",
       ownerObjectReference: extractRuntimeObjectReference(runtimeVariable.value),
       ownerName: runtimeName,
@@ -239,13 +241,13 @@ async function searchVariablesByReference(
       }),
     };
 
-    await searchVariablesByReference(
+    await searchVariablesByScope(
       state,
       session,
       runtimeVariable.variablesReference,
-      childContext,
+      objectContext,
       visitedReferences,
-      matchesByWatchedVariableId
+      runtimeVariableMatchesByWatchedVariableId
     );
   }
 }
@@ -255,7 +257,7 @@ async function collectIfWatchedVariable(
   session: vscode.DebugSession,
   runtimeVariable: DebugProtocol.Variable,
   context: RuntimeContext,
-  matchesByWatchedVariableId: Map<string, RuntimeVariableMatch[]>
+  runtimeVariableMatchesByWatchedVariableId: Map<WatchedVariableId, RuntimeVariableMatch[]>
 ): Promise<void> {
   for (const [
     watchedVariableId,
@@ -272,40 +274,40 @@ async function collectIfWatchedVariable(
       continue;
     }
 
-    const runtimeName = getRuntimeVariableDisplayName(runtimeVariable);
-    const runtimeType = getRuntimeVariableType(runtimeVariable);
+    const runtimeVariableName = getRuntimeVariableDisplayName(runtimeVariable);
+    const runtimeVariableType = getRuntimeVariableType(runtimeVariable);
+    const runtimeVariableValue = runtimeVariable.value;
 
     const match: RuntimeVariableMatch = {
       watchedVariableId,
       watchedVariable,
-
       runtimeVariable,
 
-      value: runtimeVariable.value,
-      type: runtimeType,
+      value: runtimeVariableValue,
+      type: runtimeVariableType,
 
       ownerObjectReference: context.ownerObjectReference,
       ownerName: context.ownerName,
       ownerType: context.ownerType,
       path: appendRuntimePathSegment(context.path, {
-        name: runtimeName,
-        type: runtimeType,
+        name: runtimeVariableName,
+        type: runtimeVariableType,
       }),
 
       matchConfidence,
     };
 
-    const matches = matchesByWatchedVariableId.get(watchedVariableId) ?? [];
+    const matches = runtimeVariableMatchesByWatchedVariableId.get(watchedVariableId) ?? [];
     matches.push(match);
-    matchesByWatchedVariableId.set(watchedVariableId, matches);
+    runtimeVariableMatchesByWatchedVariableId.set(watchedVariableId, matches);
 
     console.log(
-      "Collected watched variable candidate:",
+      "Collected runtime variable candidate:",
       watchedVariable.name,
       "value:",
-      runtimeVariable.value,
+      runtimeVariableValue,
       "type:",
-      runtimeType,
+      runtimeVariableType,
       "confidence:",
       matchConfidence,
       "path:",
@@ -326,6 +328,7 @@ async function getMatchConfidence(
     return undefined;
   }
 
+  // runtimeVariable.declarationLocationReference is undefined (feature not supported yet)
   /*const declarationLocation = await tryResolveDeclarationLocation(
     session,
     runtimeVariable
@@ -341,40 +344,43 @@ async function getMatchConfidence(
   return getHeuristicMatchConfidence(runtimeVariable, watchedVariable, context);
 }
 
+// TODO: Support generic class Types as owners
 function getHeuristicMatchConfidence(
   runtimeVariable: DebugProtocol.Variable,
   watchedVariable: WatchedVariable,
   context: RuntimeContext
-): MatchConfidence | undefined {
-  // always false if this method fires
-  /*if (runtimeVariable.name !== watchedVariable.name) {
-    return undefined;
-  }*/
+): MatchConfidence | undefined  {
 
-  if (!context.ownerType || !watchedVariable.containingTypeName) {
+  //return "name-only"; // TODO: delete this line. For debugging purposes only
+
+  if (!context.ownerType || !watchedVariable.ownerType) {
     return "name-only";
   }
 
-  // TODO: might be problematic for same class names within different packages
-  const ownerType = normalizeJavaTypeName(context.ownerType);
-  const containingTypeName = normalizeJavaTypeName(
-    watchedVariable.containingTypeName
+  const ownerTypeRuntimeVariable = cleanRuntimeTypeName(context.ownerType);
+  const ownerTypeWatchedVariable = cleanRuntimeTypeName(
+    watchedVariable.ownerType
   );
 
-  if (ownerType === containingTypeName) {
-    return "owner-type";
+  const ownerTypeIsFqn = isFullyQualifiedTypeName(ownerTypeRuntimeVariable);
+  const containingTypeIsFqn = isFullyQualifiedTypeName(ownerTypeWatchedVariable);
+
+  if (ownerTypeIsFqn && containingTypeIsFqn) {
+    if (ownerTypeRuntimeVariable === ownerTypeWatchedVariable) {
+      return "exact-owner-type";
+    }
+    // TODO: handle subclass type here
+    return undefined;
   }
 
-  const knownSubtypeNames = watchedVariable.knownSubtypeNames ?? [];
+  const ownerTypeRuntimeVariableSimpleName = getSimpleTypeName(ownerTypeRuntimeVariable);
+  const ownerTypeWatchedVariableSimpleName = getSimpleTypeName(ownerTypeWatchedVariable);
 
-  const normalizedKnownSubtypeNames =
-    knownSubtypeNames.map(normalizeJavaTypeName);
-
-  if (normalizedKnownSubtypeNames.includes(ownerType)) {
-    return "known-subtype";
+  if (ownerTypeRuntimeVariableSimpleName === ownerTypeWatchedVariableSimpleName) {
+    return "imprecise-owner-type";
   }
 
-  return "name-only";
+  return undefined;
 }
 
 async function resolveMatchesAndStoreStateValues(
@@ -400,6 +406,7 @@ async function resolveMatchesAndStoreStateValues(
     }
 
     const selectedMatches = await selectMatchesForWatchedVariable(
+      state,
       availableMatches
     );
 
@@ -418,7 +425,16 @@ async function resolveMatchesAndStoreStateValues(
 
     state.variables.variableSnapshotEntryByWatchedVariableId.set(
       watchedVariableId,
-      {ownerGroup: ownerGroup, name: selectedMatches[0].watchedVariable.name, id: watchedVariableId, definitionUri: selectedMatches[0].watchedVariable.definitionUri}
+      {
+        ownerGroup: ownerGroup, 
+        name: selectedMatches[0].watchedVariable.name, 
+        id: watchedVariableId, 
+        definitionUri: selectedMatches[0].watchedVariable.definitionUri,
+        sourcePath: "",
+        fileName: "",
+        packageName: "",
+        className: "",
+      }
     );
   }
 }
@@ -492,6 +508,7 @@ function markSelectedOwnerTypesAsConsumedForVariableName(
 
 // Only shows the best matches, preventing user from information overload of unimportant matches 
 async function selectMatchesForWatchedVariable(
+  state: ExtensionState,
   matches: RuntimeVariableMatch[]
 ): Promise<RuntimeVariableMatch[]> {
   const declarationLocationMatches = matches.filter(
@@ -503,44 +520,41 @@ async function selectMatchesForWatchedVariable(
   }
 
   if (declarationLocationMatches.length > 1) {
-    // Give user the option to select specific instances (or all)
-    return askUserToSelectRuntimeMatches(declarationLocationMatches);
+    return askUserToSelectRuntimeMatches(state, declarationLocationMatches);
   }
 
-  const ownerTypeMatches = matches.filter(
-    (match) => match.matchConfidence === "owner-type"
+  const exactOwnerTypeMatches = matches.filter(
+    (match) => match.matchConfidence === "exact-owner-type"
   );
 
-  if (ownerTypeMatches.length === 1) {
-    return ownerTypeMatches;
+  if (exactOwnerTypeMatches.length === 1) {
+    return exactOwnerTypeMatches;
   }
 
-  if (ownerTypeMatches.length > 1) {
-    return askUserToSelectRuntimeMatches(ownerTypeMatches);
+  if (exactOwnerTypeMatches.length > 1) {
+    return askUserToSelectRuntimeMatches(state, exactOwnerTypeMatches);
   }
 
-  const knownSubtypeMatches = matches.filter(
-    (match) => match.matchConfidence === "known-subtype"
+  const impreciseOwnerTypeMatches = matches.filter(
+    (match) => match.matchConfidence === "imprecise-owner-type"
   );
 
-  if (knownSubtypeMatches.length === 1) {
-    return knownSubtypeMatches;
-  }
-
-  if (knownSubtypeMatches.length > 1) {
-    return askUserToSelectRuntimeMatches(knownSubtypeMatches);
+  if (impreciseOwnerTypeMatches.length > 0) {
+    return askUserToSelectRuntimeMatches(state, impreciseOwnerTypeMatches);
   }
 
   if (matches.length === 1) {
-    return matches;
+    return askUserToSelectRuntimeMatches(state, matches);
   }
 
-  return askUserToSelectRuntimeMatches(matches);
+  return askUserToSelectRuntimeMatches(state, matches);
 }
 
 async function askUserToSelectRuntimeMatches(
+  state: ExtensionState,
   matches: RuntimeVariableMatch[]
 ): Promise<RuntimeVariableMatch[]> {
+  await maybeOfferPreciseJavaTypeSettingForMatches(state, matches);
   const firstMatch = matches[0];
 
   return new Promise((resolve) => {
@@ -559,7 +573,7 @@ async function askUserToSelectRuntimeMatches(
     quickPick.placeholder =
       "Select one owner type group or individual runtime values from the same owner type.";
 
-    quickPick.items = buildRuntimeMatchQuickPickItems(matches);
+    quickPick.items = buildRuntimeMatchQuickPickItems(state, matches);
 
     let selectedOwnerTypeKey: string | undefined;
     let isProgrammaticSelectionUpdate = false;
@@ -690,6 +704,7 @@ function getRuntimeMatchQuickPickItemKey(
 
 
 function buildRuntimeMatchQuickPickItems(
+  state: ExtensionState,
   matches: RuntimeVariableMatch[]
 ): RuntimeMatchQuickPickItem[] {
   const matchesByOwnerType = groupMatchesByOwnerType(matches);
@@ -715,11 +730,7 @@ function buildRuntimeMatchQuickPickItems(
         description: match.ownerType
           ? `owner: ${match.ownerType}`
           : "owner: unknown",
-        detail: [
-          `value: ${match.value}`,
-          `confidence: ${match.matchConfidence}`,
-          `path: ${formatRuntimePath(match.path)}`,
-        ].join("\n"),
+        detail: buildRuntimeMatchDetail(state, match),
       });
     }
   }
@@ -936,14 +947,6 @@ function formatRuntimePath(path: RuntimePathSegment[]): string {
     .join(" → ");
 }
 
-async function dapRequest<TResponse>(
-  session: vscode.DebugSession,
-  command: string,
-  args?: unknown
-): Promise<TResponse> {
-  return session.customRequest(command, args) as Promise<TResponse>;
-}
-
 function extractRuntimeObjectReference(value: string): string | undefined {
   const match = value.match(
     /^([A-Za-z_$][\w$]*(?:\$[A-Za-z_$][\w$]*)?(?:\.[A-Za-z_$][\w$]*)*)@(\d+)/
@@ -954,4 +957,90 @@ function extractRuntimeObjectReference(value: string): string | undefined {
   }
 
   return `${match[1]}@${match[2]}`;
+}
+
+
+function cleanRuntimeTypeName(typeName: string): string {
+  // TODO: support generic types and sanitize for DAP introduced suffixes if needed
+  return typeName;
+}
+
+function getSimpleTypeName(typeName: string): string {
+  return cleanRuntimeTypeName(typeName).split(".").pop() ?? typeName;
+}
+
+function isFullyQualifiedTypeName(typeName: string): boolean {
+  return typeName.includes(".");
+}
+
+function getAmbiguityInfo(
+  state: ExtensionState,
+  match: RuntimeVariableMatch
+): {
+  isAmbiguous: boolean;
+  simpleName?: string;
+  qualifiedNames: string[];
+} {
+  const ownerType = match.ownerType;
+
+  if (!ownerType) {
+    return {
+      isAmbiguous: false,
+      qualifiedNames: [],
+    };
+  }
+
+  const simpleName = getSimpleTypeName(ownerType);
+  const qualifiedNames =
+    state.workspaceTypeIndex.qualifiedNamesBySimpleName.get(simpleName);
+
+  return {
+    isAmbiguous: Boolean(qualifiedNames && qualifiedNames.size > 1),
+    simpleName,
+    qualifiedNames: Array.from(qualifiedNames ?? []),
+  };
+}
+
+function buildRuntimeMatchDetail(
+  state: ExtensionState,
+  match: RuntimeVariableMatch
+): string {
+  const ambiguityInfo = getAmbiguityInfo(state, match);
+
+  return [
+    `value: ${match.value}`,
+    `confidence: ${match.matchConfidence}`,
+    match.ownerType ? `owner type: ${match.ownerType}` : "owner type: unknown",
+    ambiguityInfo.isAmbiguous
+      ? `warning: "${ambiguityInfo.simpleName}" exists as multiple qualified types in this workspace: ${ambiguityInfo.qualifiedNames.join(", ")}`
+      : undefined,
+    `path: ${formatRuntimePath(match.path)}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function maybeOfferPreciseJavaTypeSettingForMatches(
+  state: ExtensionState,
+  matches: RuntimeVariableMatch[]
+): Promise<void> {
+  const hasAmbiguousOwnerTypeWithoutFqn = matches.some((match) => {
+    if (!match.ownerType) {
+      return false;
+    }
+
+    if (isFullyQualifiedTypeName(match.ownerType)) {
+      return false;
+    }
+
+    const simpleName = getSimpleTypeName(match.ownerType);
+    const qualifiedNames =
+      state.workspaceTypeIndex.qualifiedNamesBySimpleName.get(simpleName);
+
+    return Boolean(qualifiedNames && qualifiedNames.size > 1);
+  });
+
+  if (hasAmbiguousOwnerTypeWithoutFqn) {
+    await maybeSuggestSettingsForAmbiguousRuntimeTypes(state);
+  }
 }

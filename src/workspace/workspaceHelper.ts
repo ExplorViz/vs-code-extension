@@ -34,8 +34,7 @@ export async function buildSourceInfo(uri: vscode.Uri): Promise<{
 }> {
   const document = await vscode.workspace.openTextDocument(uri);
 
-  const fsPath = uri.fsPath;
-  const sourcePath = toSourcePath(fsPath);
+  const sourcePath = toWorkspaceRelativePath(uri);
   const fileName = sourcePath.substring(sourcePath.lastIndexOf("/") + 1);
   const packageName = extractJavaPackageName(document.getText());
   const className = fileName.endsWith(".java")
@@ -51,15 +50,14 @@ export async function buildSourceInfo(uri: vscode.Uri): Promise<{
   };
 }
 
-function toSourcePath(absolutePath: string): string {
-  const normalized = absolutePath.replaceAll("\\", "/");
+function toWorkspaceRelativePath(uri: vscode.Uri): string {
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
 
-  const srcIndex = normalized.indexOf("/src/");
-  if (srcIndex >= 0) {
-    return normalized.substring(srcIndex + 1);
+  if (!workspaceFolder) {
+    return uri.fsPath.replaceAll("\\", "/");
   }
 
-  return normalized;
+  return vscode.workspace.asRelativePath(uri, false).replaceAll("\\", "/");
 }
 
 function extractJavaPackageName(documentText: string): string {

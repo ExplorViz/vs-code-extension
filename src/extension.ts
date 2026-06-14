@@ -3,19 +3,25 @@ import * as vscode from "vscode";
 import { loadExtensionConfig } from "./config/extensionConfig";
 import { registerCommands } from "./commands/registerCommands";
 import { registerDebugCodeLensProvider } from "./debug/debugCodeLensProvider";
-import { registerDebugSessionListeners } from "./debug/debugSessionListeners";
+import { registerDebugSessionListeners, restoreStoppedDebugStateIfPossible } from "./debug/debugSessionListeners";
 import { getGitApi } from "./git/gitHelper";
 import { SessionViewProvider } from "./SessionViewProvider";
 import { createExtensionState, ExtensionState } from "./state/extensionState";
 import { BackendClient } from "./backend/backendClient";
 import { getVariablesFromCurrentEditor } from "./debug/variableTokenScanner";
-import { registerTextEditorListeners } from "./text-editor/textEditorListeners";
+import { registerTextEditorListeners } from "./text-editor/textEditorListeners";;
+import { recommendWorkspaceSettingsIfNeeded } from "./settings/recommendedWorkspaceSettings";
+import { buildWorkspaceTypeIndex } from "./workspace/workspaceTypeIndex";
 
 export async function activate(context: vscode.ExtensionContext) {
   const config = loadExtensionConfig();
   const state = createExtensionState();
 
   const sessionViewProvider = new SessionViewProvider(context.extensionUri, state, config);
+  await recommendWorkspaceSettingsIfNeeded();
+  void buildWorkspaceTypeIndex(state).catch((error) => {
+    console.warn("Could not build workspace type index:", error);
+  });
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
@@ -54,8 +60,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   backendClient.connect();
 
-  // In case our extension gets activated while a debug session is already active and the program is possibly stopped 
-  getVariablesFromCurrentEditor(state, vscode.window.activeTextEditor);
+  // In case our extension gets activated while a debug session is already active 
+  // and the program is possibly stopped 
+  await restoreStoppedDebugStateIfPossible(state, sessionViewProvider);
 
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
