@@ -361,7 +361,8 @@ function getHeuristicMatchConfidence(
 
   //return "name-only"; // TODO: delete this line. For debugging purposes only
 
-  console.log("getHeuristicMatchConfidence:::: ", context.ownerType);
+  console.log("getHeuristicMatchConfidence::::context.ownerType: ", context.ownerType);
+  console.log("getHeuristicMatchConfidence::::watchedVariable.ownerType: ", watchedVariable.ownerType);
 
   if (!context.ownerType || !watchedVariable.ownerType) {
     return "name-only";
