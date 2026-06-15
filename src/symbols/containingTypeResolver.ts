@@ -203,7 +203,7 @@ function isQualifierLikeSymbol(symbol: vscode.DocumentSymbol): boolean {
  * - TypeScript class/interface
  * - C# class/struct/interface
  */
-function isTypeLikeSymbol(symbol: vscode.DocumentSymbol): boolean {
+export function isTypeLikeSymbol(symbol: vscode.DocumentSymbol): boolean {
   return (
     symbol.kind === vscode.SymbolKind.Class ||
     symbol.kind === vscode.SymbolKind.Interface ||
