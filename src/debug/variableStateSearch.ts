@@ -73,6 +73,7 @@ export async function searchVariablesInCurrentStackFrames(
 
   try {
     await ensureWorkspaceTypeIndexBuilt(state);
+    console.log("workspaceTypeIndex built: ", state.workspaceTypeIndex);
   } catch (error) {
     console.warn("Continuing without workspace type index. Ambiguous simple-name matches may be less precise.", error);
   }
@@ -1026,5 +1027,11 @@ function buildRuntimeMatchDetail(
     ? `ambiguous type "${ambiguityInfo.simpleName}" · `
     : "";
 
-  return `${ambiguityPrefix}${match.matchConfidence} · path: ${formatRuntimePath(match.path)}`;
+  return `${ambiguityPrefix}confidence: ${formatMatchConfidence(
+    match.matchConfidence
+  )} · path: ${formatRuntimePath(match.path)}`;
+}
+
+function formatMatchConfidence(matchConfidence: string): string {
+  return matchConfidence.toUpperCase();
 }

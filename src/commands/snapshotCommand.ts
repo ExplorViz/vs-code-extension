@@ -5,6 +5,7 @@ import { DebugSnapshotDataDto, RuntimeOwnerGroup, RuntimeVariableValue, Variable
 import { searchVariablesInCurrentStackFrames } from "../debug/variableStateSearch";
 import { ExtensionState } from "../state/extensionState";
 import { buildSourceInfo } from "../workspace/workspaceHelper";
+import { resolveContainingQualifiedTypeNameParts } from "../symbols/containingTypeResolver";
 
 export function registerSnapshotCommand(
   context: vscode.ExtensionContext,
@@ -134,7 +135,12 @@ async function buildVariableEntries(state: ExtensionState):  Promise<VariableSna
       continue;
     }
 
-    const sourceInfo = await buildSourceInfo(watchedVariable.definitionUri);
+    const ownerTypeNameParts = await resolveContainingQualifiedTypeNameParts(
+      watchedVariable.definitionUri,
+      new vscode.Position(watchedVariable.definitionLine, watchedVariable.definitionChar)
+    );
+
+    const sourceInfo = await buildSourceInfo(watchedVariable.definitionUri, ownerTypeNameParts);
 
     const variableEntry: VariableSnapshotEntry  = {
       id: watchedVariableId,

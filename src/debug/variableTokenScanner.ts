@@ -45,7 +45,6 @@ async function getTokensFromEditor(
   state: ExtensionState,
   editor: vscode.TextEditor
 ): Promise<void> {
-  console.log("Getting semantic tokens for document:", editor.document.uri.fsPath);
 
   const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
     "vscode.provideDocumentSemanticTokens",

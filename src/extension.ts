@@ -19,9 +19,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const state = createExtensionState();
 
   const sessionViewProvider = new SessionViewProvider(context.extensionUri, state, config);
-  console.log("Before settings recommendation");
   await recommendWorkspaceSettingsIfNeeded();
-  console.log("After settings recommendation");
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(

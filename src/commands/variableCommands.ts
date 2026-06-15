@@ -3,6 +3,8 @@ import * as path from "path";
 import { ExtensionState } from "../state/extensionState";
 import { SessionViewProvider } from "../SessionViewProvider";
 import { WatchedVariable } from "../debug/types";
+import { buildSourceInfo } from "../workspace/workspaceHelper";
+import { resolveContainingQualifiedTypeNameParts } from "../symbols/containingTypeResolver";
 
 export function registerVariableCommands(
   context: vscode.ExtensionContext,
@@ -63,7 +65,6 @@ function registerCommandAddVariableToDebugWatch(
       }
 
       const definitionTargets = definitions.map(getDefinitionTarget);
-      console.log("Definition targets:", definitionTargets);
       const definitionTarget = definitionTargets[0];
 
       const variableDefinitionId = [
@@ -73,9 +74,15 @@ function registerCommandAddVariableToDebugWatch(
         variableToken.name
       ].join(":");
 
-      const containingTypeName = await resolveContainingTypeName(definitionTarget.uri, definitionTarget.range.start) ?? 
-        path.basename(definitionTarget.uri.fsPath, path.extname(definitionTarget.uri.fsPath));
+      /*const containingTypeName = await resolveContainingTypeName(definitionTarget.uri, definitionTarget.range.start) ?? 
+        path.basename(definitionTarget.uri.fsPath, path.extname(definitionTarget.uri.fsPath));*/
 
+      const ownerTypeNameParts = await resolveContainingQualifiedTypeNameParts(
+        definitionTarget.uri,
+        definitionTarget.range.start
+      );
+
+      const sourceInfo = await buildSourceInfo(definitionTarget.uri, ownerTypeNameParts);
       const watchedVariable: WatchedVariable = {
         name: variableToken.name,
 
@@ -88,7 +95,12 @@ function registerCommandAddVariableToDebugWatch(
         definitionLine: definitionTarget.range.start.line,
         definitionChar: definitionTarget.range.start.character,
 
-        ownerType: containingTypeName
+        ownerType: ownerTypeNameParts?.qualifiedName,
+
+        sourcePath: sourceInfo.sourcePath,
+        fileName: sourceInfo.fileName,
+        packageName: sourceInfo.packageName,
+        className: sourceInfo.className,
       };
 
       if (state.variables.debugVariableWatchlist.has(variableDefinitionId)) {
@@ -99,7 +111,6 @@ function registerCommandAddVariableToDebugWatch(
           `Variable ${variableToken.name} is unmarked!`
         );
 
-        console.log(`Variable ${variableToken.name} is unmarked!`);
       } else {
         state.variables.debugVariableWatchlist.set(
           variableDefinitionId,
@@ -119,7 +130,6 @@ function registerCommandAddVariableToDebugWatch(
         // Therefore, we only store the variable identity based on its source definition.
         // During snapshotting, we use the runtime values reported by the debug adapter.
         // If the same variable name is found in multiple runtime contexts/types, we ask the user which one(s) should be saved.
-        console.log(`Variable ${variableToken.name} is marked!`);
       }
 
       console.log(

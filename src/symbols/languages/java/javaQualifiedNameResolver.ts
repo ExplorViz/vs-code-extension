@@ -2,35 +2,59 @@ import * as vscode from "vscode";
 import { ContainingSymbolPath } from "../../containingTypeResolver";
 import { extractJavaPackageName } from "./javaPackageParser";
 
+export type QualifiedTypeNameParts = {
+  packageName: string;
+  className: string;
+  qualifiedName: string;
+};
+
 /**
- * Resolves the fully qualified Java type name for a containing symbol path.
+ * Resolves the Java package name, source class name, and fully qualified type
+ * name for a containing symbol path.
  *
  * The DocumentSymbolProvider usually gives us the surrounding type path, for
  * example:
  *
  * Outer.Inner
  *
- * For Java, this type path is only fully qualified once the package name is
- * prepended:
+ * For Java, this type path becomes fully qualified by prepending the package
+ * name:
  *
  * com.example.Outer.Inner
  *
+ * This function returns the resolved name in three forms:
+ *
+ * - packageName:
+ *   The Java package only, for example "com.example".
+ *
+ * - className:
+ *   The complete nested type path without the package, for example
+ *   "Outer.Inner".
+ *
+ * - qualifiedName:
+ *   The full Java type name, for example "com.example.Outer.Inner".
+ *
  * If the SymbolProvider already reported a qualifier such as a Package symbol,
- * that qualifier is used directly. Otherwise, the package declaration is read
- * from the Java source file.
+ * that qualifier is used as the package name. Otherwise, the package
+ * declaration is read from the Java source file.
  */
-export function resolveJavaQualifiedTypeName(
+export function resolveJavaQualifiedTypeNameParts(
   document: vscode.TextDocument,
   symbolPath: ContainingSymbolPath
-): string {
-  if (symbolPath.qualifierNames.length > 0) {
-    return formatQualifiedTypeName(symbolPath);
-  }
+): QualifiedTypeNameParts {
+  const packageName =
+    symbolPath.qualifierNames.length > 0
+      ? symbolPath.qualifierNames.join(".")
+      : extractJavaPackageName(document.getText());
 
-  const packageName = extractJavaPackageName(document.getText());
-  const typeName = symbolPath.typeNames.join(".");
+  const className = symbolPath.typeNames.join(".");
+  const qualifiedName = packageName ? `${packageName}.${className}` : className;
 
-  return packageName ? `${packageName}.${typeName}` : typeName;
+  return {
+    packageName,
+    className,
+    qualifiedName,
+  };
 }
 
 /**

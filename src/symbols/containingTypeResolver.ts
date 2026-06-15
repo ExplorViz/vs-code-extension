@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { resolveLanguageQualifiedTypeName } from "./languages/languageQualifiedNameResolvers";
+import { resolveLanguageQualifiedTypeNameParts } from "./languages/languageQualifiedNameResolvers";
+import { QualifiedTypeNameParts } from "./languages/java/javaQualifiedNameResolver";
 
 /**
  * Represents the relevant symbol path around a source position.
@@ -49,27 +50,40 @@ export type ContainingSymbolPath = {
 };
 
 /**
- * Resolves the qualified name of the type that contains the given source
- * position.
+ * Resolves the qualified type-name parts for the type that contains the given
+ * source position.
  *
  * This function is used when a user marks a variable in the editor. The
- * resulting type name is stored together with the watched variable so that
- * snapshot matching can later compare the static source owner type with the
- * runtime owner type reported by the debug adapter.
+ * resulting type information is stored together with the watched variable so
+ * that snapshot matching can later compare the static source owner type with
+ * the runtime owner type reported by the debug adapter.
+ *
+ * The returned parts contain:
+ *
+ * - packageName:
+ *   The language/package/module/namespace qualifier, if available.
+ *
+ * - className:
+ *   The containing type path without the package/qualifier. For nested types,
+ *   this can contain multiple segments, for example "Outer.Inner".
+ *
+ * - qualifiedName:
+ *   The full qualified type name, for example
+ *   "net.example.Outer.Inner".
  *
  * The implementation is intentionally language-agnostic:
  *
  * 1. Ask VS Code's DocumentSymbolProvider for the file's symbol tree.
  * 2. Find the innermost type-like symbol that contains the given position.
- * 3. Let a language-specific resolver complete the qualified name if needed.
+ * 3. Let a language-specific resolver complete and split the qualified name.
  *
  * If no symbols are available, or if no containing type can be found, undefined
  * is returned. Callers should then use a fallback if they need one.
  */
-export async function resolveContainingQualifiedTypeName(
+export async function resolveContainingQualifiedTypeNameParts(
   uri: vscode.Uri,
   position: vscode.Position
-): Promise<string | undefined> {
+): Promise<QualifiedTypeNameParts | undefined> {
   const document = await vscode.workspace.openTextDocument(uri);
   const symbolPath = await resolveContainingSymbolPath(uri, position);
 
@@ -77,7 +91,7 @@ export async function resolveContainingQualifiedTypeName(
     return undefined;
   }
 
-  return resolveLanguageQualifiedTypeName(document, symbolPath);
+  return resolveLanguageQualifiedTypeNameParts(document, symbolPath);
 }
 
 

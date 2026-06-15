@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import { ContainingSymbolPath } from "../symbols/containingTypeResolver";
+import { QualifiedTypeNameParts } from "../symbols/languages/java/javaQualifiedNameResolver";
 
 export async function askForWorkspaceFolder(): Promise<
   vscode.WorkspaceFolder | undefined
@@ -25,28 +27,25 @@ export async function askForWorkspaceFolder(): Promise<
   return folder;
 }
 
-export async function buildSourceInfo(uri: vscode.Uri): Promise<{
+export async function buildSourceInfo(
+  uri: vscode.Uri,
+  typeParts?: QualifiedTypeNameParts
+): Promise<{
   definitionUri: string;
   sourcePath: string;
   fileName: string;
   packageName: string;
   className: string;
 }> {
-  const document = await vscode.workspace.openTextDocument(uri);
-
   const sourcePath = toWorkspaceRelativePath(uri);
   const fileName = sourcePath.substring(sourcePath.lastIndexOf("/") + 1);
-  const packageName = extractJavaPackageName(document.getText());
-  const className = fileName.endsWith(".java")
-    ? fileName.substring(0, fileName.length - ".java".length)
-    : fileName;
 
   return {
     definitionUri: uri.toString(),
     sourcePath,
     fileName,
-    packageName,
-    className,
+    packageName: typeParts?.packageName ?? "",
+    className: typeParts?.className ?? removeFileExtension(fileName),
   };
 }
 
@@ -60,7 +59,6 @@ function toWorkspaceRelativePath(uri: vscode.Uri): string {
   return vscode.workspace.asRelativePath(uri, false).replaceAll("\\", "/");
 }
 
-function extractJavaPackageName(documentText: string): string {
-  const match = documentText.match(/^\s*package\s+([a-zA-Z_][\w.]*)\s*;/m);
-  return match?.[1] ?? "";
+function removeFileExtension(fileName: string): string {
+  return fileName.replace(/\.[^.]+$/, "");
 }

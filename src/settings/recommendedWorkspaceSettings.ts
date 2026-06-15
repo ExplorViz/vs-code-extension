@@ -11,7 +11,7 @@ type RecommendedSetting = {
 const RECOMMENDED_WORKSPACE_SETTINGS: RecommendedSetting[] = [
   {
     key: "java.debug.settings.showQualifiedNames",
-    desiredValue: false,
+    desiredValue: true,
     description: "Show fully qualified Java class names while debugging.",
   },
 ];
@@ -51,9 +51,7 @@ export async function recommendWorkspaceSettingsIfNeeded(): Promise<void> {
     return;
   }
 
-  console.log("Before applying settings");
   await applyRecommendedWorkspaceSettings(missingSettings);
-  console.log("After applying settings");
 
   if (vscode.debug.activeDebugSession) {
     void vscode.window.showInformationMessage(
@@ -209,6 +207,7 @@ function getAmbiguousRuntimeTypesWithoutFqn(
     if (isFullyQualifiedTypeName(ownerType)) {
       continue;
     }
+
 
     const simpleName = getSimpleTypeName(ownerType);
 
