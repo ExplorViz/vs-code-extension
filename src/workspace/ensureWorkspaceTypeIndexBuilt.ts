@@ -1,5 +1,5 @@
 import { ExtensionState } from "../state/extensionState";
-import { extractWorkspaceTypeDeclarations } from "./documentSymbolTypeExtractor";
+import { extractWorkspaceTypeDeclarations } from "./workspaceTypeDeclarationExtractor";
 
 let workspaceTypeIndexBuildPromise: Promise<void> | undefined;
 

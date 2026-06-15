@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { WorkspaceTypeDeclaration } from "./types";
-import { resolveQualifiedName } from "./languageQualifiedNameResolvers";
+import { WorkspaceTypeDeclaration } from "../workspace/types";
+import { isTypeLikeSymbol, resolveContainingQualifiedTypeName } from "../symbols/containingTypeResolver";
 
 const SUPPORTED_FILE_PATTERN = "**/*.{java}"; // {java,ts,tsx,js,jsx,py}";
 
@@ -19,16 +19,11 @@ export async function extractWorkspaceTypeDeclarations(): Promise<
 
   for (const uri of files) {
     const document = await vscode.workspace.openTextDocument(uri);
-    console.log("languageId:", document.languageId);
-    console.log("file:", uri.fsPath);
-
     const symbols =
       await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
         "vscode.executeDocumentSymbolProvider",
         uri
       );
-
-      console.log("symbols: ", symbols);
 
     if (!symbols || symbols.length === 0) {
       continue;
@@ -39,9 +34,9 @@ export async function extractWorkspaceTypeDeclarations(): Promise<
         continue;
       }
 
-      const qualifiedName = await resolveQualifiedName(
-        document,
-        symbol
+      const qualifiedName = await resolveContainingQualifiedTypeName(
+        uri,
+        symbol.range.start
       );
 
       if (!qualifiedName) {
@@ -68,15 +63,4 @@ function flattenDocumentSymbols(
     symbol,
     ...flattenDocumentSymbols(symbol.children),
   ]);
-}
-
-function isTypeLikeSymbol(symbol: vscode.DocumentSymbol): boolean {
-  return (
-    symbol.kind === vscode.SymbolKind.Class ||
-    symbol.kind === vscode.SymbolKind.Interface ||
-    symbol.kind === vscode.SymbolKind.Enum ||
-    symbol.kind === vscode.SymbolKind.Struct ||
-    symbol.kind === vscode.SymbolKind.Module ||
-    symbol.kind === vscode.SymbolKind.Namespace
-  );
 }
