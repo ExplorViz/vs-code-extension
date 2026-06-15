@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { WorkspaceTypeDeclaration } from "../workspace/types";
-import { isTypeLikeSymbol, resolveContainingQualifiedTypeName } from "../symbols/containingTypeResolver";
+import { isTypeLikeSymbol, resolveContainingQualifiedTypeNameParts } from "../symbols/containingTypeResolver";
 
 const SUPPORTED_FILE_PATTERN = "**/*.{java}"; // {java,ts,tsx,js,jsx,py}";
 
@@ -34,19 +34,19 @@ export async function extractWorkspaceTypeDeclarations(): Promise<
         continue;
       }
 
-      const qualifiedName = await resolveContainingQualifiedTypeName(
+      const qualifiedTypeNameParts = await resolveContainingQualifiedTypeNameParts(
         uri,
         symbol.range.start
       );
 
-      if (!qualifiedName) {
+      if (!qualifiedTypeNameParts) {
         continue;
       }
 
       declarations.push({
         languageId: document.languageId,
         simpleName: symbol.name,
-        qualifiedName,
+        qualifiedName: qualifiedTypeNameParts.qualifiedName,
         uri,
         symbolKind: symbol.kind,
       });

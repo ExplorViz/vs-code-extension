@@ -39,6 +39,11 @@ export interface WatchedVariable {
    * This is not guaranteed to be complete.
    */
   knownSubtypeNames?: OwnerType[];
+
+  sourcePath: string;
+  fileName: string;
+  packageName: string;
+  className: string;
 }
 
 //Represents a variable as code inside a document
