@@ -73,7 +73,7 @@ function registerCommandAddVariableToDebugWatch(
         variableToken.name
       ].join(":");
 
-      const containingTypeName = await findContainingJavaTypeName(definitionTarget.uri, definitionTarget.range.start) ?? 
+      const containingTypeName = await resolveContainingTypeName(definitionTarget.uri, definitionTarget.range.start) ?? 
         path.basename(definitionTarget.uri.fsPath, path.extname(definitionTarget.uri.fsPath));
 
       const watchedVariable: WatchedVariable = {
@@ -170,7 +170,7 @@ function getDefinitionTarget(
   };
 }
 
-async function findContainingJavaTypeName(
+async function resolveContainingTypeName(
   uri: vscode.Uri,
   position: vscode.Position
 ): Promise<string | undefined> {
