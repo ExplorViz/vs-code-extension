@@ -19,12 +19,16 @@ export async function extractWorkspaceTypeDeclarations(): Promise<
 
   for (const uri of files) {
     const document = await vscode.workspace.openTextDocument(uri);
+    console.log("languageId:", document.languageId);
+    console.log("file:", uri.fsPath);
 
     const symbols =
       await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
         "vscode.executeDocumentSymbolProvider",
         uri
       );
+
+      console.log("symbols: ", symbols);
 
     if (!symbols || symbols.length === 0) {
       continue;

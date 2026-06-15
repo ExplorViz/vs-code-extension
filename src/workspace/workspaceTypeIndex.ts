@@ -2,25 +2,6 @@ import { ExtensionState } from "../state/extensionState";
 import { extractWorkspaceTypeDeclarations } from "./documentSymbolTypeExtractor";
 import { TypeIndexBuildResult, WorkspaceTypeDeclaration } from "./types";
 
-export async function buildWorkspaceTypeIndex(
-  state: ExtensionState
-): Promise<void> {
-  const declarations = await extractWorkspaceTypeDeclarations();
-  const index = createTypeIndex(declarations);
-
-  state.workspaceTypeIndex.qualifiedNamesBySimpleName =
-    index.qualifiedNamesBySimpleName;
-
-  state.workspaceTypeIndex.ambiguousSimpleNames =
-    index.ambiguousSimpleNames;
-
-  state.workspaceTypeIndex.isReady = true;
-
-  console.log(
-    "Workspace type index built. Ambiguous simple names:",
-    Array.from(index.ambiguousSimpleNames)
-  );
-}
 
 function createTypeIndex(
   declarations: WorkspaceTypeDeclaration[]
@@ -28,6 +9,7 @@ function createTypeIndex(
   const qualifiedNamesBySimpleName = new Map<string, Set<string>>();
 
   for (const declaration of declarations) {
+    console.log("Declaration: ", declaration);
     const qualifiedNames =
       qualifiedNamesBySimpleName.get(declaration.simpleName) ??
       new Set<string>();

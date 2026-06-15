@@ -12,7 +12,8 @@ import {
   WatchedVariableId,
 } from "./types";
 import { dapRequest } from "./dapRequest";
-import { maybeSuggestSettingsForAmbiguousRuntimeTypes } from "../settings/recommendedWorkspaceSettings";
+import { maybeSuggestSettingsForAmbiguousRuntimeTypes as maybeSuggestSettingsChangeDueToAmbiguousOwnerType } from "../settings/recommendedWorkspaceSettings";
+import { ensureWorkspaceTypeIndexBuilt } from "../workspace/ensureWorkspaceTypeIndexBuilt";
 
 type ScopeKind = "local" | "param" | "this" | "static" | "global" | "object";
 
@@ -29,7 +30,7 @@ interface RuntimeContext {
   path: RuntimePathSegment[];
 }
 
-interface RuntimeVariableMatch {
+export interface RuntimeVariableMatch {
   watchedVariableId: string;
   watchedVariable: WatchedVariable;
 
@@ -69,6 +70,13 @@ export async function searchVariablesInCurrentStackFrames(
   session: vscode.DebugSession,
   threadId: number
 ): Promise<void> {
+
+  try {
+    await ensureWorkspaceTypeIndexBuilt(state);
+  } catch (error) {
+    console.warn("Continuing without workspace type index. Ambiguous simple-name matches may be less precise.", error);
+  }
+
   clearCurrentSnapshotValues(state);
 
   const runtimeVariableMatchesByWatchedVariableId = new Map<WatchedVariableId, RuntimeVariableMatch[]>();
@@ -353,6 +361,8 @@ function getHeuristicMatchConfidence(
 
   //return "name-only"; // TODO: delete this line. For debugging purposes only
 
+  console.log("getHeuristicMatchConfidence:::: ", context.ownerType);
+
   if (!context.ownerType || !watchedVariable.ownerType) {
     return "name-only";
   }
@@ -554,7 +564,7 @@ async function askUserToSelectRuntimeMatches(
   state: ExtensionState,
   matches: RuntimeVariableMatch[]
 ): Promise<RuntimeVariableMatch[]> {
-  await maybeOfferPreciseJavaTypeSettingForMatches(state, matches);
+  await maybeSuggestSettingsChangeDueToAmbiguousOwnerType(state, matches);
   const firstMatch = matches[0];
 
   return new Promise((resolve) => {
@@ -726,10 +736,8 @@ function buildRuntimeMatchQuickPickItems(
         itemType: "runtime-match",
         ownerTypeKey,
         match,
-        label: `$(symbol-field) ${match.watchedVariable.name}: ${match.type}`,
-        description: match.ownerType
-          ? `owner: ${match.ownerType}`
-          : "owner: unknown",
+        label: `$(symbol-field) ${match.watchedVariable.name}: ${match.value}`,
+        description: buildRuntimeMatchDescription(match),
         detail: buildRuntimeMatchDetail(state, match),
       });
     }
@@ -965,11 +973,11 @@ function cleanRuntimeTypeName(typeName: string): string {
   return typeName;
 }
 
-function getSimpleTypeName(typeName: string): string {
+export function getSimpleTypeName(typeName: string): string {
   return cleanRuntimeTypeName(typeName).split(".").pop() ?? typeName;
 }
 
-function isFullyQualifiedTypeName(typeName: string): boolean {
+export function isFullyQualifiedTypeName(typeName: string): boolean {
   return typeName.includes(".");
 }
 
@@ -1001,46 +1009,21 @@ function getAmbiguityInfo(
   };
 }
 
+function buildRuntimeMatchDescription(match: RuntimeVariableMatch): string {
+  return match.ownerType
+    ? `owner: ${match.ownerType}`
+    : "owner: unknown";
+}
+
 function buildRuntimeMatchDetail(
   state: ExtensionState,
   match: RuntimeVariableMatch
 ): string {
   const ambiguityInfo = getAmbiguityInfo(state, match);
 
-  return [
-    `value: ${match.value}`,
-    `confidence: ${match.matchConfidence}`,
-    match.ownerType ? `owner type: ${match.ownerType}` : "owner type: unknown",
-    ambiguityInfo.isAmbiguous
-      ? `warning: "${ambiguityInfo.simpleName}" exists as multiple qualified types in this workspace: ${ambiguityInfo.qualifiedNames.join(", ")}`
-      : undefined,
-    `path: ${formatRuntimePath(match.path)}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
+  const ambiguityPrefix = ambiguityInfo.isAmbiguous
+    ? `ambiguous type "${ambiguityInfo.simpleName}" · `
+    : "";
 
-async function maybeOfferPreciseJavaTypeSettingForMatches(
-  state: ExtensionState,
-  matches: RuntimeVariableMatch[]
-): Promise<void> {
-  const hasAmbiguousOwnerTypeWithoutFqn = matches.some((match) => {
-    if (!match.ownerType) {
-      return false;
-    }
-
-    if (isFullyQualifiedTypeName(match.ownerType)) {
-      return false;
-    }
-
-    const simpleName = getSimpleTypeName(match.ownerType);
-    const qualifiedNames =
-      state.workspaceTypeIndex.qualifiedNamesBySimpleName.get(simpleName);
-
-    return Boolean(qualifiedNames && qualifiedNames.size > 1);
-  });
-
-  if (hasAmbiguousOwnerTypeWithoutFqn) {
-    await maybeSuggestSettingsForAmbiguousRuntimeTypes(state);
-  }
+  return `${ambiguityPrefix}${match.matchConfidence} · path: ${formatRuntimePath(match.path)}`;
 }
