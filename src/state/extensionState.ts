@@ -73,48 +73,32 @@ export interface VariableState {
   variableSnapshotEntryByWatchedVariableId: Map<WatchedVariableId, VariableSnapshotEntry>;
 }
 
+export type WorkspaceTypeIndexStatus =
+  | "not-built"
+  | "building"
+  | "ready"
+  | "failed";
 export interface WorkspaceTypeIndexState {
   /**
    * Maps a simple type name to all qualified names found for that type name
    * in the current workspace.
-   *
-   * Example:
-   * "User" -> Set([
-   *   "com.example.domain.User",
-   *   "com.example.dto.User"
-   * ])
-   *
-   * The qualified name is language-specific:
-   * - Java: package name + type name
-   * - TypeScript/JavaScript/Python: usually module/file path + type name
    */
   qualifiedNamesBySimpleName: Map<string, Set<string>>;
 
   /**
    * Contains all simple type names that occur with more than one qualified name
    * in the current workspace.
-   *
-   * These names are potentially unsafe for heuristic matching when runtime debug
-   * information only provides a simple class/type name instead of a fully
-   * qualified name.
-   *
-   * Example:
-   * If both "com.example.domain.User" and "com.example.dto.User" exist,
-   * this set contains "User".
    */
   ambiguousSimpleNames: Set<string>;
 
   /**
-   * Indicates whether the workspace type index has been built at least once.
+   * Tracks whether the workspace type index has already been built.
    *
-   * This is important because an empty index can mean two different things:
-   * - the index has not been built yet
-   * - the index was built, but no type ambiguities were found
-   *
-   * Matching code should treat unresolved simple-name matches more cautiously
-   * while this flag is false.
+   * This prevents rebuilding the index on every snapshot and allows callers to
+   * distinguish between "not built yet", "currently building", "ready", and
+   * "failed".
    */
-  isReady: boolean;
+  status: WorkspaceTypeIndexStatus;
 }
 
 export interface ExtensionState {
@@ -156,9 +140,9 @@ export function createExtensionState(): ExtensionState {
     },
 
     workspaceTypeIndex: {
-      qualifiedNamesBySimpleName: new Map<string, Set<string>>(),
-      ambiguousSimpleNames: new Set<string>(),
-      isReady: false,
+      qualifiedNamesBySimpleName: new Map(),
+      ambiguousSimpleNames: new Set(),
+      status: "not-built",
     },
   };
 }

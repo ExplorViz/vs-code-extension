@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+
 export interface WorkspaceTypeDeclaration {
   languageId: string;
   simpleName: string;

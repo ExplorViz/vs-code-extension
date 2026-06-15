@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { ExtensionState } from "../state/extensionState";
+import { getSimpleTypeName, isFullyQualifiedTypeName, RuntimeVariableMatch } from "../debug/variableStateSearch";
 
 type RecommendedSetting = {
   key: string;
@@ -10,7 +11,7 @@ type RecommendedSetting = {
 const RECOMMENDED_WORKSPACE_SETTINGS: RecommendedSetting[] = [
   {
     key: "java.debug.settings.showQualifiedNames",
-    desiredValue: true,
+    desiredValue: false,
     description: "Show fully qualified Java class names while debugging.",
   },
 ];
@@ -50,14 +51,16 @@ export async function recommendWorkspaceSettingsIfNeeded(): Promise<void> {
     return;
   }
 
+  console.log("Before applying settings");
   await applyRecommendedWorkspaceSettings(missingSettings);
+  console.log("After applying settings");
 
   if (vscode.debug.activeDebugSession) {
-    await vscode.window.showInformationMessage(
-      "ExplorViz applied the recommended workspace settings. Please restart the current debug session for all changes to take effect."
+    void vscode.window.showInformationMessage(
+      "Settings applied: Restart the current debug session for all changes to take effect."
     );
   } else {
-    await vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       "ExplorViz applied the recommended workspace settings."
     );
   }
@@ -73,13 +76,35 @@ export async function recommendWorkspaceSettingsIfNeeded(): Promise<void> {
  * - settings were already active when the session started -> no further action
  */
 export async function maybeSuggestSettingsForAmbiguousRuntimeTypes(
-  state: ExtensionState
+  state: ExtensionState,
+  matches: RuntimeVariableMatch[]
 ): Promise<void> {
+  const ambiguousRuntimeTypes = getAmbiguousRuntimeTypesWithoutFqn(
+    state,
+    matches
+  );
+
+  if (ambiguousRuntimeTypes.length === 0) {
+    return;
+  }
+
   const missingSettings = getMissingRecommendedWorkspaceSettings();
 
   if (missingSettings.length > 0) {
+    const ambiguousRuntimeTypeList = ambiguousRuntimeTypes
+      .map((type) => `• ${type.simpleName}: ${type.qualifiedNames.join(", ")}`)
+      .join("\n");
+
     const choice = await vscode.window.showWarningMessage(
-      "ExplorViz found an ambiguous runtime type. Some recommended workspace settings are not enabled yet. Enabling them can help ExplorViz make more precise decisions for program snapshots.",
+      [
+        "ExplorViz found ambiguous runtime types. The debugger only provided simple type names, but this workspace contains multiple matching qualified types.",
+        "",
+        "Ambiguous runtime types:",
+        ambiguousRuntimeTypeList,
+        "",
+        "Some recommended workspace settings are not enabled yet. Enabling them can help ExplorViz make more precise decisions for program snapshots.",
+      ].join("\n"),
+      { modal: true },
       "Apply Settings",
       "Not now"
     );
@@ -103,8 +128,20 @@ export async function maybeSuggestSettingsForAmbiguousRuntimeTypes(
     vscode.debug.activeDebugSession &&
     state.debug.recommendedSettingsAtDebugStart !== "active"
   ) {
+    const ambiguousRuntimeTypeList = ambiguousRuntimeTypes
+      .map((type) => `• ${type.simpleName}: ${type.qualifiedNames.join(", ")}`)
+      .join("\n");
+
     await vscode.window.showInformationMessage(
-      "The recommended ExplorViz workspace settings are enabled now, but the current debug session may have been started before they were active. Please restart the debug session if runtime types are still not fully qualified."
+      [
+        "The recommended ExplorViz workspace settings are enabled now, but the current debug session may have been started before they were active.",
+        "",
+        "Ambiguous runtime types:",
+        ambiguousRuntimeTypeList,
+        "",
+        "Please restart the debug session if runtime types are still not fully qualified.",
+      ].join("\n"),
+      { modal: true }
     );
   }
 }
@@ -145,4 +182,48 @@ async function applyRecommendedWorkspaceSettings(
 
 function valuesEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+type AmbiguousRuntimeType = {
+  simpleName: string;
+  qualifiedNames: string[];
+};
+
+function getAmbiguousRuntimeTypesWithoutFqn(
+  state: ExtensionState,
+  matches: RuntimeVariableMatch[]
+): AmbiguousRuntimeType[] {
+  if (state.workspaceTypeIndex.status !== "ready") {
+    return [];
+  }
+
+  const ambiguousRuntimeTypesBySimpleName = new Map<string, AmbiguousRuntimeType>();
+
+  for (const match of matches) {
+    const ownerType = match.ownerType;
+
+    if (!ownerType) {
+      continue;
+    }
+
+    if (isFullyQualifiedTypeName(ownerType)) {
+      continue;
+    }
+
+    const simpleName = getSimpleTypeName(ownerType);
+
+    if (!state.workspaceTypeIndex.ambiguousSimpleNames.has(simpleName)) {
+      continue;
+    }
+
+    const qualifiedNames =
+      state.workspaceTypeIndex.qualifiedNamesBySimpleName.get(simpleName);
+
+    ambiguousRuntimeTypesBySimpleName.set(simpleName, {
+      simpleName,
+      qualifiedNames: Array.from(qualifiedNames ?? []).sort(),
+    });
+  }
+
+  return Array.from(ambiguousRuntimeTypesBySimpleName.values());
 }

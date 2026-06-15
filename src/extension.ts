@@ -11,17 +11,17 @@ import { BackendClient } from "./backend/backendClient";
 import { getVariablesFromCurrentEditor } from "./debug/variableTokenScanner";
 import { registerTextEditorListeners } from "./text-editor/textEditorListeners";;
 import { recommendWorkspaceSettingsIfNeeded } from "./settings/recommendedWorkspaceSettings";
-import { buildWorkspaceTypeIndex } from "./workspace/workspaceTypeIndex";
+
+// TODO: fix bug where changing setting at the beginning will result in an infinite loading of the extension
 
 export async function activate(context: vscode.ExtensionContext) {
   const config = loadExtensionConfig();
   const state = createExtensionState();
 
   const sessionViewProvider = new SessionViewProvider(context.extensionUri, state, config);
+  console.log("Before settings recommendation");
   await recommendWorkspaceSettingsIfNeeded();
-  void buildWorkspaceTypeIndex(state).catch((error) => {
-    console.warn("Could not build workspace type index:", error);
-  });
+  console.log("After settings recommendation");
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
