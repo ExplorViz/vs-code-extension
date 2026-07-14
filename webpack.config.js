@@ -18,6 +18,14 @@ const extensionConfig = {
     path: path.resolve(__dirname, "dist"),
     filename: "extension.js",
     libraryTarget: "commonjs2",
+    clean: true,
+  },
+  cache: {
+    type: "filesystem",
+
+    buildDependencies: {
+      config: [__filename],
+    },
   },
   externals: {
     vscode: "commonjs vscode", // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/

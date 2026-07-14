@@ -65,6 +65,9 @@ export async function activate(context: vscode.ExtensionContext) {
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
   );
+
+  console.log("[ExplorViz] Extension path:", context.extensionPath);
+console.log("[ExplorViz] Bundle path:", __filename);
 }
 
 export function deactivate() {
