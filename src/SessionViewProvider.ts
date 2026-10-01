@@ -8,6 +8,7 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "explorviz-session-view";
 
   private _view?: vscode.WebviewView;
+  private _webviewReady = false;
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -21,14 +22,27 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
     _token: vscode.CancellationToken
   ) {
     this._view = webviewView;
+    this._webviewReady = false;
+
+    webviewView.onDidDispose(() => {
+      if (this._view === webviewView) {
+        this._view = undefined;
+        this._webviewReady = false;
+      }
+    });
 
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [this._extensionUri],
     };
 
-    this._view.webview.onDidReceiveMessage((data) => {
+    webviewView.webview.onDidReceiveMessage((data) => {
       switch (data.type) {
+        case "ready": {
+          this._webviewReady = true;
+          this.refreshHTML();
+          break;
+        }
         case "executeExplorVizCommand": {
           if (data.optional) {
             vscode.commands.executeCommand(data.command, data.optional);
@@ -40,13 +54,15 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    this.refreshHTML();
+    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
   }
 
   public refreshHTML() {
-    if (this._view) {
-      this._view.show?.(true);
-      this._view.webview.html = this._getHtmlForWebview(this._view.webview);
+    if (this._view && this._webviewReady) {
+      void this._view.webview.postMessage({
+        type: "updateSessionContent",
+        html: this._getContentHtml(),
+      });
     }
   }
 
@@ -78,34 +94,40 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
 
-  <p>Start a collaboratively usable Software Visualization session to comprehend your software using the 3D city metaphor.</p>
-
-  <br />
-
-  ${this.renderConnectToBackendButton()}
-  ${this.renderLoadingAnimation()}
-  ${this.renderCancelConnectionSetupButton()}
-  ${this.renderDisconnectFromBackendButton()}
-
-  <br />
-
-  ${this.renderCreateLandscapeForDebugSessionButton()}
-
-  <br />
-
-  ${this.renderLoadDebugSessionLandscapesButton()}
-
-  <br /><br />
-
-  ${this.renderCurrentMarkedVariablesTable()}
-
-  <br />
-
-  ${this.renderSaveSnapshotButton()}
+  <div id="explorviz-session-content"></div>
 
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
+  }
+
+  private _getContentHtml() {
+    return `
+      <p>Start a collaboratively usable Software Visualization session to comprehend your software using the 3D city metaphor.</p>
+
+      <br />
+
+      ${this.renderConnectToBackendButton()}
+      ${this.renderLoadingAnimation()}
+      ${this.renderCancelConnectionSetupButton()}
+      ${this.renderDisconnectFromBackendButton()}
+
+      <br />
+
+      ${this.renderCreateLandscapeForDebugSessionButton()}
+
+      <br />
+
+      ${this.renderLoadDebugSessionLandscapesButton()}
+
+      <br /><br />
+
+      ${this.renderCurrentMarkedVariablesTable()}
+
+      <br />
+
+      ${this.renderSaveSnapshotButton()}
+    `;
   }
 
   private renderConnectToBackendButton() {

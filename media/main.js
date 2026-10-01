@@ -6,114 +6,47 @@
   // @ts-ignore
   const vscode = acquireVsCodeApi();
 
-  const connectToBackendButton = document.querySelector('#explorviz-connect-to-backend-button');
-  if (connectToBackendButton) {
-    connectToBackendButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.connectToBackend");
-    });
-  }
+  const commandByButtonId = {
+    "explorviz-connect-to-backend-button": "explorviz-vscode-extension.connectToBackend",
+    "explorviz-disconnect-from-backend-button": "explorviz-vscode-extension.disconnectFromBackend",
+    "explorviz-cancel-connection-setup-button": "explorviz-vscode-extension.cancelConnectionSetup",
+    "explorviz-create-landscape-for-debug-session-button": "explorviz-vscode-extension.createLandscapeForDebugSession",
+    "explorviz-load-debug-session-landscapes-button": "explorviz-vscode-extension.loadDebugSessionLandscapes",
+    "explorviz-visualize-debug-session-button": "explorviz-vscode-extension.startVisualizationForDebugSession",
+    "explorviz-deactivate-button": "explorviz-vscode-extension.stopVisualizationForDebugSession",
+    "explorviz-save-current-state-button": "explorviz-vscode-extension.saveCurrentStateForMarkedVariables",
+    "explorviz-remove-all-variables-from-debug-watch-button": "explorviz-vscode-extension.removeAllVariablesFromDebugWatch",
+    "explorviz-join-room-button": "explorviz-vscode-extension.connectToRoom",
+    "explorviz-disconnect-room-button": "explorviz-vscode-extension.disconnectFromRoom",
+    "explorviz-create-pp-button": "explorviz-vscode-extension.createPairProgramming",
+    "explorviz-join-pp-button": "explorviz-vscode-extension.joinPairProgramming",
+    "explorviz-open-viz-button": "explorviz-vscode-extension.webview"
+  };
 
-  const disconnectFromBackendButton = document.querySelector('#explorviz-disconnect-from-backend-button');
-  if (disconnectFromBackendButton) {
-    disconnectFromBackendButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.disconnectFromBackend");
-    });
-  }
+  const sessionContent = document.querySelector("#explorviz-session-content");
+  if (sessionContent) {
+    sessionContent.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
 
-  const cancelConnectionSetupButton = document.querySelector('#explorviz-cancel-connection-setup-button');
-  if (cancelConnectionSetupButton) {
-    cancelConnectionSetupButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.cancelConnectionSetup");
-    });
-  }
+      const button = target.closest("button");
+      const command = button && commandByButtonId[button.id];
+      if (command) {
+        executeExtensionCommand(command);
+      }
 
-  const createLandscapeForDebugSessionButton = document.querySelector('#explorviz-create-landscape-for-debug-session-button');
-  if (createLandscapeForDebugSessionButton) {
-    createLandscapeForDebugSessionButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.createLandscapeForDebugSession");
-    });
-  }
-
-  const loadDebugSessionLandscapesButton = document.querySelector('#explorviz-load-debug-session-landscapes-button');
-  if (loadDebugSessionLandscapesButton) {
-    loadDebugSessionLandscapesButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.loadDebugSessionLandscapes");
-    });
-  }
-
-  const visualizeDebugSessionButton = document.querySelector('#explorviz-visualize-debug-session-button');
-  if (visualizeDebugSessionButton) {
-    visualizeDebugSessionButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.startVisualizationForDebugSession");
-    });
-  }
-
-  const deactivateButton = document.querySelector('#explorviz-deactivate-button');
-  if (deactivateButton) {
-    deactivateButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.stopVisualizationForDebugSession");
-    });
-  }
-
-  const saveCurrentStateButton = document.querySelector('#explorviz-save-current-state-button');
-  if (saveCurrentStateButton) {
-    saveCurrentStateButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.saveCurrentStateForMarkedVariables");
-    });
-  }
-
-  const deleteVariablesFromDebugWatchButton = document.querySelector('#explorviz-remove-all-variables-from-debug-watch-button');
-  if (deleteVariablesFromDebugWatchButton) {
-    deleteVariablesFromDebugWatchButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.removeAllVariablesFromDebugWatch");
-    });
-  }
-
-  const connectToVizButton = document.querySelector(
-    "#explorviz-join-room-button"
-  );
-
-  if (connectToVizButton) {
-    connectToVizButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.connectToRoom");
-    });
-  }
-
-  const disconnectFromVizButton = document.querySelector(
-    "#explorviz-disconnect-room-button"
-  );
-
-  if (disconnectFromVizButton) {
-    disconnectFromVizButton.addEventListener("click", () => {
-      executeExtensionCommand(
-        "explorviz-vscode-extension.disconnectFromRoom"
-      );
-    });
-  }
-
-  const createPPButton = document.querySelector("#explorviz-create-pp-button");
-
-  if (createPPButton) {
-    createPPButton.addEventListener("click", () => {
-      executeExtensionCommand(
-        "explorviz-vscode-extension.createPairProgramming"
-      );
-    });
-  }
-
-  const joinPPButton = document.querySelector("#explorviz-join-pp-button");
-
-  if (joinPPButton) {
-    joinPPButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.joinPairProgramming");
-    });
-  }
-
-  const openVizButton = document.querySelector("#explorviz-open-viz-button");
-
-  if (openVizButton) {
-    openVizButton.addEventListener("click", () => {
-      executeExtensionCommand("explorviz-vscode-extension.webview");
+      const row = target.closest("tr[data-token-value]");
+      if (row) {
+        executeExtensionCommand(
+          "explorviz-vscode-extension.updateWebViewForJoinedDebugSessionLandscape",
+          {
+            tokenValue: row.getAttribute("data-token-value"),
+            commitId: row.getAttribute("data-commit-id")
+          }
+        );
+      }
     });
   }
 
@@ -121,6 +54,12 @@
   window.addEventListener("message", (event) => {
     const message = event.data; // The json data that the extension sent
     switch (message.type) {
+      case "updateSessionContent": {
+        if (sessionContent && typeof message.html === "string") {
+          sessionContent.innerHTML = message.html;
+        }
+        break;
+      }
       case "connectToViz": {
         executeExtensionCommand("explorviz-vscode-extension.connectToRoom");
         break;
@@ -136,17 +75,5 @@
     });
   }
 
- // Event delegation: listen to clicks on the tbody of the table within .table-wrapper
- const wrapper = document.querySelector("#table-wrapper");
- if(wrapper) {
-  const trs = wrapper.querySelectorAll('tr');
-  trs.forEach(tr => {
-    tr.addEventListener('click', () => {
-      const tokenValue = tr.getAttribute("data-token-value");
-      const commitId = tr.getAttribute("data-commit-id");
-      executeExtensionCommand("explorviz-vscode-extension.updateWebViewForJoinedDebugSessionLandscape", { tokenValue, commitId });
-    });
-   });
- }
- 
+  vscode.postMessage({ type: "ready" });
 })();
