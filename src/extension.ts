@@ -12,14 +12,11 @@ import { getVariablesFromCurrentEditor } from "./debug/variableTokenScanner";
 import { registerTextEditorListeners } from "./text-editor/textEditorListeners";;
 import { recommendWorkspaceSettingsIfNeeded } from "./settings/recommendedWorkspaceSettings";
 
-// TODO: fix bug where changing setting at the beginning will result in an infinite loading of the extension
-
 export async function activate(context: vscode.ExtensionContext) {
   const config = loadExtensionConfig();
   const state = createExtensionState();
 
   const sessionViewProvider = new SessionViewProvider(context.extensionUri, state, config);
-  await recommendWorkspaceSettingsIfNeeded();
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
@@ -58,9 +55,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
   backendClient.connect();
 
-  // In case our extension gets activated while a debug session is already active 
-  // and the program is possibly stopped 
-  await restoreStoppedDebugStateIfPossible(state, sessionViewProvider);
+  void restoreStoppedDebugStateIfPossible(state, sessionViewProvider).catch(
+    (error: unknown) => {
+      console.error("Failed to restore the active debug session state:", error);
+      void vscode.window.showErrorMessage(
+        "ExplorViz could not restore the active debug session state."
+      );
+    }
+  );
 
   console.log(
     'Congratulations, your extension "explorviz-vscode-extension" is now active!'
@@ -68,6 +70,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
   console.log("[ExplorViz] Extension path:", context.extensionPath);
 console.log("[ExplorViz] Bundle path:", __filename);
+
+  setTimeout(() => {
+    void recommendWorkspaceSettingsIfNeeded().catch((error: unknown) => {
+      console.error(
+        "Failed to check or apply recommended workspace settings:",
+        error
+      );
+      void vscode.window.showErrorMessage(
+        "ExplorViz could not check or apply the recommended workspace settings."
+      );
+    });
+  }, 0);
 }
 
 export function deactivate() {

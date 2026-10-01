@@ -1,6 +1,7 @@
 {
   "name": "explorviz-vscode-extension",
-  "displayName": "explorviz-vscode-extension",
+  "publisher": "explorviz",
+  "displayName": "ExplorViz",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -13,13 +14,17 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": ["onStartupFinished"],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "explorviz-vscode-extension.webview",
         "title": "ExplorViz: Open Webview"
+      },
+      {
+        "command": "explorviz-vscode-extension.startDebugging",
+        "title": "ExplorViz: Start Debugging"
       },
       {
         "command": "explorviz-vscode-extension.joinPairProgramming",
