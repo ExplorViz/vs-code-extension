@@ -1,28 +1,25 @@
+
 # ExplorViz VS Code Extension
 
-## Extension ohne Extension-Host-Debugger starten
+## Start the Extension Without the Extension Host Debugger
 
-**F5** beziehungsweise **Run Extension** startet den Extension Development Host
-mit einem angehängten Debugger. Um die Extension im Entwicklungsmodus ohne diesen
-Debugger zu starten:
+Pressing **F5** or selecting **Run Extension** starts the Extension Development Host with an attached debugger. To start the extension in development mode **without** the debugger:
 
-1. Beende einen laufenden F5-Start mit **Shift+F5**.
-2. Öffne ein Terminal im Stammverzeichnis dieses Extension-Projekts.
-3. Kompiliere die Extension und öffne ein neues VS-Code-Fenster:
+1. Stop any running F5 session by pressing **Shift+F5**.
+2. Open a terminal in the root directory of this extension project.
+3. Compile the extension and open a new VS Code window:
 
    ```bash
    npm run compile
    code --new-window --extensionDevelopmentPath="$PWD"
    ```
 
-Das neue Fenster lädt die Extension aus dem aktuellen Projektverzeichnis. Für
-den normalen Betrieb einer installierten Extension ist kein Extension-Host-
-Debugger erforderlich.
+The new window loads the extension from the current project directory. Running an installed extension normally does not require an Extension Host debugger.
 
-## Java-Projekt über ExplorViz debuggen
+## Debug a Java Project Using ExplorViz
 
-Öffne das Java-Projekt, das du debuggen möchtest, in VS Code. Das Projekt muss
-eine passende VS-Code-Debug-Konfiguration bereitstellen. Öffne dann mit
-**Cmd+Shift+P** die Befehlspalette und wähle **ExplorViz: Start Debugging**.
-VS Code startet den Debug-Workflow für das geöffnete Projekt. Dafür muss die
-ExplorViz-Webview nicht geöffnet sein.
+Open the Java project you want to debug in VS Code. The project must provide a suitable VS Code debug configuration.
+
+Then open the Command Palette using **Cmd+Shift+P** and select **ExplorViz: Start Debugging**.
+
+VS Code starts the debugging workflow for the currently opened project. The ExplorViz webview does not need to be open for this.
