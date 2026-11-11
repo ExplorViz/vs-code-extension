@@ -110,6 +110,7 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       ${this.renderConnectToBackendButton()}
       ${this.renderLoadingAnimation()}
       ${this.renderCancelConnectionSetupButton()}
+      ${this.renderStartDebuggingButton()}
       ${this.renderDisconnectFromBackendButton()}
 
       <br />
@@ -157,6 +158,10 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
     }
 
     return "";
+  }
+
+  private renderStartDebuggingButton() {
+    return "<button id='explorviz-start-debugging-button'>Start Debugging</button>";
   }
 
   private renderDisconnectFromBackendButton() {

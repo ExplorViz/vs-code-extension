@@ -10,6 +10,7 @@
     "explorviz-connect-to-backend-button": "explorviz-vscode-extension.connectToBackend",
     "explorviz-disconnect-from-backend-button": "explorviz-vscode-extension.disconnectFromBackend",
     "explorviz-cancel-connection-setup-button": "explorviz-vscode-extension.cancelConnectionSetup",
+    "explorviz-start-debugging-button": "explorviz-vscode-extension.startDebugging",
     "explorviz-create-landscape-for-debug-session-button": "explorviz-vscode-extension.createLandscapeForDebugSession",
     "explorviz-load-debug-session-landscapes-button": "explorviz-vscode-extension.loadDebugSessionLandscapes",
     "explorviz-visualize-debug-session-button": "explorviz-vscode-extension.startVisualizationForDebugSession",

@@ -66,6 +66,10 @@ button:hover {
   background: var(--vscode-button-hoverBackground);
 }
 
+button + button {
+  margin-top: 8px;
+}
+
 button:focus {
   outline-color: var(--vscode-focusBorder);
 }
