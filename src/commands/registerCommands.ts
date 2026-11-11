@@ -19,7 +19,7 @@ export function registerCommands(
   git: API | undefined
 ): void {
   registerBackendCommands(context, backendClient);
-  registerDebugCommands(context);
+  registerDebugCommands(context, state, sessionViewProvider);
 
   registerDebugRoomCommands(
     context,

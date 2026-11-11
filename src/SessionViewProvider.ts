@@ -111,6 +111,7 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
       ${this.renderLoadingAnimation()}
       ${this.renderCancelConnectionSetupButton()}
       ${this.renderStartDebuggingButton()}
+      ${this.renderRecordTracingButton()}
       ${this.renderDisconnectFromBackendButton()}
 
       <br />
@@ -162,6 +163,18 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
   private renderStartDebuggingButton() {
     return "<button id='explorviz-start-debugging-button'>Start Debugging</button>";
+  }
+
+  private renderRecordTracingButton() {
+    if (!this.state.debug.isInDebugSession) {
+      return "";
+    }
+
+    if (this.state.debug.isRecordingTracing) {
+      return "<button id='explorviz-stop-recording-tracing-button'>Stop Recording Tracing</button>";
+    }
+
+    return "<button id='explorviz-record-tracing-button'>Record Tracing</button>";
   }
 
   private renderDisconnectFromBackendButton() {

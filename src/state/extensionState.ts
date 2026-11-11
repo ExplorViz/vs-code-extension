@@ -32,6 +32,7 @@ export interface DebugState {
   debugRunId?: string;
   isInDebugSession: boolean;
   isDebugSessionStopped: boolean;
+  isRecordingTracing: boolean;
   stoppedDebugSession?: vscode.DebugSession;
   stoppedDebugThreadId?: number;
   debuggedAppPID?: number;
@@ -120,6 +121,7 @@ export function createExtensionState(): ExtensionState {
     debug: {
       isInDebugSession: false,
       isDebugSessionStopped: false,
+      isRecordingTracing: false,
       capabilities: {
         supportsVariableType: false,
       },

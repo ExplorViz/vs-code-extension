@@ -1,7 +1,11 @@
 import * as vscode from "vscode";
+import { ExtensionState } from "../state/extensionState";
+import { SessionViewProvider } from "../SessionViewProvider";
 
 export function registerDebugCommands(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
+  state: ExtensionState,
+  sessionViewProvider: SessionViewProvider
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -15,6 +19,26 @@ export function registerDebugCommands(
             "ExplorViz could not start the debug session."
           );
         }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "explorviz-vscode-extension.startRecordingTracing",
+      () => {
+        state.debug.isRecordingTracing = true;
+        sessionViewProvider.refreshHTML();
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "explorviz-vscode-extension.stopRecordingTracing",
+      () => {
+        state.debug.isRecordingTracing = false;
+        sessionViewProvider.refreshHTML();
       }
     )
   );

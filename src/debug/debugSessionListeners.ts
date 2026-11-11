@@ -28,6 +28,7 @@ export function registerDebugSessionListeners(
       state.debug.isInDebugSession = false;
       state.debug.debugRunId = undefined;
       state.debug.isDebugSessionStopped = false;
+      state.debug.isRecordingTracing = false;
       state.debug.stoppedDebugSession = undefined;
       state.debug.stoppedDebugThreadId = undefined;
       state.debug.recommendedSettingsAtDebugStart = "unknown";
