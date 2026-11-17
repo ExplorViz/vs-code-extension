@@ -5,6 +5,7 @@ const vscode = acquireVsCodeApi();
 
 export default function App() {
     const [detailedLogging, setDetailedLogging] = useState(false);
+    const [isBackgroundTaskEnabled, setIsBackgroundTaskEnabled] = useState(false);
 
     const handleTrigger = () => {
         vscode.postMessage({
@@ -13,20 +14,42 @@ export default function App() {
         });
     };
 
+    const handleBackgroundTaskToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const checked = e.target.checked;
+        setIsBackgroundTaskEnabled(checked);
+
+        vscode.postMessage({
+            type: 'toggleBackground',
+            enabled: checked
+        });
+    };
+
     return (
         <div style={{ padding: '12px', fontFamily: 'var(--vscode-font-family)', color: 'var(--vscode-foreground)' }}>
             <h3>Analysis Controls</h3>
             <div style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input 
-                        type="checkbox" 
-                        checked={detailedLogging} 
-                        onChange={(e) => setDetailedLogging(e.target.checked)} 
+                    <input
+                        type="checkbox"
+                        checked={detailedLogging}
+                        onChange={(e) => setDetailedLogging(e.target.checked)}
                     />
                     Enable Detailed Logging
                 </label>
             </div>
-            <button 
+
+            <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                        type="checkbox"
+                        checked={isBackgroundTaskEnabled}
+                        onChange={handleBackgroundTaskToggle}
+                    />
+                    Enable Background Task
+                </label>
+            </div>
+
+            <button
                 onClick={handleTrigger}
                 style={{
                     width: '100%',

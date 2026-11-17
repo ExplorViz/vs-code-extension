@@ -44,7 +44,7 @@ export async function activateAnalysisDaemon(context: vscode.ExtensionContext) {
         await context.globalState.update('explorvizDaemonPort', freePort);
 
         outputChannel.appendLine(`-> Execute: "${pythonVenvPath}" "${scriptPath}" ${portStr}`);
-        
+
         daemonProcess = spawn(pythonVenvPath, ['-u', scriptPath, portStr], {
             stdio: ['pipe', 'pipe', 'pipe']
         });
@@ -127,7 +127,7 @@ async function findSystemPython(): Promise<string> {
             if (output.includes('Python 3')) {
                 return cmd;
             }
-        } catch (err){
+        } catch (err) {
             // skip
         }
     }

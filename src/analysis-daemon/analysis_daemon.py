@@ -1,33 +1,18 @@
 import asyncio
 import sys
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+
 import uvicorn
+from fastapi import FastAPI
+from routers.analysis import router as analysis_router
+from routers.socket import router as socket_router
 
-app = FastAPI()
+SERVER_SETTINGS = {}
 
-connected_clients: list[WebSocket] = []
+app = FastAPI(title="ExplorViz Analysis Daemon")
 
-@app.post("/trigger")
-async def trigger_action():
-    print("[Analysis Daemon] Button clicked! Received trigger from sidebar.")
-    return {"status": "ok"}
+app.include_router(analysis_router)
+app.include_router(socket_router)
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    connected_clients.append(websocket)
-    print("[Analysis Daemon] New client connected.")
-    try:
-        while True:
-            data = await websocket.receive_text()
-            print(f"[Analysis Daemon] Received: {data}")
-
-            response = '{"jsonrpc": "2.0", "result": "Acknowledge", "id": 1}'
-            await websocket.send_text(response)
-
-    except WebSocketDisconnect:
-        connected_clients.remove(websocket)
-        print("[Analysis Daemon] Client disconnected.")
 
 async def monitor_parent_process():
     loop = asyncio.get_running_loop()
@@ -46,16 +31,22 @@ async def monitor_parent_process():
     finally:
         asyncio.get_running_loop().stop()
 
-async def main():
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
+async def main():
+    SERVER_SETTINGS.update({"port": int(sys.argv[1]) if len(sys.argv) > 1 else 8080})
+
+    config = uvicorn.Config(
+        app,
+        host="127.0.0.1",
+        port=SERVER_SETTINGS.get("port", 8080),
+        log_level="warning",
+    )
     server = uvicorn.Server(config)
 
     server_task = asyncio.create_task(server.serve())
     monitor_task = asyncio.create_task(monitor_parent_process())
 
-    print(f"[Analysis Daemon] Started on port {port}")
+    print(f"[Analysis Daemon] Started on port {SERVER_SETTINGS.get('port')}")
 
     await asyncio.gather(server_task, monitor_task)
 
