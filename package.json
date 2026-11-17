@@ -105,6 +105,11 @@
           "type": "webview",
           "id": "explorviz-session-view",
           "name": "Session Information"
+        },
+        {
+          "type": "webview",
+          "id": "explorviz.controlView",
+          "name": "Analysis Controls"
         }
       ]
     }
