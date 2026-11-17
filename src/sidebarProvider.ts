@@ -6,7 +6,7 @@ import * as fs from 'fs';
 export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'explorviz.controlView';
 
-    constructor(private readonly context: vscode.ExtensionContext) {}
+    constructor(private readonly context: vscode.ExtensionContext) { }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -25,6 +25,10 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage(async (data) => {
             if (data.type === 'triggerDaemon') {
                 await this.triggerPythonDaemon(data.detailedLogging);
+            }
+
+            if (data.type === 'toggleBackground') {
+                await this.sendToggleBackgroundToDaemon(data.enabled);
             }
         });
     }
@@ -48,7 +52,37 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
                 'Content-Length': payload.length
             }
         }, (res) => {
-            res.on('data', () => {});
+            res.on('data', () => { });
+        });
+
+        req.on('error', (err) => {
+            vscode.window.showErrorMessage(`Failed to reach daemon: ${err.message}`);
+        });
+
+        req.write(payload);
+        req.end();
+    }
+
+    private async sendToggleBackgroundToDaemon(enabled: boolean) {
+        const port = this.context.globalState.get<number>('explorvizDaemonPort');
+        if (!port) {
+            vscode.window.showErrorMessage('ExplorViz Daemon port not found.');
+            return;
+        }
+
+        const payload = JSON.stringify({ enabled });
+
+        const req = http.request({
+            hostname: '127.0.0.1',
+            port: port,
+            path: '/toggle-background-task',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': payload.length
+            }
+        }, (res) => {
+            res.on('data', () => { });
         });
 
         req.on('error', (err) => {
