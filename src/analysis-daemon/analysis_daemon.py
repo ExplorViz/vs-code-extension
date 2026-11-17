@@ -7,6 +7,11 @@ app = FastAPI()
 
 connected_clients: list[WebSocket] = []
 
+@app.post("/trigger")
+async def trigger_action():
+    print("[Analysis Daemon] Button clicked! Received trigger from sidebar.")
+    return {"status": "ok"}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -44,7 +49,7 @@ async def monitor_parent_process():
 async def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="info")
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
     server = uvicorn.Server(config)
 
     server_task = asyncio.create_task(server.serve())
