@@ -11,6 +11,7 @@ import { BackendClient } from "./backend/backendClient";
 import { getVariablesFromCurrentEditor } from "./debug/variableTokenScanner";
 import { registerTextEditorListeners } from "./text-editor/textEditorListeners";;
 import { recommendWorkspaceSettingsIfNeeded } from "./settings/recommendedWorkspaceSettings";
+import { activateAnalysisDaemon, deactivateAnalysisDaemon } from "./analysis-daemon/daemonStartup";
 
 export async function activate(context: vscode.ExtensionContext) {
   const config = loadExtensionConfig();
@@ -69,7 +70,9 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   console.log("[ExplorViz] Extension path:", context.extensionPath);
-console.log("[ExplorViz] Bundle path:", __filename);
+  console.log("[ExplorViz] Bundle path:", __filename);
+
+  await activateAnalysisDaemon(context);
 
   setTimeout(() => {
     void recommendWorkspaceSettingsIfNeeded().catch((error: unknown) => {
@@ -86,6 +89,7 @@ console.log("[ExplorViz] Bundle path:", __filename);
 
 export function deactivate() {
   // Optional: Clean up resources, close connections, etc.
+  deactivateAnalysisDaemon();
 }
 
 export function createActiveTextEditorChangeHandler(state: ExtensionState) {
