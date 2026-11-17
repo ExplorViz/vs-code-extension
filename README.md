@@ -8,7 +8,9 @@ After cloning the repository, install the project dependencies:
 npm ci
 ```
 
-This requires Node.js and npm. The dependencies only need to be reinstalled when they change.
+This project uses npm and `package-lock.json`; do not use pnpm or yarn here. This requires Node.js and npm.
+
+To add a dependency, use `npm install <package>` (or `npm install --save-dev <package>` for a development dependency). npm updates `package.json` and `package-lock.json` together. If you edit `package.json` manually, run `npm install --package-lock-only` to update the lockfile. Once the lockfile is up to date, use `npm ci` to install the exact locked dependency versions.
 
 ## Start the Extension Without the Extension Host Debugger
 

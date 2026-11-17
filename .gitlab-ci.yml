@@ -23,7 +23,7 @@ linting:
   tags:
     - exec-docker
   before_script:
-    - npm install
+    - npm ci
   script:
     - npm run lint
 

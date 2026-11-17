@@ -103,7 +103,7 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
 
   private _getContentHtml() {
     return `
-      <p>Start a collaboratively usable Software Visualization session to comprehend your software using the 3D city metaphor.</p>
+      <p>Use ExplorViz to visualize insights gathered during a debugging session.</p>
 
       <br />
 

@@ -62,5 +62,5 @@ inspectit:
       service-name: Ocelot Otel Exporter
       otlp:
         enabled: ENABLED
-        endpoint: http://localhost:55678
+        endpoint: http://localhost:4317
         protocol: grpc
