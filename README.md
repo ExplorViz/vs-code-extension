@@ -1,14 +1,43 @@
-# explorviz-vscode-extension README
+# ExplorViz VS Code Extension
 
-For extension authors, they can run `vsce package` in extension root folder to create such VSIX files.
+## Setup
 
-For users who receive such a VSIX file, they can install the extension with  
-`code --install-extension my-extension-0.0.1.vsix.`
+After cloning the repository, install the project dependencies:
 
-ExplorViz: localhost:4200
-Backend: localhost:3000
+```bash
+npm ci
+```
 
-For vsce package
+This project uses npm and `package-lock.json`; do not use pnpm or yarn here. This requires Node.js and npm.
 
-Needs repo field
-Needs license.md
+To add a dependency, use `npm install <package>` (or `npm install --save-dev <package>` for a development dependency). npm updates `package.json` and `package-lock.json` together. If you edit `package.json` manually, run `npm install --package-lock-only` to update the lockfile. Once the lockfile is up to date, use `npm ci` to install the exact locked dependency versions.
+
+## Start the Extension Without the Extension Host Debugger
+
+Pressing **F5** or selecting **Run Extension** starts the Extension Development Host with an attached debugger. To start the extension in development mode **without** the debugger:
+
+1. Stop any running F5 session by pressing **Shift+F5**.
+2. Open a terminal in the root directory of this extension project.
+3. Compile the extension and open a new VS Code window:
+
+   ```bash
+   npm run compile
+   code --new-window --extensionDevelopmentPath="$PWD"
+   ```
+
+The new window loads the extension from the current project directory. Running an installed extension normally does not require an Extension Host debugger.
+
+The `code` command must be available on your PATH.
+
+## Debug a Java Project Using ExplorViz
+
+Open the Java project you want to debug in the VS Code window running the ExplorViz extension. The project must provide a suitable VS Code debug configuration.
+
+Then open the Command Palette using **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P** (Windows/Linux) and select **ExplorViz: Start Debugging**.
+
+VS Code starts the debugging workflow for the currently opened project. The ExplorViz webview does not need to be open for this.
+
+## TODOs
+
+- Communicate directly with the user-service to create a landscape, instead of routing the request through the frontend.
+- Replace the VS Code backend snapshot-generation flow with OpenTelemetry-compliant logs sent to the OTel Collector. The collector should process the logs and forward them to the existing landscape-service.
