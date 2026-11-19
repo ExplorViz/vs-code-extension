@@ -1,4 +1,4 @@
-image: node:16
+image: node:22
 
 cache:
   paths:
@@ -23,7 +23,7 @@ linting:
   tags:
     - exec-docker
   before_script:
-    - npm install
+    - npm ci
   script:
     - npm run lint
 
@@ -32,7 +32,7 @@ build-package:
   tags:
     - exec-docker
   before_script:
-    - npm install -g vsce
+    - npm install -g @vscode/vsce
   script:
     - vsce package
   artifacts:
