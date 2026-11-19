@@ -36,3 +36,8 @@ Open the Java project you want to debug in the VS Code window running the Explor
 Then open the Command Palette using **Cmd+Shift+P** (macOS) or **Ctrl+Shift+P** (Windows/Linux) and select **ExplorViz: Start Debugging**.
 
 VS Code starts the debugging workflow for the currently opened project. The ExplorViz webview does not need to be open for this.
+
+## TODOs
+
+- Communicate directly with the user-service to create a landscape, instead of routing the request through the frontend.
+- Replace the VS Code backend snapshot-generation flow with OpenTelemetry-compliant logs sent to the OTel Collector. The collector should process the logs and forward them to the existing landscape-service.
