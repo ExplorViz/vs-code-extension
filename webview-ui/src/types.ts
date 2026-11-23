@@ -9,6 +9,7 @@ export type SamplingPeriod = 'disabled' | 'Day' | 'Week' | 'Month' | 'Year';
 
 export interface FullAnalysisConfig {
     repository: {
+        repoPath: string;
         branch: string;
         startCommit: string;
         endCommit: string;

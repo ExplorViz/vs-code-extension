@@ -158,13 +158,13 @@ export default function App() {
                     </button>
                 </div>
 
-                {activeTab === 'lightweight' && <div role="tabpanel" />}
-                {activeTab === 'full' && (
+                <div style={{ display: activeTab === 'lightweight' ? 'block' : 'none' }} role="tabpanel" />
+                <div style={{ display: activeTab === 'full' ? 'block' : 'none' }}>
                     <FullAnalysisTab
                         isAnalysisRunning={isAnalysisRunning}
                         onStartAnalysis={handleStartAnalysis}
                     />
-                )}
+                </div>
             </div>
         </div>
     );

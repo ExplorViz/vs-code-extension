@@ -4,6 +4,14 @@ import * as http from 'http';
 import * as fs from 'fs';
 import WebSocket from 'ws';
 import { FullAnalysisConfig } from './models/fullAnalysisConfig';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
+interface GitRepoInfo {
+    repoPath: string;
+    branches: string[];
+}
 
 export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'explorviz.controlView';
@@ -31,7 +39,23 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
     ) {
         this.currentView = webviewView;
 
+        const visibilitySub = webviewView.onDidChangeVisibility(() => {
+            if (webviewView.visible) {
+                void this.postGitRepositoryInfo(webviewView.webview);
+                webviewView.webview.postMessage({
+                    type: 'analysisStateChanged',
+                    isRunning: this.isAnalysisRunning
+                });
+            }
+        });
+
+        const workspaceSub = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+            void this.postGitRepositoryInfo();
+        });
+
         webviewView.onDidDispose(() => {
+            visibilitySub.dispose();
+            workspaceSub.dispose();
             if (this.currentView === webviewView) {
                 this.currentView = undefined;
             }
@@ -57,6 +81,7 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
                     type: 'analysisStateChanged',
                     isRunning: this.isAnalysisRunning
                 });
+                await this.postGitRepositoryInfo(webviewView.webview);
             }
 
             if (data.type === 'triggerDaemon') {
@@ -230,5 +255,58 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const filePath = path.join(this.context.extensionPath, 'out', 'webview', 'index.html');
         return fs.readFileSync(filePath, 'utf8');
+    }
+
+    private getWorkspaceCandidatePath(): string | undefined {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders || folders.length === 0) {
+            return undefined;
+        }
+        return folders[0].uri.fsPath;
+    }
+
+    private async loadGitRepositoryInfo(): Promise<GitRepoInfo> {
+        const cwd = this.getWorkspaceCandidatePath();
+        if (!cwd) {
+            return { repoPath: '', branches: [] };
+        }
+
+        try {
+            const { stdout: topLevelOut } = await execFileAsync('git', ['rev-parse', '--show-toplevel'], { cwd });
+            const repoPath = topLevelOut.trim();
+
+            const { stdout: branchOut } = await execFileAsync(
+                'git',
+                [
+                    'for-each-ref',
+                    '--format=%(refname:short)',
+                    'refs/heads',
+                ],
+                { cwd: repoPath }
+            );
+
+            const branches = branchOut
+                .split(/\r?\n/)
+                .map((b) => b.trim())
+                .filter((b) => b.length > 0);
+
+            return { repoPath, branches };
+        } catch {
+            return { repoPath: '', branches: [] };
+        }
+    }
+
+    private async postGitRepositoryInfo(targetWebview?: vscode.Webview) {
+        const webview = targetWebview ?? this.currentView?.webview;
+        if (!webview) {
+            return;
+        }
+
+        const info = await this.loadGitRepositoryInfo();
+        webview.postMessage({
+            type: 'gitRepositoryInfo',
+            repoPath: info.repoPath,
+            branches: info.branches
+        });
     }
 }

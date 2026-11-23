@@ -13,6 +13,7 @@ SamplingPeriod = Literal["disabled", "Day", "Week", "Month", "Year"]
 
 
 class RepositoryConfig(BaseModel):
+    repoPath: str = ""
     branch: str = "use current branch"
     startCommit: str = ""
     endCommit: str = ""

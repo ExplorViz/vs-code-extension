@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ApplicationEntry, FullAnalysisConfig, SamplingPeriod } from '../types';
 import { checkboxRowStyle, inputStyle, labelRowStyle } from '../styles';
 import { CollapsibleSection } from './CollapsibleSection';
@@ -8,6 +8,8 @@ interface FullAnalysisTabProps {
     isAnalysisRunning: boolean;
     onStartAnalysis: (config: FullAnalysisConfig) => void;
 }
+
+const DEFAULT_BRANCH_OPTION = 'use current branch';
 
 const parseOptionalInt = (value: string): number | null => {
     const trimmed = value.trim();
@@ -24,6 +26,10 @@ export function FullAnalysisTab({ isAnalysisRunning, onStartAnalysis }: FullAnal
         filters: false,
         analysisConfig: false
     });
+
+    // Git repository info
+    const [repoPath, setRepoPath] = useState<string>('');
+    const [availableBranches, setAvailableBranches] = useState<string[]>([]);
 
     // Repository fields
     const [branch, setBranch] = useState('use current branch');
@@ -51,6 +57,31 @@ export function FullAnalysisTab({ isAnalysisRunning, onStartAnalysis }: FullAnal
     const [fetchSocialData, setFetchSocialData] = useState(false);
     const [syncSocialWindow, setSyncSocialWindow] = useState(false);
 
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            const message = event.data;
+            if (message?.type === 'gitRepositoryInfo') {
+                const nextRepoPath = typeof message.repoPath === 'string' ? message.repoPath : '';
+                const nextBranches: string[] = Array.isArray(message.branches)
+                    ? message.branches.filter((b: unknown): b is string => typeof b === 'string' && b.length > 0)
+                    : [];
+
+                setRepoPath(nextRepoPath);
+                setAvailableBranches(nextBranches);
+
+                setBranch((prevBranch) => {
+                    if (prevBranch === DEFAULT_BRANCH_OPTION) {
+                        return DEFAULT_BRANCH_OPTION;
+                    }
+                    return nextBranches.includes(prevBranch) ? prevBranch : DEFAULT_BRANCH_OPTION;
+                });
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
     const toggleSection = (key: keyof typeof openSections) => {
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
@@ -77,6 +108,7 @@ export function FullAnalysisTab({ isAnalysisRunning, onStartAnalysis }: FullAnal
 
         const config: FullAnalysisConfig = {
             repository: {
+                repoPath,
                 branch: branch.trim() || 'use current branch',
                 startCommit: startCommit.trim(),
                 endCommit: endCommit.trim(),
@@ -120,13 +152,19 @@ export function FullAnalysisTab({ isAnalysisRunning, onStartAnalysis }: FullAnal
                         <label htmlFor="repo-branch">Branch</label>
                         <TooltipBadge text="The branch to analyze from the open repository. Uses the current branch if none is selected." />
                     </div>
-                    <input
+                    <select
                         id="repo-branch"
-                        type="text"
                         value={branch}
                         onChange={(e) => setBranch(e.target.value)}
                         style={inputStyle}
-                    />
+                    >
+                        <option value={DEFAULT_BRANCH_OPTION}>{DEFAULT_BRANCH_OPTION}</option>
+                        {availableBranches.map((branchName) => (
+                            <option key={branchName} value={branchName}>
+                                {branchName}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <div>

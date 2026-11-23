@@ -1,6 +1,7 @@
 export type SamplingPeriod = 'disabled' | 'Day' | 'Week' | 'Month' | 'Year';
 
 export interface RepositoryConfigData {
+    repoPath: string;
     branch: string;
     startCommit: string;
     endCommit: string;
@@ -55,6 +56,7 @@ export class FullAnalysisConfig {
 
         return new FullAnalysisConfig({
             repository: {
+                repoPath: typeof repo.repoPath === 'string' ? repo.repoPath : '',
                 branch: typeof repo.branch === 'string' && repo.branch.trim() ? repo.branch : 'use current branch',
                 startCommit: typeof repo.startCommit === 'string' ? repo.startCommit : '',
                 endCommit: typeof repo.endCommit === 'string' ? repo.endCommit : '',
