@@ -11,6 +11,7 @@ import { BackendClient } from "./backend/backendClient";
 import { getVariablesFromCurrentEditor } from "./debug/variableTokenScanner";
 import { registerTextEditorListeners } from "./text-editor/textEditorListeners";;
 import { recommendWorkspaceSettingsIfNeeded } from "./settings/recommendedWorkspaceSettings";
+import { registerDapLogger } from "./debug/dapLogger";
 
 export async function activate(context: vscode.ExtensionContext) {
   const config = loadExtensionConfig();
@@ -44,6 +45,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerTextEditorListeners(context, state);
   registerDebugCodeLensProvider(context, state);
   registerDebugSessionListeners(context, state, sessionViewProvider);
+  registerDapLogger(context);
   registerCommands(
     context,
     config,
