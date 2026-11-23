@@ -20,7 +20,7 @@ const parseOptionalInt = (value: string): number | null => {
 
 export function FullAnalysisTab({ isAnalysisRunning, onStartAnalysis }: FullAnalysisTabProps) {
     const [openSections, setOpenSections] = useState({
-        repository: true,
+        repository: false,
         filters: false,
         analysisConfig: false
     });

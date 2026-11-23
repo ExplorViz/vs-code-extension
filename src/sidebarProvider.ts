@@ -29,6 +29,14 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
         context: vscode.WebviewViewResolveContext,
         token: vscode.CancellationToken,
     ) {
+        this.currentView = webviewView;
+
+        webviewView.onDidDispose(() => {
+            if (this.currentView === webviewView) {
+                this.currentView = undefined;
+            }
+        });
+
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [
@@ -37,6 +45,11 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
         };
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+
+        const port = this.context.globalState.get<number>('explorvizDaemonPort');
+        if (port && (!this.wsClient || this.wsClient.readyState === WebSocket.CLOSED)) {
+            this.connectDaemonWebSocket(port);
+        }
 
         webviewView.webview.onDidReceiveMessage(async (data) => {
             if (data.type === 'webviewReady') {
