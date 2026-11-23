@@ -8,6 +8,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
+const DEFAULT_BRANCH_OPTION = 'use current branch';
 interface GitRepoInfo {
     repoPath: string;
     branches: string[];
@@ -94,6 +95,14 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
 
             if (data.type === 'startFullAnalysis') {
                 const config = FullAnalysisConfig.fromUnknown(data.config);
+
+                if (!config.repository.branch || config.repository.branch === DEFAULT_BRANCH_OPTION) {
+                    const activeBranch = await this.resolveCurrentBranch(config.repository.repoPath);
+                    if (activeBranch) {
+                        config.repository.branch = activeBranch;
+                    }
+                }
+
                 this.sendStartFullAnalysisToDaemon(config);
             }
         });
@@ -293,6 +302,29 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
             return { repoPath, branches };
         } catch {
             return { repoPath: '', branches: [] };
+        }
+    }
+
+    private async resolveCurrentBranch(repoPath: string): Promise<string> {
+        if (!repoPath) {
+            return '';
+        }
+
+        try {
+            const { stdout } = await execFileAsync(
+                'git',
+                ['branch', '--show-current'],
+                { cwd: repoPath }
+            );
+            const branchName = stdout.trim();
+
+            if (!branchName || branchName === 'HEAD') {
+                return '';
+            }
+
+            return branchName;
+        } catch {
+            return '';
         }
     }
 

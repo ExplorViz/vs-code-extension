@@ -56,6 +56,8 @@ async def run_full_analysis(config: FullAnalysisRequest):
     try:
         print("[Analysis Daemon] Starting full analysis on for landscape.")
 
+        print(f"[Analysis Daemon] Branch is {config.repository.branch}")
+
         # TODO: Actual call to Code Analyzer
         await asyncio.sleep(3)
 
