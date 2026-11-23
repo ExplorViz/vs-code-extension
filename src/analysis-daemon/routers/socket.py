@@ -28,9 +28,8 @@ class ConnectionManager:
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
 
-    # TODO: Probably not needed, but for now for test reasons
     async def broadcast(self, message: str):
-        for connection in self.active_connections:
+        for connection in list(self.active_connections):
             try:
                 await connection.send_text(message)
             except Exception as e:
@@ -38,6 +37,7 @@ class ConnectionManager:
                     f"[Analysis Daemon] Error broadcasting to client: {e}",
                     file=sys.stderr,
                 )
+                self.disconnect(connection)
 
 
 connection_manager = ConnectionManager()
