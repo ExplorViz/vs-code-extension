@@ -1,3 +1,4 @@
+import math as m
 import traceback
 import asyncio
 import json
@@ -28,9 +29,9 @@ CODE_ANALYZER_TRIGGER_URL = f"{CODE_ANALYZER_BASE_URL}/api/analysis/extension/tr
 POLL_INTERVAL_SECONDS = float(os.getenv("EXPLORVIZ_STATUS_POLL_INTERVAL", "1.0"))
 POLL_TIMEOUT_SECONDS = float(os.getenv("EXPLORVIZ_STATUS_POLL_TIMEOUT", "1800.0"))
 
-TERMINAL_COMPLETED_STATUSES = {"completed", "complete", "done", "succeeded", "success"}
-TERMINAL_FAILED_STATUSES = {"failed", "fail", "error"}
-TERMINAL_CANCELLED_STATUSES = {"cancelled", "canceled"}
+TERMINAL_COMPLETED_STATUSES = {"finished"}
+TERMINAL_FAILED_STATUSES = {"failed"}
+TERMINAL_CANCELLED_STATUSES = {"cancelled"}
 
 
 class RepositoryConfig(BaseModel):
@@ -95,7 +96,8 @@ async def run_full_analysis(config: FullAnalysisRequest):
         )
 
         async with httpx.AsyncClient(
-            timeout=httpx.Timeout(300.0, connect=10.0)
+            timeout=httpx.Timeout(300.0, connect=10.0),
+            trust_env=False,
         ) as client:
             await _send_bundle_to_code_analyzer(
                 client=client,
@@ -160,22 +162,14 @@ async def get_analysis_status():
 async def _create_git_bundle(
     repo_path: str, branch: str | None, bundle_path: Path
 ) -> None:
-    if not repo_path:
-        raise ValueError("repoPath is required to create a git bundle")
-
-    repo_dir = Path(repo_path)
-    if not repo_dir.is_dir():
-        raise FileNotFoundError(f"Repository directoy does not exists: {repo_path}")
-
-    args = ["bundle", "create", str(bundle_path)]
-    if branch and branch != "use current branch":
-        args.append(branch)
-    else:
-        raise ValueError("branch is required to create a git bundle")
+    repo_dir = await _validate_git_repository(repo_path=repo_path, branch=branch)
 
     proc = await asyncio.create_subprocess_exec(
         "git",
-        *args,
+        "bundle",
+        "create",
+        str(bundle_path),
+        branch,
         cwd=str(repo_dir),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -385,3 +379,54 @@ async def _get_git_remote_url(repo_path: str) -> str | None:
                     return url
 
     return None
+
+
+async def _validate_git_repository(repo_path: str, branch: str | None) -> Path:
+    if not repo_path or not repo_path.strip():
+        raise ValueError("No repository path specified. Select a valid Git repository.")
+
+    repo_dir = Path(repo_path).expanduser().resolve()
+    if not repo_dir.exists() or not repo_dir.is_dir():
+        raise FileNotFoundError(
+            f"Selected path is not an existing directory: {repo_dir}"
+        )
+
+    check_repo = await asyncio.create_subprocess_exec(
+        "git",
+        "rev-parse",
+        "--is-inside-work-tree",
+        cwd=str(repo_dir),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    out, err = await check_repo.communicate()
+    is_inside = out.decode("utf-8", errors="replace").strip().lower() == "true"
+    if check_repo.returncode != 0 or not is_inside:
+        detail = err.decode("utf-8", errors="replace").strip()
+        raise ValueError(
+            f"Directory '{repo_dir}' is not a valid Git repository."
+            + (f" ({detail})" if detail else "")
+        )
+
+    if not branch or branch == "use current branch":
+        raise ValueError(
+            "A concrete Git branch must be resolved before creating a bundle."
+        )
+
+    check_branch = await asyncio.create_subprocess_exec(
+        "git",
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        branch,
+        cwd=str(repo_dir),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    await check_branch.communicate()
+    if check_branch.returncode != 0:
+        raise ValueError(
+            f"Branch or ref '{branch}' does not exist or has no commits in '{repo_dir}'."
+        )
+
+    return repo_dir
