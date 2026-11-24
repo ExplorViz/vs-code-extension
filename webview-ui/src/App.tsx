@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActiveTab } from './types';
 import { FullAnalysisTab } from './components/FullAnalysisTab';
 import { FullAnalysisConfig } from '../../src/models/fullAnalysisConfig';
+import type { AnalysisStatusBanner } from '../../src/sidebarProvider';
 
 declare const acquireVsCodeApi: () => { postMessage: (msg: any) => void };
 const vscode = acquireVsCodeApi();
@@ -11,12 +12,21 @@ export default function App() {
     const [isBackgroundTaskEnabled, setIsBackgroundTaskEnabled] = useState(false);
     const [activeTab, setActiveTab] = useState<ActiveTab>('full');
     const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
+    const [analysisBanner, setAnalysisBanner] = useState<AnalysisStatusBanner | null>(null);
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
+            if (!message || typeof message !== 'object') {
+                return;
+            }
+
             if (message?.type === 'analysisStateChanged') {
                 setIsAnalysisRunning(Boolean(message.isRunning));
+            } else if (message.type === 'fullAnalysisFinished' && message.banner) {
+                setAnalysisBanner(message.banner as AnalysisStatusBanner);
+            } else if (message.type === 'clearAnalysisBanner') {
+                setAnalysisBanner(null);
             }
         };
 
@@ -48,6 +58,10 @@ export default function App() {
             type: 'startFullAnalysis',
             config
         });
+    };
+
+    const handleDismissBanner = () => {
+        setAnalysisBanner(null);
     };
 
     return (
@@ -162,6 +176,8 @@ export default function App() {
                 <div style={{ display: activeTab === 'full' ? 'block' : 'none' }}>
                     <FullAnalysisTab
                         isAnalysisRunning={isAnalysisRunning}
+                        analysisBanner={analysisBanner}
+                        onDismissBanner={handleDismissBanner}
                         onStartAnalysis={handleStartAnalysis}
                     />
                 </div>

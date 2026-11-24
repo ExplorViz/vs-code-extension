@@ -3,9 +3,13 @@ import { ApplicationEntry, FullAnalysisConfig, SamplingPeriod } from '../types';
 import { checkboxRowStyle, inputStyle, labelRowStyle } from '../styles';
 import { CollapsibleSection } from './CollapsibleSection';
 import { TooltipBadge } from './TooltipBadge';
+import { AnalysisStatusBanner } from '../../../src/sidebarProvider';
+import { AnalysisStatusBannerView } from './AnalysisStatusBannerView';
 
 interface FullAnalysisTabProps {
     isAnalysisRunning: boolean;
+    analysisBanner: AnalysisStatusBanner | null;
+    onDismissBanner: () => void;
     onStartAnalysis: (config: FullAnalysisConfig) => void;
 }
 
@@ -20,7 +24,7 @@ const parseOptionalInt = (value: string): number | null => {
     return Number.isNaN(parsed) ? null : parsed;
 };
 
-export function FullAnalysisTab({ isAnalysisRunning, onStartAnalysis }: FullAnalysisTabProps) {
+export function FullAnalysisTab({ isAnalysisRunning, analysisBanner, onDismissBanner, onStartAnalysis }: FullAnalysisTabProps) {
     const [openSections, setOpenSections] = useState({
         repository: false,
         filters: false,
@@ -563,29 +567,36 @@ export function FullAnalysisTab({ isAnalysisRunning, onStartAnalysis }: FullAnal
                 </div>
             </CollapsibleSection>
 
-            <button
-                type="button"
-                disabled={isAnalysisRunning}
-                onClick={handleStartAnalysis}
-                style={{
-                    width: '100%',
-                    marginTop: '6px',
-                    padding: '8px',
-                    background: isAnalysisRunning
-                        ? 'var(--vscode-button-secondaryBackground, rgba(128, 128, 128, 0.25))'
-                        : 'var(--vscode-button-background)',
-                    color: isAnalysisRunning
-                        ? 'var(--vscode-disabledForeground, var(--vscode-descriptionForeground))'
-                        : 'var(--vscode-button-foreground)',
-                    border: 'none',
-                    borderRadius: '2px',
-                    fontWeight: 600,
-                    cursor: isAnalysisRunning ? 'not-allowed' : 'pointer',
-                    opacity: isAnalysisRunning ? 0.7 : 1
-                }}
-            >
-                {isAnalysisRunning ? 'Analysis Running...' : 'Start Analysis'}
-            </button>
+            <div className="analysis-trigger-group">
+                <button
+                    type="button"
+                    disabled={isAnalysisRunning}
+                    onClick={handleStartAnalysis}
+                    style={{
+                        width: '100%',
+                        marginTop: '6px',
+                        padding: '8px',
+                        background: isAnalysisRunning
+                            ? 'var(--vscode-button-secondaryBackground, rgba(128, 128, 128, 0.25))'
+                            : 'var(--vscode-button-background)',
+                        color: isAnalysisRunning
+                            ? 'var(--vscode-disabledForeground, var(--vscode-descriptionForeground))'
+                            : 'var(--vscode-button-foreground)',
+                        border: 'none',
+                        borderRadius: '2px',
+                        fontWeight: 600,
+                        cursor: isAnalysisRunning ? 'not-allowed' : 'pointer',
+                        opacity: isAnalysisRunning ? 0.7 : 1
+                    }}
+                >
+                    {isAnalysisRunning ? 'Analysis Running...' : 'Start Analysis'}
+                </button>
+
+                <AnalysisStatusBannerView
+                    banner={analysisBanner}
+                    onDismiss={onDismissBanner}
+                />
+            </div>
         </div>
     );
 }

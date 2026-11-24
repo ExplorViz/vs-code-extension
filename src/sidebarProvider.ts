@@ -14,6 +14,12 @@ interface GitRepoInfo {
     branches: string[];
 }
 
+export type AnalysisStatusBanner = {
+    status: "completed" | "failed" | "cancelled";
+    landscapeToken: string;
+    error?: string;
+};
+
 export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'explorviz.controlView';
 
@@ -200,6 +206,10 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
                 res.on('end', () => {
                     if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
                         this.setAnalysisRunning(true);
+
+                        this.currentView?.webview.postMessage({
+                            type: 'clearAnalysisBanner',
+                        });
                     } else {
                         this.setAnalysisRunning(false);
                         vscode.window.showErrorMessage(
@@ -244,8 +254,28 @@ export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
         ws.on('message', (raw) => {
             try {
                 const msg = JSON.parse(raw.toString());
-                if (msg.event === 'analysis_finished') {
+                if (msg?.event === 'analysis_finished') {
                     this.setAnalysisRunning(false);
+
+                    const rawStatus = typeof msg.status === 'string' ? msg.status : 'unknown';
+                    const normalizedStatus: AnalysisStatusBanner['status'] =
+                        rawStatus === 'completed'
+                            ? 'completed'
+                            : rawStatus === 'cancelled'
+                                ? 'cancelled'
+                                : 'failed';
+
+                    const banner: AnalysisStatusBanner = {
+                        status: normalizedStatus,
+                        landscapeToken: typeof msg.landscapeToken === 'string' ? msg.landscapeToken : '',
+                        error: typeof msg.error === 'string' ? msg.error : undefined,
+                    };
+
+
+                    this.currentView?.webview.postMessage({
+                        type: 'fullAnalysisFinished',
+                        banner,
+                    });
                 }
             } catch {
                 // Ignore
