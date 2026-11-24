@@ -27,6 +27,10 @@
         "title": "ExplorViz: Start Debugging"
       },
       {
+        "command": "explorviz-vscode-extension.stopDebugging",
+        "title": "ExplorViz: Stop Debugging"
+      },
+      {
         "command": "explorviz-vscode-extension.joinPairProgramming",
         "title": "ExplorViz: Join Pair Programming Session ...",
         "enablement": "explorviz.showPairProgrammingCommand"

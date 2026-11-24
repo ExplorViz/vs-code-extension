@@ -25,6 +25,22 @@ export function registerDebugCommands(
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
+      "explorviz-vscode-extension.stopDebugging",
+      async () => {
+        try {
+          await vscode.commands.executeCommand("workbench.action.debug.stop");
+        } catch (error) {
+          console.error("Failed to stop the debug session:", error);
+          void vscode.window.showErrorMessage(
+            "ExplorViz could not stop the debug session."
+          );
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
       "explorviz-vscode-extension.startRecordingTracing",
       () => {
         state.debug.isRecordingTracing = true;

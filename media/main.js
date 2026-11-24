@@ -11,6 +11,7 @@
     "explorviz-disconnect-from-backend-button": "explorviz-vscode-extension.disconnectFromBackend",
     "explorviz-cancel-connection-setup-button": "explorviz-vscode-extension.cancelConnectionSetup",
     "explorviz-start-debugging-button": "explorviz-vscode-extension.startDebugging",
+    "explorviz-stop-debugging-button": "explorviz-vscode-extension.stopDebugging",
     "explorviz-record-tracing-button": "explorviz-vscode-extension.startRecordingTracing",
     "explorviz-stop-recording-tracing-button": "explorviz-vscode-extension.stopRecordingTracing",
     "explorviz-create-landscape-for-debug-session-button": "explorviz-vscode-extension.createLandscapeForDebugSession",

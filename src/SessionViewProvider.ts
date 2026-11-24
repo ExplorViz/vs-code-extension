@@ -162,6 +162,10 @@ export class SessionViewProvider implements vscode.WebviewViewProvider {
   }
 
   private renderStartDebuggingButton() {
+    if (this.state.debug.isInDebugSession) {
+      return "<button id='explorviz-stop-debugging-button'>Stop Debugging</button>";
+    }
+
     return "<button id='explorviz-start-debugging-button'>Start Debugging</button>";
   }
 
