@@ -20,8 +20,8 @@ export type AnalysisStatusBanner = {
     error?: string;
 };
 
-export class ExplorVizControlProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'explorviz.controlView';
+export class AnalysisControlProvider implements vscode.WebviewViewProvider {
+    public static readonly viewType = 'explorviz.analysisControlView';
 
     private statusBarItem: vscode.StatusBarItem;
     private wsClient: WebSocket | undefined;

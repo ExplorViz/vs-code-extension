@@ -110,7 +110,7 @@
         },
         {
           "type": "webview",
-          "id": "explorviz.controlView",
+          "id": "explorviz.analysisControlView",
           "name": "Analysis Controls"
         }
       ]

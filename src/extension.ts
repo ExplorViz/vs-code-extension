@@ -12,7 +12,7 @@ import { getVariablesFromCurrentEditor } from "./debug/variableTokenScanner";
 import { registerTextEditorListeners } from "./text-editor/textEditorListeners";;
 import { recommendWorkspaceSettingsIfNeeded } from "./settings/recommendedWorkspaceSettings";
 import { activateAnalysisDaemon, deactivateAnalysisDaemon } from "./analysis-daemon/daemonStartup";
-import { ExplorVizControlProvider } from "./sidebarProvider";
+import { AnalysisControlProvider } from "./AnalysisControlProvider";
 
 export async function activate(context: vscode.ExtensionContext) {
   const config = loadExtensionConfig();
@@ -73,9 +73,9 @@ export async function activate(context: vscode.ExtensionContext) {
   console.log("[ExplorViz] Extension path:", context.extensionPath);
   console.log("[ExplorViz] Bundle path:", __filename);
 
-  const analysisProvider = new ExplorVizControlProvider(context);
+  const analysisProvider = new AnalysisControlProvider(context);
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(ExplorVizControlProvider.viewType, analysisProvider)
+    vscode.window.registerWebviewViewProvider(AnalysisControlProvider.viewType, analysisProvider)
   );
 
   await activateAnalysisDaemon(context);

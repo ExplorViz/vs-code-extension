@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActiveTab } from './types';
 import { FullAnalysisTab } from './components/FullAnalysisTab';
 import { FullAnalysisConfig } from '../../src/models/fullAnalysisConfig';
-import type { AnalysisStatusBanner } from '../../src/sidebarProvider';
+import type { AnalysisStatusBanner } from '../../src/AnalysisControlProvider';
 
 declare const acquireVsCodeApi: () => { postMessage: (msg: any) => void };
 const vscode = acquireVsCodeApi();

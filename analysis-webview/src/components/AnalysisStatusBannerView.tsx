@@ -1,4 +1,4 @@
-import { AnalysisStatusBanner } from "../../../src/sidebarProvider";
+import { AnalysisStatusBanner } from "../../../src/AnalysisControlProvider";
 import {
     analysisStatusBannerContentStyle,
     analysisStatusBannerDismissStyle,

@@ -3,7 +3,7 @@ import { ApplicationEntry, FullAnalysisConfig, SamplingPeriod } from '../types';
 import { checkboxRowStyle, inputStyle, labelRowStyle } from '../styles';
 import { CollapsibleSection } from './CollapsibleSection';
 import { TooltipBadge } from './TooltipBadge';
-import { AnalysisStatusBanner } from '../../../src/sidebarProvider';
+import { AnalysisStatusBanner } from '../../../src/AnalysisControlProvider';
 import { AnalysisStatusBannerView } from './AnalysisStatusBannerView';
 
 interface FullAnalysisTabProps {
