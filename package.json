@@ -63,35 +63,62 @@
         "enablement": "explorviz.showSaveCurrentStateForMarkedVariablesCommand"
       }
     ],
-    "configuration": {
-      "type": "object",
-      "title": "ExplorViz VS Code Extension",
-      "properties": {
-        "explorviz.backendUrl": {
-          "type": "string",
-          "scope": "application",
-          "default": "http://localhost:3000",
-          "description": "Specify URL for ExplorViz's VS Code backend."
-        },
-        "explorviz.frontendUrl": {
-          "type": "string",
-          "scope": "application",
-          "default": "http://localhost:4200",
-          "description": "Specify URL for ExplorViz's frontend."
-        },
-        "explorviz.packageBaseDir": {
-          "type": "string",
-          "scope": "application",
-          "default": "/src/main/java",
-          "description": "Specify if there is a src directory that wouldn't be included into the FQN"
-        },
-        "explorviz.defaultMode": {
-          "type": "string",
-          "default": "crossWindow",
-          "description": "Specify the default connection mode."
+    "configuration": [
+      {
+        "type": "object",
+        "title": "Debugging Configuration",
+        "order": 2,
+        "properties": {
+          "explorviz.backendUrl": {
+            "type": "string",
+            "scope": "application",
+            "default": "http://localhost:3000",
+            "description": "Specify URL for ExplorViz's VS Code backend."
+          },
+          "explorviz.frontendUrl": {
+            "type": "string",
+            "scope": "application",
+            "default": "http://localhost:4200",
+            "description": "Specify URL for ExplorViz's frontend."
+          },
+          "explorviz.packageBaseDir": {
+            "type": "string",
+            "scope": "application",
+            "default": "/src/main/java",
+            "description": "Specify if there is a src directory that wouldn't be included into the FQN"
+          },
+          "explorviz.defaultMode": {
+            "type": "string",
+            "default": "crossWindow",
+            "description": "Specify the default connection mode."
+          }
+        }
+      },
+      {
+        "title": "Analysis Configuration",
+        "order": 1,
+        "properties": {
+          "explorviz.codeAnalyzerUrl": {
+            "type": "string",
+            "scope": "application",
+            "default": "http://localhost:8078",
+            "description": "Specify URL for ExplorViz's Code Analyzer service."
+          },
+          "explorviz.offlineFrontendUrl": {
+            "type": "string",
+            "scope": "application",
+            "default": "http://localhost:4200",
+            "description": "Specify the URL used for offline analysis for ExplorViz's frontend."
+          },
+          "explorviz.onlineFrontendUrl": {
+            "type": "string",
+            "scope": "application",
+            "default": "",
+            "description": "Specify the URL used for online analysis for ExplorViz's frontend."
+          }
         }
       }
-    },
+    ],
     "viewsContainers": {
       "activitybar": [
         {

@@ -6,6 +6,11 @@ import WebSocket from 'ws';
 import { FullAnalysisConfig } from './models/fullAnalysisConfig';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import {
+    affectsDaemonServiceUrls,
+    DaemonServiceUrls,
+    readDaemonServiceUrls
+} from './models/types';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_BRANCH_OPTION = 'use current branch';
@@ -60,7 +65,14 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
             void this.postGitRepositoryInfo();
         });
 
+        const configSub = vscode.workspace.onDidChangeConfiguration((event) => {
+            if (affectsDaemonServiceUrls(event)) {
+                void this.syncServiceUrlsToDaemon();
+            }
+        });
+
         webviewView.onDidDispose(() => {
+            configSub.dispose();
             visibilitySub.dispose();
             workspaceSub.dispose();
             if (this.currentView === webviewView) {
@@ -71,15 +83,18 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [
-                vscode.Uri.file(path.join(this.context.extensionPath, 'out', 'webview'))
+                vscode.Uri.file(path.join(this.context.extensionPath, 'out', 'analysis-webview'))
             ]
         };
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
         const port = this.context.globalState.get<number>('explorvizDaemonPort');
-        if (port && (!this.wsClient || this.wsClient.readyState === WebSocket.CLOSED)) {
-            this.connectDaemonWebSocket(port);
+        if (port) {
+            void this.syncServiceUrlsToDaemon(port);
+            if (!this.wsClient || this.wsClient.readyState === WebSocket.CLOSED) {
+                this.connectDaemonWebSocket(port);
+            }
         }
 
         webviewView.webview.onDidReceiveMessage(async (data) => {
@@ -292,7 +307,7 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
-        const filePath = path.join(this.context.extensionPath, 'out', 'webview', 'index.html');
+        const filePath = path.join(this.context.extensionPath, 'out', 'analysis-webview', 'index.html');
         return fs.readFileSync(filePath, 'utf8');
     }
 
@@ -370,5 +385,40 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
             repoPath: info.repoPath,
             branches: info.branches
         });
+    }
+
+    private async syncServiceUrlsToDaemon(
+        targetPort?: number,
+        urls: DaemonServiceUrls = readDaemonServiceUrls()
+    ): Promise<void> {
+        const port = targetPort ?? this.context.globalState.get<number>('explorvizDaemonPort');
+        if (!port) {
+            return;
+        }
+
+        const payload = JSON.stringify(urls);
+
+        const req = http.request(
+            {
+                hostname: '127.0.0.1',
+                port,
+                path: '/api/config/service-urls',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(payload)
+                }
+            },
+            (res) => {
+                res.on('data', () => { });
+            }
+        );
+
+        req.on('error', (err) => {
+            console.error('[ExplorViz Extension] Failed to sync service URLs to daemon:', err.message);
+        });
+
+        req.write(payload);
+        req.end();
     }
 }

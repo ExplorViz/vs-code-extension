@@ -5,7 +5,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig({
     plugins: [react(), viteSingleFile()],
     build: {
-        outDir: '../out/webview',
+        outDir: '../out/analysis-webview',
         emptyOutDir: true,
     }
 });

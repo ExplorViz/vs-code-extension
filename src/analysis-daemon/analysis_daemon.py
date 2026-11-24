@@ -5,6 +5,7 @@ import uvicorn
 from fastapi import FastAPI
 from routers.analysis import router as analysis_router
 from routers.socket import router as socket_router
+from routers.config import router as config_router
 
 SERVER_SETTINGS = {}
 
@@ -12,6 +13,7 @@ app = FastAPI(title="ExplorViz Analysis Daemon")
 
 app.include_router(analysis_router)
 app.include_router(socket_router)
+app.include_router(config_router)
 
 
 async def monitor_parent_process():

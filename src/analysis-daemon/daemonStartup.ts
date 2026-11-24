@@ -4,6 +4,10 @@ import * as fs from 'fs';
 import { exec, spawn, ChildProcess } from 'child_process';
 import { promisify } from 'util';
 import * as net from 'net';
+import {
+    DaemonServiceUrls,
+    readDaemonServiceUrls,
+} from '../models/types';
 
 const execAsync = promisify(exec);
 let daemonProcess: ChildProcess | undefined;
@@ -45,8 +49,11 @@ export async function activateAnalysisDaemon(context: vscode.ExtensionContext) {
 
         outputChannel.appendLine(`-> Execute: "${pythonVenvPath}" "${scriptPath}" ${portStr}`);
 
+        const serviceUrls = readDaemonServiceUrls();
+
         daemonProcess = spawn(pythonVenvPath, ['-u', scriptPath, portStr], {
-            stdio: ['pipe', 'pipe', 'pipe']
+            stdio: ['pipe', 'pipe', 'pipe'],
+            env: buildDaemonEnv(serviceUrls)
         });
 
         daemonProcess.stdout?.on('data', (data) => {
@@ -158,4 +165,13 @@ function catchDaemonOutput(data: any, messageHeader: string) {
             outputChannel?.appendLine(`${messageHeader} ${line}`);
         }
     });
+}
+
+function buildDaemonEnv(urls: DaemonServiceUrls): NodeJS.ProcessEnv {
+    return {
+        ...process.env,
+        EXPLORVIZ_CODE_ANALYZER_URL: urls.codeAnalyzerUrl,
+        EXPLORVIZ_OFFLINE_FRONTEND_URL: urls.offlineFrontendUrl,
+        EXPLORVIZ_ONLINE_FRONTEND_URL: urls.onlineFrontendUrl,
+    };
 }

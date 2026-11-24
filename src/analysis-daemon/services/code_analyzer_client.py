@@ -7,16 +7,17 @@ import httpx
 from models.analysis_config import FullAnalysisRequest
 
 from services.git_service import get_git_remote_url
+from services.service_config import get_service_urls
 
-# TODO: move to some config file later
-CODE_ANALYZER_BASE_URL = os.getenv(
-    "EXPLORVIZ_CODE_ANALYZER_URL",
-    "http://127.0.0.1:8078",
-).rstrip("/")
-CODE_ANALYZER_TRIGGER_URL = f"{CODE_ANALYZER_BASE_URL}/api/analysis/extension/trigger"
-CODE_ANALYZER_STATUS_URL_TEMPLATE = (
-    f"{CODE_ANALYZER_BASE_URL}/api/analysis/status/{{token}}"
-)
+
+def _get_trigger_url() -> str:
+    base = get_service_urls().code_analyzer_url.rstrip("/")
+    return f"{base}/api/analysis/extension/trigger"
+
+
+def _get_status_url(landscape_token: str) -> str:
+    base = get_service_urls().code_analyzer_url.rstrip("/")
+    return f"{base}/api/analysis/status/{landscape_token}"
 
 
 def build_multipart_form_data(
@@ -87,7 +88,7 @@ async def send_bundle_to_code_analyzer(
         ]
 
         response = await client.post(
-            CODE_ANALYZER_TRIGGER_URL,
+            _get_trigger_url(),
             data=form_data,
             files=files,
         )
@@ -104,7 +105,7 @@ async def poll_analysis_until_done(
     poll_interval_seconds: float = 2.0,
     max_not_found_attempts: int = 10,
 ) -> str:
-    status_url = CODE_ANALYZER_STATUS_URL_TEMPLATE.format(token=landscape_token)
+    status_url = _get_status_url(landscape_token)
     not_found_count = 0
 
     while True:
