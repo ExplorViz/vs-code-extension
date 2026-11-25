@@ -114,14 +114,6 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
                 await this.postGitRepositoryInfo(webviewView.webview);
             }
 
-            if (data.type === 'triggerDaemon') {
-                await this.triggerPythonDaemon(data.detailedLogging);
-            }
-
-            if (data.type === 'toggleBackground') {
-                await this.sendToggleBackgroundToDaemon(data.enabled);
-            }
-
             if (data.type === 'startFullAnalysis') {
                 const config = FullAnalysisConfig.fromUnknown(data.config);
 
@@ -142,66 +134,6 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
                 });
             }
         });
-    }
-
-    private async triggerPythonDaemon(detailedLogging: boolean) {
-        const port = this.context.globalState.get<number>('explorvizDaemonPort');
-        if (!port) {
-            vscode.window.showErrorMessage('ExplorViz Daemon port not found.');
-            return;
-        }
-
-        const payload = JSON.stringify({ action: 'trigger', detailedLogging });
-
-        const req = http.request({
-            hostname: '127.0.0.1',
-            port: port,
-            path: '/trigger',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': payload.length
-            }
-        }, (res) => {
-            res.on('data', () => { });
-        });
-
-        req.on('error', (err) => {
-            vscode.window.showErrorMessage(`Failed to reach daemon: ${err.message}`);
-        });
-
-        req.write(payload);
-        req.end();
-    }
-
-    private async sendToggleBackgroundToDaemon(enabled: boolean) {
-        const port = this.context.globalState.get<number>('explorvizDaemonPort');
-        if (!port) {
-            vscode.window.showErrorMessage('ExplorViz Daemon port not found.');
-            return;
-        }
-
-        const payload = JSON.stringify({ enabled });
-
-        const req = http.request({
-            hostname: '127.0.0.1',
-            port: port,
-            path: '/toggle-background-task',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': payload.length
-            }
-        }, (res) => {
-            res.on('data', () => { });
-        });
-
-        req.on('error', (err) => {
-            vscode.window.showErrorMessage(`Failed to reach daemon: ${err.message}`);
-        });
-
-        req.write(payload);
-        req.end();
     }
 
     private sendStartFullAnalysisToDaemon(config: FullAnalysisConfig) {
