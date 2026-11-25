@@ -47,3 +47,16 @@ export function affectsDaemonServiceUrls(event: vscode.ConfigurationChangeEvent)
         event.affectsConfiguration(key)
     );
 }
+
+export type VisualizationOpenTarget = 'browser' | 'vscode';
+
+export type AutoOpenVisualizationSettings = {
+    enabled: boolean;
+    target: VisualizationOpenTarget;
+};
+
+export type AnalysisStatusBanner = {
+    status: "completed" | "failed" | "cancelled";
+    landscapeToken: string;
+    error?: string;
+};

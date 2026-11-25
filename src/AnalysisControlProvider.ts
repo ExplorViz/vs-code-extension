@@ -9,7 +9,10 @@ import { promisify } from 'util';
 import {
     affectsDaemonServiceUrls,
     DaemonServiceUrls,
-    readDaemonServiceUrls
+    readDaemonServiceUrls,
+    AnalysisStatusBanner,
+    VisualizationOpenTarget,
+    AutoOpenVisualizationSettings
 } from './models/types';
 
 const execFileAsync = promisify(execFile);
@@ -19,11 +22,8 @@ interface GitRepoInfo {
     branches: string[];
 }
 
-export type AnalysisStatusBanner = {
-    status: "completed" | "failed" | "cancelled";
-    landscapeToken: string;
-    error?: string;
-};
+const AUTO_OPEN_ENABLED_KEY = 'explorviz.autoOpenVisualization.enabled';
+const AUTO_OPEN_TARGET_KEY = 'explorviz.autoOpenVisualization.target';
 
 export class AnalysisControlProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'explorviz.analysisControlView';
@@ -57,6 +57,10 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
                 webviewView.webview.postMessage({
                     type: 'analysisStateChanged',
                     isRunning: this.isAnalysisRunning
+                });
+                webviewView.webview.postMessage({
+                    type: 'autoOpenSettingsChanged',
+                    settings: this.getAutoOpenSettings(),
                 });
             }
         });
@@ -103,6 +107,10 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
                     type: 'analysisStateChanged',
                     isRunning: this.isAnalysisRunning
                 });
+                webviewView.webview.postMessage({
+                    type: 'autoOpenSettingsChanged',
+                    settings: this.getAutoOpenSettings(),
+                });
                 await this.postGitRepositoryInfo(webviewView.webview);
             }
 
@@ -125,6 +133,13 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
                 }
 
                 this.sendStartFullAnalysisToDaemon(config);
+            }
+
+            if (data.type === 'updateAutoOpenSettings') {
+                await this.updateAutoOpenSettings({
+                    enabled: typeof data.enabled === 'boolean' ? data.enabled : undefined,
+                    target: data.target === 'vscode' || data.target === 'browser' ? data.target : undefined,
+                });
             }
         });
     }
@@ -280,9 +295,10 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
                                 ? 'cancelled'
                                 : 'failed';
 
+                    const landscapeToken = typeof msg.landscapeToken === 'string' ? msg.landscapeToken : '';
                     const banner: AnalysisStatusBanner = {
                         status: normalizedStatus,
-                        landscapeToken: typeof msg.landscapeToken === 'string' ? msg.landscapeToken : '',
+                        landscapeToken: landscapeToken,
                         error: typeof msg.error === 'string' ? msg.error : undefined,
                     };
 
@@ -291,6 +307,20 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
                         type: 'fullAnalysisFinished',
                         banner,
                     });
+
+                    if (normalizedStatus === 'completed') {
+                        const { enabled, target } = this.getAutoOpenSettings();
+                        if (enabled) {
+                            const targetUrl = this.buildFinishedAnalysisUrl(landscapeToken);
+                            if (targetUrl) {
+                                if (target === 'vscode') {
+                                    void this.openUrlInVsCodeTab(targetUrl);
+                                } else {
+                                    void this.openUrlInExternalBrowser(targetUrl);
+                                }
+                            }
+                        }
+                    }
                 }
             } catch {
                 // Ignore
@@ -420,5 +450,83 @@ export class AnalysisControlProvider implements vscode.WebviewViewProvider {
 
         req.write(payload);
         req.end();
+    }
+
+    private buildFinishedAnalysisUrl(landscapeToken: string): string | undefined {
+        const trimmedToken = landscapeToken.trim();
+        if (!trimmedToken) {
+            return undefined;
+        }
+
+        const serviceUrls = readDaemonServiceUrls();
+        const baseUrl = serviceUrls.offlineFrontendUrl?.trim();
+        if (!baseUrl) {
+            return undefined;
+        }
+
+        try {
+            const url = new URL(baseUrl);
+            const normalizedPath = url.pathname.replace(/\/+$/, '');
+            url.pathname = `${normalizedPath}/visualization`;
+            url.searchParams.set('landscapeToken', trimmedToken);
+            return url.toString();
+        } catch {
+            return undefined;
+        }
+    }
+
+    private async openUrlInExternalBrowser(rawUrl: string): Promise<void> {
+        try {
+            const uri = vscode.Uri.parse(rawUrl, true);
+            if (uri.scheme !== 'http' && uri.scheme !== 'https') {
+                console.warn(`[ExplorViz Extension] Blocked non-HTTP(S) URL: ${rawUrl}`);
+                return;
+            }
+            await vscode.env.openExternal(uri);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            vscode.window.showWarningMessage(`Could not open analysis URL in browser: ${message}`);
+        }
+    }
+
+    private async openUrlInVsCodeTab(rawUrl: string): Promise<void> {
+        try {
+            const uri = vscode.Uri.parse(rawUrl, true);
+            if (uri.scheme !== 'http' && uri.scheme !== 'https') {
+                console.warn(`[ExplorViz Extension] Blocked non-HTTP(S) URL: ${rawUrl}`);
+                return;
+            }
+            await vscode.commands.executeCommand('simpleBrowser.show', uri.toString(true));
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            vscode.window.showWarningMessage(`Could not open analysis URL in VS Code tab: ${message}`);
+        }
+    }
+
+    private getAutoOpenSettings(): AutoOpenVisualizationSettings {
+        const enabled = this.context.globalState.get<boolean>(AUTO_OPEN_ENABLED_KEY, true);
+        const rawTarget = this.context.globalState.get<string>(AUTO_OPEN_TARGET_KEY, 'browser');
+        const target: VisualizationOpenTarget = rawTarget === 'vscode' ? 'vscode' : 'browser';
+        return { enabled, target };
+    }
+
+    private async updateAutoOpenSettings(
+        next: Partial<AutoOpenVisualizationSettings
+    ): Promise<AutoOpenVisualizationSettings> {
+        const current = this.getAutoOpenSettings();
+        const updated: AutoOpenVisualizationSettings = {
+            enabled: next.enabled ?? current.enabled,
+            target: next.target === 'vscode' || next.target === 'browser' ? next.target : current.target,
+        };
+
+        await this.context.globalState.update(AUTO_OPEN_ENABLED_KEY, updated.enabled);
+        await this.context.globalState.update(AUTO_OPEN_TARGET_KEY, updated.target);
+
+        this.currentView?.webview.postMessage({
+            type: 'autoOpenSettingsChanged',
+            settings: updated,
+        });
+
+        return updated;
     }
 }

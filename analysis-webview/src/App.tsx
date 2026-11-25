@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { ActiveTab } from './types';
 import { FullAnalysisTab } from './components/FullAnalysisTab';
 import { FullAnalysisConfig } from '../../src/models/fullAnalysisConfig';
-import type { AnalysisStatusBanner } from '../../src/AnalysisControlProvider';
+import type {
+    AnalysisStatusBanner,
+    AutoOpenVisualizationSettings,
+    VisualizationOpenTarget,
+} from '../../src/models/types';
 
 declare const acquireVsCodeApi: () => { postMessage: (msg: any) => void };
 const vscode = acquireVsCodeApi();
@@ -13,6 +17,8 @@ export default function App() {
     const [activeTab, setActiveTab] = useState<ActiveTab>('full');
     const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
     const [analysisBanner, setAnalysisBanner] = useState<AnalysisStatusBanner | null>(null);
+    const [autoOpenEnabled, setAutoOpenEnabled] = useState(true);
+    const [autoOpenTarget, setAutoOpenTarget] = useState<VisualizationOpenTarget>('browser');
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
@@ -27,6 +33,10 @@ export default function App() {
                 setAnalysisBanner(message.banner as AnalysisStatusBanner);
             } else if (message.type === 'clearAnalysisBanner') {
                 setAnalysisBanner(null);
+            } else if (message.type === 'autoOpenSettingsChanged' && message.settings) {
+                const settings = message.settings as AutoOpenVisualizationSettings;
+                setAutoOpenEnabled(Boolean(settings.enabled));
+                setAutoOpenTarget(settings.target === 'vscode' ? 'vscode' : 'browser');
             }
         };
 
@@ -50,6 +60,29 @@ export default function App() {
         vscode.postMessage({
             type: 'toggleBackground',
             enabled: checked
+        });
+    };
+
+    const handleAutoOpenToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const checked = e.target.checked;
+        setAutoOpenEnabled(checked);
+
+        vscode.postMessage({
+            type: 'updateAutoOpenSettings',
+            enabled: checked,
+            target: autoOpenTarget,
+        });
+    };
+
+    const handleAutoOpenTargetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const nextTarget: VisualizationOpenTarget =
+            e.target.value === 'vscode' ? 'vscode' : 'browser';
+        setAutoOpenTarget(nextTarget);
+
+        vscode.postMessage({
+            type: 'updateAutoOpenSettings',
+            enabled: autoOpenEnabled,
+            target: nextTarget,
         });
     };
 
@@ -95,6 +128,51 @@ export default function App() {
                     />
                     Enable Background Task
                 </label>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                        type="checkbox"
+                        checked={autoOpenEnabled}
+                        onChange={handleAutoOpenToggle}
+                    />
+                    Open Visualization Automatically
+                </label>
+
+                {autoOpenEnabled && (
+                    <div
+                        style={{
+                            marginTop: '8px',
+                            marginLeft: '22px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                        }}
+                    >
+                        <label htmlFor="auto-open-target" style={{ fontSize: '12px' }}>
+                            Open in:
+                        </label>
+                        <select
+                            id="auto-open-target"
+                            value={autoOpenTarget}
+                            onChange={handleAutoOpenTargetChange}
+                            style={{
+                                flex: 1,
+                                padding: '4px 6px',
+                                background: 'var(--vscode-dropdown-background)',
+                                color: 'var(--vscode-dropdown-foreground)',
+                                border: '1px solid var(--vscode-dropdown-border)',
+                                borderRadius: '2px',
+                                fontFamily: 'var(--vscode-font-family)',
+                                fontSize: '12px',
+                            }}
+                        >
+                            <option value="browser">Browser</option>
+                            <option value="vscode">VS Code</option>
+                        </select>
+                    </div>
+                )}
             </div>
 
             <button
